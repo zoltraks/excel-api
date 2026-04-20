@@ -1,0 +1,29 @@
+jwt:
+  secret: "change-this-to-a-random-string-min-256-bits"
+
+oauth2:
+  clients:
+    - client_id: "default-client"
+      client_secret: "change-this-secret"
+      grant_types: ["client_credentials", "password"]
+      scopes: ["read", "write"]
+  users:
+    - username: "admin"
+      password_hash: "$2b$12$example-hash-replace-me"
+      scopes: ["read", "write", "admin"]
+
+tokens:
+  static:
+    - token: "dev-token-change-me"
+      name: "development"
+      scopes: ["read", "write"]
+
+acl:
+  rules:
+    - scope: "read"
+      allow: ["GET"]
+    - scope: "write"
+      allow: ["GET", "POST", "PUT", "DELETE"]
+    - scope: "admin"
+      allow: ["GET", "POST", "PUT", "DELETE"]
+      admin_endpoints: true

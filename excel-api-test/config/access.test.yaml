@@ -1,0 +1,35 @@
+jwt:
+  secret: "test-jwt-secret-for-integration-tests-only"
+
+oauth2:
+  clients:
+    - client_id: "test-client"
+      client_secret: "test-secret"
+      grant_types: ["client_credentials", "password"]
+      scopes: ["read", "write", "admin"]
+  users:
+    - username: "testuser"
+      password_hash: "$2b$12$LJ3m4ys3Lf0KpqFGhGnOZe9YFJmMnKQzQEJKJSZwkMi2Q5KK7e2a"
+      scopes: ["read", "write"]
+
+tokens:
+  static:
+    - token: "test-static-token"
+      name: "test"
+      scopes: ["read", "write"]
+    - token: "test-admin-token"
+      name: "test-admin"
+      scopes: ["read", "write", "admin"]
+    - token: "test-readonly-token"
+      name: "test-readonly"
+      scopes: ["read"]
+
+acl:
+  rules:
+    - scope: "read"
+      allow: ["GET"]
+    - scope: "write"
+      allow: ["GET", "POST", "PUT", "DELETE"]
+    - scope: "admin"
+      allow: ["GET", "POST", "PUT", "DELETE"]
+      admin_endpoints: true

@@ -1,0 +1,11 @@
+# Build output
+bin/
+
+# Environment
+.env
+.env.*
+
+# Logs
+*.log
+logs/
+log/

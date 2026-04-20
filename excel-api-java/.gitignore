@@ -1,0 +1,17 @@
+# Maven build output
+target/
+
+# Compiled class files
+*.class
+
+# JAR files
+*.jar
+
+# Environment
+.env
+.env.*
+
+# Logs
+*.log
+logs/
+log/

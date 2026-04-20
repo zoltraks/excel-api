@@ -1,0 +1,809 @@
+openapi: "3.1.0"
+info:
+  title: "Excel File API"
+  description: "HTTP service exposing Excel spreadsheet data as a JSON API"
+  version: "0.0.1"
+  contact:
+    name: "Filip Golewski"
+  license:
+    name: "MIT"
+servers:
+  - url: "http://localhost:8443/api/v1"
+    description: "Local development"
+
+security:
+  - bearerJwt: []
+  - staticToken: []
+
+paths:
+  /auth/token:
+    post:
+      summary: "Obtain access token"
+      operationId: "createToken"
+      tags: ["Authorization"]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "#/components/schemas/TokenRequest"
+      responses:
+        "200":
+          description: "Token issued"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TokenResponse"
+        "401":
+          description: "Invalid credentials"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /openapi.yaml:
+    get:
+      summary: "OpenAPI specification"
+      operationId: "getOpenApiSpec"
+      tags: ["Service"]
+      security: []
+      responses:
+        "200":
+          description: "OpenAPI specification with instance metadata"
+          content:
+            application/yaml:
+              schema:
+                type: string
+
+  /health:
+    get:
+      summary: "Health check"
+      operationId: "getHealth"
+      tags: ["Service"]
+      security: []
+      responses:
+        "200":
+          description: "Service is healthy"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+
+  /workbooks:
+    get:
+      summary: "List registered workbooks"
+      operationId: "listWorkbooks"
+      tags: ["Workbooks"]
+      responses:
+        "200":
+          description: "Workbook list"
+          content:
+            application/json:
+              schema:
+                type: object
+                required: ["items"]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/WorkbookInfo"
+
+  /workbooks/{fileId}:
+    get:
+      summary: "Workbook details"
+      operationId: "getWorkbook"
+      tags: ["Workbooks"]
+      parameters:
+        - $ref: "#/components/parameters/fileId"
+      responses:
+        "200":
+          description: "Workbook details"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkbookInfo"
+        "404":
+          description: "Workbook not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /workbooks/{fileId}/sheets/{sheetName}:
+    get:
+      summary: "Sheet metadata"
+      operationId: "getSheet"
+      tags: ["Sheets"]
+      parameters:
+        - $ref: "#/components/parameters/fileId"
+        - $ref: "#/components/parameters/sheetName"
+      responses:
+        "200":
+          description: "Sheet metadata"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SheetInfo"
+        "404":
+          description: "Workbook or sheet not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /workbooks/{fileId}/sheets/{sheetName}/columns:
+    get:
+      summary: "Column definitions"
+      operationId: "getColumns"
+      tags: ["Sheets"]
+      parameters:
+        - $ref: "#/components/parameters/fileId"
+        - $ref: "#/components/parameters/sheetName"
+      responses:
+        "200":
+          description: "Column definitions"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ColumnList"
+        "404":
+          description: "Workbook or sheet not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /workbooks/{fileId}/sheets/{sheetName}/records:
+    get:
+      summary: "List records"
+      operationId: "listRecords"
+      tags: ["Records"]
+      parameters:
+        - $ref: "#/components/parameters/fileId"
+        - $ref: "#/components/parameters/sheetName"
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 100
+            maximum: 1000
+        - name: format
+          in: query
+          schema:
+            type: string
+            enum: ["raw", "display"]
+            default: "raw"
+      responses:
+        "200":
+          description: "Paginated record list"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecordList"
+        "400":
+          description: "Sheet not configured for tabular access"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      summary: "Add record"
+      operationId: "addRecord"
+      tags: ["Records"]
+      parameters:
+        - $ref: "#/components/parameters/fileId"
+        - $ref: "#/components/parameters/sheetName"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddRecordRequest"
+      responses:
+        "201":
+          description: "Record added"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecordItem"
+        "409":
+          description: "File locked"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          description: "Readonly workbook"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /workbooks/{fileId}/sheets/{sheetName}/records/{recordIndex}:
+    get:
+      summary: "Get record"
+      operationId: "getRecord"
+      tags: ["Records"]
+      parameters:
+        - $ref: "#/components/parameters/fileId"
+        - $ref: "#/components/parameters/sheetName"
+        - $ref: "#/components/parameters/recordIndex"
+        - name: format
+          in: query
+          schema:
+            type: string
+            enum: ["raw", "display"]
+            default: "raw"
+      responses:
+        "200":
+          description: "Record data"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecordItem"
+        "404":
+          description: "Record not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    put:
+      summary: "Update record"
+      operationId: "updateRecord"
+      tags: ["Records"]
+      parameters:
+        - $ref: "#/components/parameters/fileId"
+        - $ref: "#/components/parameters/sheetName"
+        - $ref: "#/components/parameters/recordIndex"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateRecordRequest"
+      responses:
+        "200":
+          description: "Record updated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecordItem"
+        "404":
+          description: "Record not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      summary: "Delete record"
+      operationId: "deleteRecord"
+      tags: ["Records"]
+      parameters:
+        - $ref: "#/components/parameters/fileId"
+        - $ref: "#/components/parameters/sheetName"
+        - $ref: "#/components/parameters/recordIndex"
+      responses:
+        "204":
+          description: "Record deleted"
+        "404":
+          description: "Record not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /workbooks/{fileId}/sheets/{sheetName}/cells/{cellRef}:
+    get:
+      summary: "Read cell"
+      operationId: "getCell"
+      tags: ["Cells"]
+      parameters:
+        - $ref: "#/components/parameters/fileId"
+        - $ref: "#/components/parameters/sheetName"
+        - $ref: "#/components/parameters/cellRef"
+        - name: format
+          in: query
+          schema:
+            type: string
+            enum: ["raw", "display"]
+            default: "raw"
+      responses:
+        "200":
+          description: "Cell data"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CellData"
+    put:
+      summary: "Write cell"
+      operationId: "putCell"
+      tags: ["Cells"]
+      parameters:
+        - $ref: "#/components/parameters/fileId"
+        - $ref: "#/components/parameters/sheetName"
+        - $ref: "#/components/parameters/cellRef"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CellWriteRequest"
+      responses:
+        "200":
+          description: "Cell updated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CellData"
+
+  /workbooks/{fileId}/sheets/{sheetName}/range/{rangeRef}:
+    get:
+      summary: "Read range"
+      operationId: "getRange"
+      tags: ["Cells"]
+      parameters:
+        - $ref: "#/components/parameters/fileId"
+        - $ref: "#/components/parameters/sheetName"
+        - $ref: "#/components/parameters/rangeRef"
+        - name: format
+          in: query
+          schema:
+            type: string
+            enum: ["raw", "display"]
+            default: "raw"
+      responses:
+        "200":
+          description: "Range data"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RangeData"
+
+  /workbooks/{fileId}/sheets/{sheetName}/operations:
+    post:
+      summary: "Batch record operations"
+      operationId: "batchRecordOperations"
+      tags: ["Operations"]
+      parameters:
+        - $ref: "#/components/parameters/fileId"
+        - $ref: "#/components/parameters/sheetName"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BatchRecordRequest"
+      responses:
+        "200":
+          description: "Batch completed"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BatchResult"
+        "409":
+          description: "File locked"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /workbooks/{fileId}/sheets/{sheetName}/cells/operations:
+    post:
+      summary: "Batch cell operations"
+      operationId: "batchCellOperations"
+      tags: ["Operations"]
+      parameters:
+        - $ref: "#/components/parameters/fileId"
+        - $ref: "#/components/parameters/sheetName"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BatchCellRequest"
+      responses:
+        "200":
+          description: "Batch completed"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BatchResult"
+
+  /workbooks/{fileId}/lock-status:
+    get:
+      summary: "Lock diagnostic info"
+      operationId: "getLockStatus"
+      tags: ["Diagnostics"]
+      parameters:
+        - $ref: "#/components/parameters/fileId"
+      responses:
+        "200":
+          description: "Lock status"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LockStatus"
+
+components:
+  securitySchemes:
+    bearerJwt:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    staticToken:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: "Format: Token {value}"
+    oauth2:
+      type: oauth2
+      flows:
+        password:
+          tokenUrl: /auth/token
+          scopes:
+            read: "Read workbook data"
+            write: "Modify workbook data"
+            admin: "Administrative operations"
+        clientCredentials:
+          tokenUrl: /auth/token
+          scopes:
+            read: "Read workbook data"
+            write: "Modify workbook data"
+            admin: "Administrative operations"
+
+  parameters:
+    fileId:
+      name: fileId
+      in: path
+      required: true
+      schema:
+        type: string
+      description: "Workbook identifier from registry"
+    sheetName:
+      name: sheetName
+      in: path
+      required: true
+      schema:
+        type: string
+      description: "Worksheet name (URL-encoded)"
+    recordIndex:
+      name: recordIndex
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 0
+      description: "0-based record index among data rows"
+    cellRef:
+      name: cellRef
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: "^[A-Z]{1,3}[0-9]+$"
+      description: "Cell reference in Excel notation (e.g. A1, B5, AA100)"
+    rangeRef:
+      name: rangeRef
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: "^[A-Z]{1,3}[0-9]+:[A-Z]{1,3}[0-9]+$"
+      description: "Range in Excel notation (e.g. A1:D10)"
+
+  schemas:
+    TokenRequest:
+      type: object
+      required: ["grant_type"]
+      properties:
+        grant_type:
+          type: string
+          enum: ["client_credentials", "password"]
+        client_id:
+          type: string
+        client_secret:
+          type: string
+        username:
+          type: string
+        password:
+          type: string
+
+    TokenResponse:
+      type: object
+      required: ["access_token", "token_type", "expires_in"]
+      properties:
+        access_token:
+          type: string
+        token_type:
+          type: string
+          enum: ["Bearer"]
+        expires_in:
+          type: integer
+        scope:
+          type: string
+
+    HealthResponse:
+      type: object
+      required: ["status", "implementation", "version"]
+      properties:
+        status:
+          type: string
+          enum: ["ok"]
+        implementation:
+          type: string
+        version:
+          type: string
+        uptime_seconds:
+          type: integer
+
+    WorkbookInfo:
+      type: object
+      required: ["id", "filename", "readonly", "sheets"]
+      properties:
+        id:
+          type: string
+        filename:
+          type: string
+        readonly:
+          type: boolean
+        sheets:
+          type: array
+          items:
+            type: string
+        modified_at:
+          type: string
+          format: date-time
+        size_bytes:
+          type: integer
+
+    SheetInfo:
+      type: object
+      required: ["name", "row_count", "column_count"]
+      properties:
+        name:
+          type: string
+        row_count:
+          type: integer
+        column_count:
+          type: integer
+        mode:
+          type: string
+          enum: ["table", "raw"]
+        header_row:
+          type: integer
+        first_data_row:
+          type: integer
+
+    ColumnList:
+      type: object
+      required: ["source", "columns"]
+      properties:
+        source:
+          type: string
+          enum: ["header_row", "multi_row", "legend_sheet"]
+        columns:
+          type: array
+          items:
+            $ref: "#/components/schemas/ColumnInfo"
+
+    ColumnInfo:
+      type: object
+      required: ["index", "letter", "id"]
+      properties:
+        index:
+          type: integer
+        letter:
+          type: string
+        id:
+          type: string
+        type:
+          type: string
+          enum: ["string", "number", "date", "boolean", "formula"]
+        number_format:
+          type: string
+          nullable: true
+        descriptions:
+          type: object
+          additionalProperties:
+            type: string
+
+    RecordList:
+      type: object
+      required: ["items", "total", "offset", "limit", "format"]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/RecordItem"
+        total:
+          type: integer
+        offset:
+          type: integer
+        limit:
+          type: integer
+        format:
+          type: string
+          enum: ["raw", "display"]
+
+    RecordItem:
+      type: object
+      required: ["index", "data"]
+      properties:
+        index:
+          type: integer
+        data:
+          type: object
+          additionalProperties: true
+        warnings:
+          type: array
+          items:
+            $ref: "#/components/schemas/CellWarning"
+
+    CellWarning:
+      type: object
+      required: ["column", "code", "message"]
+      properties:
+        column:
+          type: string
+        code:
+          type: string
+        message:
+          type: string
+
+    AddRecordRequest:
+      type: object
+      required: ["data"]
+      properties:
+        data:
+          type: object
+          additionalProperties: true
+        after_row:
+          type: integer
+        copy_style_from:
+          type: integer
+
+    UpdateRecordRequest:
+      type: object
+      required: ["data"]
+      properties:
+        data:
+          type: object
+          additionalProperties: true
+
+    CellData:
+      type: object
+      required: ["ref", "value", "type"]
+      properties:
+        ref:
+          type: string
+        column:
+          type: string
+        row:
+          type: integer
+        value: {}
+        type:
+          type: string
+          enum: ["string", "number", "date", "boolean", "formula", "empty"]
+        number_format:
+          type: string
+          nullable: true
+        is_formula:
+          type: boolean
+        formatted:
+          type: string
+          nullable: true
+
+    CellWriteRequest:
+      type: object
+      required: ["value"]
+      properties:
+        value: {}
+
+    RangeData:
+      type: object
+      required: ["range", "rows"]
+      properties:
+        range:
+          type: string
+        rows:
+          type: array
+          items:
+            type: object
+            required: ["row", "cells"]
+            properties:
+              row:
+                type: integer
+              cells:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CellData"
+
+    BatchRecordRequest:
+      type: object
+      required: ["operations"]
+      properties:
+        operations:
+          type: array
+          items:
+            type: object
+            required: ["op"]
+            properties:
+              op:
+                type: string
+                enum: ["add", "update", "delete"]
+              row_index:
+                type: integer
+              data:
+                type: object
+                additionalProperties: true
+              copy_style_from:
+                type: integer
+
+    BatchCellRequest:
+      type: object
+      required: ["operations"]
+      properties:
+        operations:
+          type: array
+          items:
+            type: object
+            required: ["op", "ref"]
+            properties:
+              op:
+                type: string
+                enum: ["update", "clear"]
+              ref:
+                type: string
+              value: {}
+
+    BatchResult:
+      type: object
+      required: ["results", "applied_at"]
+      properties:
+        results:
+          type: array
+          items:
+            type: object
+            required: ["op", "status"]
+            properties:
+              op:
+                type: string
+              status:
+                type: string
+              index:
+                type: integer
+        applied_at:
+          type: string
+          format: date-time
+
+    LockStatus:
+      type: object
+      required: ["locked"]
+      properties:
+        locked:
+          type: boolean
+        locked_by:
+          type: string
+        locked_since:
+          type: string
+          format: date-time
+        queue_depth:
+          type: integer
+
+    ErrorResponse:
+      type: object
+      required: ["error", "message"]
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+          additionalProperties: true

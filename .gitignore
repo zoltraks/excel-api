@@ -1,0 +1,21 @@
+# Work directory
+work/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Lock files (runtime)
+*.lock
+!package-lock.json
+!go.sum
+
+# Code workspace
+*.code-workspace

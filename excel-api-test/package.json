@@ -1,0 +1,22 @@
+{
+  "name": "excel-api-test",
+  "version": "0.1.0",
+  "description": "Integration tests for Excel API implementations",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "jest --runInBand",
+    "test:verbose": "jest --runInBand --verbose"
+  },
+  "dependencies": {
+    "yaml": "^2.4.0"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.0.0",
+    "@types/node": "^22.0.0",
+    "jest": "^29.0.0",
+    "ts-jest": "^29.0.0",
+    "typescript": "^5.5.0"
+  },
+  "license": "MIT"
+}

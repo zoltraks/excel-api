@@ -1,0 +1,17 @@
+services:
+  excel-api:
+    build:
+      context: ./${IMPL:-excel-api-node}
+    ports:
+      - "8443:8443"
+    volumes:
+      - ./data/workbooks:/data/workbooks
+      - ./data/locks:/data/locks
+      - ./config:/etc/excel-api:ro
+    environment:
+      - CONFIG_PATH=/etc/excel-api/config.yaml
+      - ACCESS_PATH=/etc/excel-api/access.yaml
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8443/health"]
+      interval: 5s
+      retries: 3
