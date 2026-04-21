@@ -14,6 +14,11 @@
 | → Authorization            | OAuth2 flows, JWT, static tokens, scope-based access control              |
 | → Configuration            | `config.yaml` and `access.yaml` structure and separation rationale        |
 | **Operations**             | File locking, queue batching, cache invalidation, deployment              |
+| **Requirements**           | Functional requirements, non-functional requirements, use cases          |
+| → Requirements Analysis    | F/N/C categories and MoSCoW priority method                               |
+| → Functional Requirements  | Specific system functions with priorities (F-xx)                          |
+| → Non-Functional Requirements | Quality and operational criteria (N-xx)                                |
+| → Use Cases                | Real-world scenarios with data flows (C-xx)                               |
 
 # System Overview
 
@@ -392,3 +397,282 @@ The project uses a single version number across all components. The version is d
 | C#         | `excel-api-csharp/src/ExcelApi/ExcelApi.csproj` → `<Version>` |
 | Go         | `excel-api-go/internal/config/version.go` → `Version` const   |
 | API Spec   | `docs/contract/openapi.yaml` → `info.version`                 |
+
+# Requirements
+
+## Requirements Analysis
+
+The requirements analysis covers three main categories.
+
+**Functional requirements (F)** describe specific functions and operations the system must perform to support Excel file access via HTTP API and CLI.
+
+**Non-functional requirements (N)** define quality and operational criteria such as security, reliability, performance, coding standards, and deployment standards.
+
+**Use cases (C)** represent real-world scenarios the system must support, covering various combinations of functional requirements.
+
+Among functional requirements, we distinguish **configuration requirements** (format, environment profiles), **operational requirements** (locking, batching, caching), **diagnostic requirements** (logs, verbose modes), and **API requirements** (endpoints, authorization).
+
+Requirements are prioritized using the MoSCoW method:
+
+- **Must Have (M)** - critical for MVP; without fulfillment the system cannot be deployed to production
+- **Should Have (S)** - important for completeness; omission requires justification and stakeholder acceptance
+- **Could Have (C)** - desirable requirements that improve usability; implemented if resources and time allow
+- **Won't Have (W)** - consciously deferred beyond the current version; reserved for future iterations
+
+Non-functional requirements form the foundations of the architecture and carry no MoSCoW priority. All of them are mandatory for meeting the project's quality and security standards.
+
+## Functional Requirements
+
+| ID   | Requirement                                                              | Priority |
+| ---- | ------------------------------------------------------------------------ | -------- |
+| F-01 | Configuration in YAML files (config.yaml, access.yaml)                   | M        |
+| F-02 | Environment profiles with arbitrary names                                | S        |
+| F-03 | Variable interpolation support in configuration files                    | S        |
+| F-04 | Console logs with a defined format                                       | M        |
+| F-05 | Verbose diagnostics mode                                                 | M        |
+| F-06 | Trace mode                                                               | M        |
+| F-07 | File logs with daily rotation                                            | S        |
+| F-08 | Advisory file locking with lockfile protocol                             | M        |
+| F-09 | Write queue with debounce batching                                       | M        |
+| F-10 | In-memory cache with mtime invalidation                                  | M        |
+| F-11 | OAuth2 authorization (client_credentials, password grants)              | M        |
+| F-12 | Static token authorization                                              | M        |
+| F-13 | JWT token validation and expiration handling                              | M        |
+| F-14 | Scope-based access control (read, write, admin)                          | M        |
+| F-15 | Cell-level addressing (A1, ranges)                                        | M        |
+| F-16 | Record-level addressing (tabular mode)                                  | M        |
+| F-17 | Configurable header rows (single, multi-row, legend, none)               | M        |
+| F-18 | Value type preservation (string, number, boolean, date, formula)         | M        |
+| F-19 | UTF-8 support including embedded newlines                               | M        |
+| F-20 | Display formatting (format=display query parameter)                      | S        |
+| F-21 | Formula cached value return                                              | M        |
+| F-22 | Batch record operations (atomic execution)                               | M        |
+| F-23 | Batch cell operations                                                   | M        |
+| F-24 | Workbook registry (ID to path mapping)                                   | M        |
+| F-25 | Readonly workbook flag                                                  | M        |
+| F-26 | Dynamic OpenAPI endpoint with instance metadata                         | M        |
+| F-27 | Health check endpoint                                                   | M        |
+| F-28 | Lock diagnostic endpoint (admin scope)                                   | S        |
+| F-29 | CLI interactive REPL mode                                               | M        |
+| F-30 | CLI batch mode (stdin/file input, stdout output)                         | M        |
+| F-31 | CLI output formatting (JSON, CSV, Markdown, table)                       | M        |
+| F-32 | CLI connection management and profiles                                  | S        |
+| F-33 | CLI tab completion for workbooks, sheets, columns                        | S        |
+| F-34 | CLI authentication persistence and token refresh                        | M        |
+| F-35 | Integration test suite with black-box tests                             | M        |
+| F-36 | Test fixtures for various Excel scenarios                                | M        |
+
+## Non-Functional Requirements
+
+| ID   | Requirement                                                                                  | Type             |
+| ---- | -------------------------------------------------------------------------------------------- | ---------------- |
+| N-01 | SOLID principles, strict type checking, linting, and code formatting standards              | Code quality     |
+| N-02 | Correct error handling in all layers; no uncontrolled exceptions                             | Reliability      |
+| N-03 | HTTPS with certificate validation (configurable)                                             | Security         |
+| N-04 | Docker container; image in a container registry                                              | Deployment       |
+| N-05 | API specification in OpenAPI 3.1 format                                                     | Documentation    |
+| N-06 | YAML configuration, environment profiles, separation of access file                         | Configurability  |
+| N-07 | Safe cache invalidation and lockfile writing                                                | Reliability      |
+| N-08 | English language in source code                                                              | Code convention  |
+| N-09 | Cross-implementation interoperability (lockfile protocol, cache strategy)                   | Architecture     |
+| N-10 | Performance targets (API response times, lock duration)                                      | Performance      |
+| N-11 | Unit test coverage ≥ 80% per implementation                                                  | Quality          |
+| N-12 | API contract test coverage 100%                                                              | Quality          |
+
+## Use Cases
+
+| ID   | Use Case                              | Short Description                                                                                      |
+| ---- | ------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| C-01 | Read product catalog via API          | Retrieving product data from an Excel sheet via record-level API endpoints                              |
+| C-02 | Batch update inventory levels         | Updating multiple inventory records via batch record operations to minimize file lock time             |
+| C-03 | Export financial report to CSV       | Reading financial data from Excel and exporting to CSV format via CLI batch mode                      |
+| C-04 | Concurrent read operations           | Multiple clients reading the same workbook simultaneously via cache                                |
+| C-05 | CLI interactive session              | Interactive REPL for exploring workbooks, sheets, and performing ad-hoc operations                   |
+| C-06 | CLI batch script processing          | Scripted data extraction and transformation using CLI batch mode with configurable output             |
+| C-07 | Formula cell read with cached value  | Reading formula cells and returning cached values without evaluation                                 |
+| C-08 | Multi-header sheet with legend       | Accessing a sheet with multiple header rows and a separate legend sheet for column metadata          |
+| C-09 | CSV data import via CLI and API      | Importing historical order data from CSV files into Excel using CLI batch mode and API batch operations |
+
+### C-01 Read Product Catalog via API
+
+Retrieving product data from an Excel sheet configured for tabular access via record-level API endpoints.
+
+**Mechanisms used**: Record addressing, header configuration, GET /records endpoint.
+
+**Data flow**
+
+```
+CLIENT
+  ↓ [GET /workbooks/{id}/sheets/{sheet}/records]
+API SERVER
+  ↓ [Cache lookup]
+CACHE
+  ↓ [Return JSON]
+CLIENT
+```
+
+### C-02 Batch Update Inventory Levels
+
+Updating multiple inventory records in a single batch operation to minimize file lock duration and improve performance.
+
+**Mechanisms used**: Batch record operations, write queue, debounce batching, file locking.
+
+**Data flow**
+
+```
+CLIENT
+  ↓ [POST /workbooks/{id}/sheets/{sheet}/operations with multiple record updates]
+API SERVER
+  ↓ [Enqueue in write queue]
+WRITE QUEUE
+  ↓ [Debounce timer expires or batch size reached]
+BATCH EXECUTION
+  ↓ [Acquire lock]
+FILE LOCK
+  ↓ [Open Excel, apply operations, save, refresh cache]
+CACHE REFRESH
+  ↓ [Release lock]
+CLIENT
+```
+
+### C-03 Export Financial Report to CSV
+
+Reading financial data from an Excel sheet and exporting it to CSV format using CLI batch mode for downstream processing.
+
+**Mechanisms used**: CLI batch mode, record addressing, CSV formatter with RFC 4180 compliance.
+
+**Data flow**
+
+```
+CSV FILE (stdout)
+  ← [CLI batch mode]
+CLI CLIENT
+  ↓ [GET /records]
+API SERVER
+  ↓ [Cache lookup]
+CACHE
+```
+
+### C-04 Concurrent Read Operations
+
+Multiple clients reading the same workbook simultaneously without blocking, served from the in-memory cache.
+
+**Mechanisms used**: In-memory cache, cache invalidation, read-only access.
+
+**Data flow**
+
+```
+CLIENT A  → API SERVER → CACHE → Return data
+CLIENT B  → API SERVER → CACHE → Return data
+CLIENT C  → API SERVER → CACHE → Return data
+```
+
+### C-05 CLI Interactive Session
+
+Interactive REPL mode for exploring workbooks, navigating sheets, and performing ad-hoc read and write operations with session context.
+
+**Mechanisms used**: CLI REPL, session context management, tab completion, connection management.
+
+**Data flow**
+
+```
+USER
+  ↓ [Command input]
+CLI REPL
+  ↓ [Parse command, apply context]
+HTTP CLIENT
+  ↓ [API request]
+API SERVER
+  ↓ [Return result]
+CLI FORMATTER
+  ↓ [Format output]
+USER
+```
+
+### C-06 CLI Batch Script Processing
+
+Scripted data extraction and transformation using CLI batch mode with configurable output format (JSON, CSV, Markdown, table).
+
+**Mechanisms used**: CLI batch mode, stdin/file input, stdout output, configurable formatters.
+
+**Data flow**
+
+```
+SCRIPT FILE
+  ↓ [Commands]
+CLI BATCH MODE
+  ↓ [Execute commands sequentially]
+HTTP CLIENT
+  ↓ [API requests]
+API SERVER
+  ↓ [Return results]
+CLI FORMATTER
+  ↓ [Format output]
+STDOUT
+```
+
+### C-07 Formula Cell Read with Cached Value
+
+Reading formula cells and returning cached values without re-evaluation, as formula evaluation is optional per implementation.
+
+**Mechanisms used**: Cell addressing, formula cached value return, optional formula evaluation (Java only).
+
+**Data flow**
+
+```
+CLIENT
+  ↓ [GET /workbooks/{id}/sheets/{sheet}/cells/{ref}]
+API SERVER
+  ↓ [Cache lookup]
+CACHE
+  ↓ [Return cached value or null if unavailable]
+CLIENT
+```
+
+### C-08 Multi-Header Sheet with Legend
+
+Accessing a sheet configured with multiple header rows (identifiers, types, descriptions) and a separate legend sheet for column metadata.
+
+**Mechanisms used**: Multi-header configuration, legend sheet, record addressing with type-aware column access.
+
+**Data flow**
+
+```
+CLIENT
+  ↓ [GET /workbooks/{id}/sheets/{sheet}/columns]
+API SERVER
+  ↓ [Read header rows and legend sheet]
+EXCEL FILE
+  ↓ [Return column definitions with types and descriptions]
+CLIENT
+```
+
+### C-09 CSV Data Import via CLI and API
+
+Importing historical order data from CSV files into an Excel workbook using CLI batch mode and API batch record operations for efficient writes.
+
+**Description**: Order data including order ID, date, customer information, product details, quantity, unit price, and tax amount is imported from CSV files into an Excel sheet. The CLI batch mode parses the CSV and uses API batch operations to write multiple records efficiently, leveraging the write queue batching mechanism.
+
+**Data structure**: Order ID, revision number, date, customer name, customer email, product name, quantity, unit price, tax amount.
+
+**Mechanisms used**: CLI batch mode, CSV parsing, API batch record operations (POST .../operations), write queue batching, file locking.
+
+**Data flow**
+
+```
+CSV FILE
+  ↓ [CLI batch mode]
+CLI CLIENT
+  ↓ [Parse CSV, build batch operations]
+HTTP CLIENT
+  ↓ [POST /workbooks/{id}/sheets/{sheet}/operations]
+API SERVER
+  ↓ [Enqueue in write queue]
+WRITE QUEUE
+  ↓ [Debounce timer expires or batch size reached]
+BATCH EXECUTION
+  ↓ [Acquire lock]
+FILE LOCK
+  ↓ [Open Excel, apply operations, save, refresh cache]
+EXCEL FILE
+```

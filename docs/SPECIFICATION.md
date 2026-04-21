@@ -200,3 +200,61 @@ Batch mode: commands from stdin or a file, output to stdout. Intended for script
 - Table: newlines replaced with `↵` for alignment preservation.
 
 **Authentication persistence.** OAuth2 tokens are cached in memory for the session duration. Token refresh is automatic — the client re-authenticates when a request receives 401 `TOKEN_EXPIRED`.
+
+## Excel API Test (Integration Test Suite)
+
+**Stack**: TypeScript 5.x, Jest, standard `node-fetch` for HTTP requests.
+
+**Development standard**: Follows TypeScript/Node.js standard from `docs/standard/ts-node-development.md`.
+
+**Source layout:**
+
+```text
+excel-api-test/
+  integration/
+    auth.test.ts               # Authorization endpoint tests
+    workbooks.test.ts          # Workbook CRUD tests
+    sheets.test.ts             # Sheet metadata tests
+    rows.test.ts               # Record CRUD tests
+    operations.test.ts         # Batch operation tests
+    cells.test.ts              # Cell and range tests
+    locking.test.ts            # File locking tests
+    concurrency.test.ts        # Concurrent access tests
+    openapi-endpoint.test.ts   # OpenAPI spec endpoint test
+  fixture/
+    # Excel test fixtures (simple data, styled rows, formulas, large datasets)
+    csv/
+      # CSV test fixtures for import scenarios
+  config/
+    config.yaml                # Test configuration (server URL, test workbook paths)
+    access.yaml                # Test credentials (OAuth2, static tokens)
+  helpers.ts                   # Test helpers (token acquisition, API client functions)
+  setup.ts                     # Jest setup (test environment configuration)
+  jest.config.ts               # Jest configuration
+  package.json
+  Dockerfile
+  README.md
+```
+
+**Test approach**: Black-box integration tests. Tests execute against a running server implementation via HTTP. Tests know only the API contract, not the implementation details. This ensures all three server implementations can be validated against the same test suite.
+
+**Test categories**:
+
+- Authorization tests validate OAuth2 flows, JWT validation, static token authentication, and scope-based access control
+- Workbook tests validate workbook listing, details, and error handling for unknown workbooks
+- Sheet tests validate sheet metadata retrieval, column definitions, and header configuration
+- Record tests validate record CRUD operations, batch operations, and index reconciliation
+- Cell tests validate cell read/write, range reads, and metadata
+- Operation tests validate atomic batch execution and error handling
+- Locking tests validate advisory file locking, lock timeout, and stale lock detection
+- Concurrency tests validate cache behavior under concurrent access
+- OpenAPI endpoint test validates the dynamic OpenAPI spec endpoint
+
+**Test fixtures**: Pre-built Excel files covering various scenarios:
+- Simple data sheets with single and multiple header rows
+- Sheets with styled rows (fonts, fills, borders)
+- Sheets with formula cells
+- Large datasets for performance testing
+- CSV files for import testing
+
+**Test configuration**: The `config.yaml` file specifies the target server URL and paths to test workbooks. The `access.yaml` file contains test credentials for authorization testing.
