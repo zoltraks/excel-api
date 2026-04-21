@@ -94,16 +94,16 @@ Files remain on the local filesystem and are accessed through a service layer th
 
 ## Goals
 
-| Goal              | Description                                                    |
-| ----------------- | -------------------------------------------------------------- |
-| Interchangeability| All server implementations share one API contract              |
-| Minimal locking   | Write operations are batched to minimize file lock duration    |
-| Dual addressing   | Both cell-level and record-level data access                   |
-| Multi-header      | Configurable header rows, type rows, description rows, legends |
-| Format fidelity   | Preserve styles, formatting, and formulas during edits         |
-| UTF-8 safety      | Full Unicode support including newlines in cell values         |
-| Self-contained    | Each implementation builds and deploys independently           |
-| CLI workflow      | Interactive REPL and batch mode for scripted operations        |
+| Goal               | Description                                                    |
+| ------------------ | -------------------------------------------------------------- |
+| Interchangeability | All server implementations share one API contract              |
+| Minimal locking    | Write operations are batched to minimize file lock duration    |
+| Dual addressing    | Both cell-level and record-level data access                   |
+| Multi-header       | Configurable header rows, type rows, description rows, legends |
+| Format fidelity    | Preserve styles, formatting, and formulas during edits         |
+| UTF-8 safety       | Full Unicode support including newlines in cell values         |
+| Self-contained     | Each implementation builds and deploys independently           |
+| CLI workflow       | Interactive REPL and batch mode for scripted operations        |
 
 ## Non-Goals
 

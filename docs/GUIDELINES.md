@@ -48,6 +48,18 @@ Examples:
 - `docs/standard/csharp-aspnet-development.md` — C#/ASP.NET
 - `docs/standard/go-cli-development.md` — Go CLI
 
+## Documentation Purpose
+
+The three core documentation files have distinct purposes for this multi-language project.
+
+**PROJECT.md** is the project specification and requirements document. It defines the system overview, vision, goals, data model, components, API contract, and operations. This is the definitive source of truth for what the system must do and how it behaves at the specification level.
+
+**ARCHITECTURE.md** describes the shared architecture and cross-implementation patterns. It defines the component diagram, request processing flow, authorization flow, queue and batching architecture, lockfile protocol, cache architecture, and other patterns that all implementations must follow. This document ensures consistency across the three interchangeable server implementations.
+
+**SPECIFICATION.md** contains implementation-specific details for each component. It documents the technology stack, source layout, Excel library choices, known limitations, and queue implementation details for Node, Java, C#, Go, and the test suite. This file captures the differences and trade-offs between implementations.
+
+The separation exists because this is a multi-language project with independent implementations sharing a common contract. A single monolithic document (as used in single-technology projects) would not adequately capture the implementation-specific variations while maintaining clarity on shared patterns.
+
 ## General Workflow
 
 - Always read `README.md` and `docs/GUIDELINES.md` before making changes.
@@ -158,3 +170,4 @@ After editing `docs/contract/openapi.yaml`, run `shell/sync-openapi.sh` to propa
 ## Memorized General Rules
 
 - **Strict Rule Adherence**: Follow the rules all the time unless specifically told to do otherwise.
+- **Archive Access**: Do not read any document from `docs/archive` unless specifically instructed. The archive directory contains historical documents and is not part of the active documentation set.
