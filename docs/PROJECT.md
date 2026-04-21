@@ -43,8 +43,8 @@ Files remain on the local filesystem and are accessed through a service layer th
 | Cell       | Single data unit at a column-row intersection, addressed as `A1`, `B5`  |
 | Range      | Rectangular block of cells, addressed as `A1:D10`                       |
 | Row        | Horizontal line of cells identified by 1-based index                    |
-| Column     | Vertical line of cells identified by letter (`A`–`ZZ`) or 0-based index |
-| Record     | Data row in tabular mode, addressed by 0-based index among data rows    |
+| Column     | Vertical line of cells identified by letter (`A`–`ZZ`) or 1-based index |
+| Record     | Data row in tabular mode, addressed by 1-based index among data rows    |
 | Header     | One or more rows defining column identifiers, types, and descriptions   |
 | Legend     | Separate sheet providing column metadata for a headerless data sheet    |
 | Batch      | Group of write operations executed in a single file open/save cycle     |
@@ -54,7 +54,7 @@ Files remain on the local filesystem and are accessed through a service layer th
 | Debounce   | Delay before executing queued operations to accumulate a larger batch   |
 | Scope      | Authorization permission level: `read`, `write`, `admin`                |
 
-**Record** is a data row in tabular mode. Unlike a raw row (which is addressed by its Excel row number), a record is addressed by its 0-based index among data rows only, excluding header rows.
+**Record** is a data row in tabular mode. Unlike a raw row (which is addressed by its Excel row number), a record is addressed by its 1-based index among data rows only, excluding header rows.
 
 **Legend** is a separate worksheet that provides column metadata (identifiers, types, descriptions in multiple languages) for another worksheet that contains only data without any header rows.
 
@@ -162,7 +162,7 @@ The API exposes two complementary addressing modes for the same underlying Excel
 
 **Cell addressing** provides raw access to the spreadsheet grid. Cells are referenced by Excel-style coordinates (`A1`, `B5`), ranges by start-end pairs (`A1:D10`). No interpretation of headers or data structure is applied. This mode is used for operations that do not fit a tabular model — editing individual cells, reading arbitrary ranges, or working with sheets of irregular structure.
 
-**Record addressing** provides tabular access. A sheet is interpreted as a table with a header region and a data region. Rows in the data region are called records and addressed by 0-based index. Columns are addressed by their header identifier (text from the header row). This mode is used for CRUD operations on structured data.
+**Record addressing** provides tabular access. A sheet is interpreted as a table with a header region and a data region. Rows in the data region are called records and addressed by 1-based index. Columns are addressed by their header identifier (text from the header row). This mode is used for CRUD operations on structured data.
 
 Both modes coexist on the same sheet. A sheet configured for tabular access can still be accessed via cell endpoints.
 
@@ -197,9 +197,18 @@ String values preserve embedded newlines (`\n`, `\r\n`), tabs, and all Unicode c
 
 ## Formatted Values
 
-The API supports two output formats controlled by the `format` query parameter.
+The API supports three output formats controlled by the `format` query parameter.
 
-With `format=raw` (default), values are returned as their native JSON types. With `format=display`, values are formatted according to the cell's `number_format` string (e.g., `1234.56` becomes `"1 234,56 zł"`). Display formatting is best-effort — the implementation applies the format string where possible and falls back to the raw value otherwise.
+**`format=native`** (default) — Values are returned as their native JSON types: strings, numbers, booleans, and null. Dates are returned as ISO 8601 strings with timezone if available in the cell.
+
+**`format=display`** — Values are formatted according to the cell's `number_format` string (e.g., `1234.56` becomes `"1 234,56 zł"`). Display formatting is best-effort — the implementation applies the format string where possible and falls back to the native value otherwise.
+
+**`format=string`** — All values are returned as strings regardless of their native type. This format provides consistent string representation with specific rules:
+- Decimal numbers use dot as decimal separator (e.g., `"12345.654"`)
+- Dates are formatted as `"YYYY-MM-DD"`
+- Time values use 24-hour format: `"hh:mm:ss"` (e.g., `"13:12:31"`) or with milliseconds if precision requires: `"hh:mm:ss.fff"` (e.g., `"13:12:31.998"`)
+- Combined date and time can be local time with milliseconds: `"YYYY-MM-DD hh:mm:ss.fff"` or ISO 8601 with timezone for UTC: `"YYYY-MM-DDThh:mm:ss.fffZ"`
+- The server's local timezone is used by default unless the cell contains timezone information
 
 ## Cell Metadata
 
@@ -237,7 +246,7 @@ All three implementations share:
 
 **Excel API Go** (`excel-api-go/`). Command-line client in Go connecting to any API server instance. Supports interactive REPL mode and batch mode (stdin/file input, stdout output).
 
-Interactive mode provides connection management, workbook/sheet navigation, record and cell CRUD, and output formatting (JSON, CSV, Markdown tables). Batch mode enables scripted operations with configurable output format, separator, and text qualifier for CSV.
+Interactive mode provides connection management, workbook/sheet navigation, record and cell CRUD, and output formatting (JSON, CSV, Markdown tables). Batch mode enables scripted operations with configurable output format, separator, and text qualifier for CSV. The CLI can query usage and performance statistics from the server and display them as a table.
 
 The CLI handles UTF-8 values including embedded newlines. In Markdown table output, newlines within cell values are replaced with a configurable marker (default: `<br>`). In CSV output, values containing the separator, qualifier, or newlines are enclosed in the text qualifier per RFC 4180.
 
@@ -265,6 +274,7 @@ The authoritative specification is `docs/contract/openapi.yaml`. This section su
 | ------ | --------------- | -------------------------------------- |
 | GET    | `/openapi.yaml` | OpenAPI spec with instance metadata    |
 | GET    | `/health`       | Health check with implementation info  |
+| GET    | `/metrics`      | Usage and performance statistics      |
 
 **Workbooks** (authenticated, scope: `read`)
 
@@ -444,14 +454,14 @@ Non-functional requirements form the foundations of the architecture and carry n
 | F-17 | Configurable header rows (single, multi-row, legend, none)               | M        |
 | F-18 | Value type preservation (string, number, boolean, date, formula)         | M        |
 | F-19 | UTF-8 support including embedded newlines                               | M        |
-| F-20 | Display formatting (format=display query parameter)                      | S        |
+| F-20 | Output formats (format=native/display/string query parameter)               | S        |
 | F-21 | Formula cached value return                                              | M        |
 | F-22 | Batch record operations (atomic execution)                               | M        |
 | F-23 | Batch cell operations                                                   | M        |
 | F-24 | Workbook registry (ID to path mapping)                                   | M        |
 | F-25 | Readonly workbook flag                                                  | M        |
 | F-26 | Dynamic OpenAPI endpoint with instance metadata                         | M        |
-| F-27 | Health check endpoint                                                   | M        |
+| F-27 | Health check endpoint with server time and timezone                      | M        |
 | F-28 | Lock diagnostic endpoint (admin scope)                                   | S        |
 | F-29 | CLI interactive REPL mode                                               | M        |
 | F-30 | CLI batch mode (stdin/file input, stdout output)                         | M        |
@@ -461,6 +471,8 @@ Non-functional requirements form the foundations of the architecture and carry n
 | F-34 | CLI authentication persistence and token refresh                        | M        |
 | F-35 | Integration test suite with black-box tests                             | M        |
 | F-36 | Test fixtures for various Excel scenarios                                | M        |
+| F-37 | Usage and performance statistics endpoint (market standard format)        | S        |
+| F-38 | CLI statistics query command with table output                           | S        |
 
 ## Non-Functional Requirements
 
@@ -492,6 +504,7 @@ Non-functional requirements form the foundations of the architecture and carry n
 | C-07 | Formula cell read with cached value  | Reading formula cells and returning cached values without evaluation                                 |
 | C-08 | Multi-header sheet with legend       | Accessing a sheet with multiple header rows and a separate legend sheet for column metadata          |
 | C-09 | CSV data import via CLI and API      | Importing historical order data from CSV files into Excel using CLI batch mode and API batch operations |
+| C-10 | Query usage and performance statistics | Retrieving metrics on file operations, read/write times, record counts, and performance averages        |
 
 ### C-01 Read Product Catalog via API
 
@@ -675,4 +688,33 @@ BATCH EXECUTION
 FILE LOCK
   ↓ [Open Excel, apply operations, save, refresh cache]
 EXCEL FILE
+```
+
+### C-10 Query Usage and Performance Statistics
+
+Retrieving metrics on file operations, read/write times, record counts, and performance averages for monitoring and diagnostics.
+
+**Description**: The API exposes usage and performance statistics in a market-standard format (e.g., Prometheus/OpenMetrics). Metrics include time taken for last XLSX file update, time taken for reading files, number of records read/written per operation, average response times, queue depths, cache hit rates, and lock wait times. The CLI can query these statistics and display them as a table for quick analysis.
+
+**Metrics tracked**:
+- File operation times (read, write, cache refresh) with min/max/avg/p95/p99
+- Record counts (records read, records written, records per batch)
+- Queue metrics (queue depth, batch size, debounce wait time)
+- Cache metrics (hit rate, miss rate, refresh count, invalidation count)
+- Lock metrics (acquisition time, wait time, contention count)
+- API metrics (request count by endpoint, response time, error rate)
+- System metrics (uptime, memory usage, file handles)
+
+**Mechanisms used**: Metrics collection endpoint, market-standard format (OpenMetrics/Prometheus), CLI statistics query command, table formatter.
+
+**Data flow**
+
+```
+CLI / MONITORING SYSTEM
+  ↓ [GET /metrics]
+API SERVER
+  ↓ [Return metrics in OpenMetrics format]
+CLI FORMATTER
+  ↓ [Parse and display as table]
+USER
 ```

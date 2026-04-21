@@ -70,6 +70,21 @@ paths:
               schema:
                 $ref: "#/components/schemas/HealthResponse"
 
+  /metrics:
+    get:
+      summary: "Usage and performance statistics"
+      operationId: "getMetrics"
+      tags: ["Service"]
+      security: []
+      responses:
+        "200":
+          description: "Metrics in OpenMetrics/Prometheus format"
+          content:
+            text/plain:
+              schema:
+                type: string
+                description: "OpenMetrics/Prometheus formatted metrics"
+
   /workbooks:
     get:
       summary: "List registered workbooks"
@@ -177,8 +192,8 @@ paths:
           in: query
           schema:
             type: string
-            enum: ["raw", "display"]
-            default: "raw"
+            enum: ["native", "display", "string"]
+            default: "native"
       responses:
         "200":
           description: "Paginated record list"
@@ -238,8 +253,8 @@ paths:
           in: query
           schema:
             type: string
-            enum: ["raw", "display"]
-            default: "raw"
+            enum: ["native", "display", "string"]
+            default: "native"
       responses:
         "200":
           description: "Record data"
@@ -311,8 +326,8 @@ paths:
           in: query
           schema:
             type: string
-            enum: ["raw", "display"]
-            default: "raw"
+            enum: ["native", "display", "string"]
+            default: "native"
       responses:
         "200":
           description: "Cell data"
@@ -355,8 +370,8 @@ paths:
           in: query
           schema:
             type: string
-            enum: ["raw", "display"]
-            default: "raw"
+            enum: ["native", "display", "string"]
+            default: "native"
       responses:
         "200":
           description: "Range data"
@@ -478,8 +493,8 @@ components:
       required: true
       schema:
         type: integer
-        minimum: 0
-      description: "0-based record index among data rows"
+        minimum: 1
+      description: "1-based record index among data rows"
     cellRef:
       name: cellRef
       in: path
@@ -530,7 +545,7 @@ components:
 
     HealthResponse:
       type: object
-      required: ["status", "implementation", "version"]
+      required: ["status", "implementation", "version", "server_time", "timezone"]
       properties:
         status:
           type: string
@@ -541,6 +556,12 @@ components:
           type: string
         uptime_seconds:
           type: integer
+        server_time:
+          type: string
+          description: "Server current time in ISO 8601 format with timezone"
+        timezone:
+          type: string
+          description: "Server timezone identifier (e.g., Europe/Warsaw, UTC)"
 
     WorkbookInfo:
       type: object
@@ -629,7 +650,7 @@ components:
           type: integer
         format:
           type: string
-          enum: ["raw", "display"]
+          enum: ["native", "display", "string"]
 
     RecordItem:
       type: object

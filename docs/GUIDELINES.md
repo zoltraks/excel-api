@@ -171,3 +171,4 @@ After editing `docs/contract/openapi.yaml`, run `shell/sync-openapi.sh` to propa
 
 - **Strict Rule Adherence**: Follow the rules all the time unless specifically told to do otherwise.
 - **Archive Access**: Do not read any document from `docs/archive` unless specifically instructed. The archive directory contains historical documents and is not part of the active documentation set.
+- **OpenAPI Synchronization**: Only modify `docs/contract/openapi.yaml`. The copies in `excel-api-node/resources/openapi.yaml`, `excel-api-java/src/main/resources/openapi.yaml`, and `excel-api-csharp/src/ExcelApi/Resources/openapi.yaml` must be synced by running `bash shell/sync-openapi.sh`, not manually edited.

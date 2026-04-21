@@ -36,7 +36,7 @@ excel-api-node/
 **Known limitations:**
 
 - No formula evaluation. Formulas are preserved on write, but the API returns cached values only. If a cached value is unavailable (file was modified outside Excel without recalculation), the value is `null` with a `FORMULA_NOT_EVALUATED` warning.
-- Display formatting (`format=display`) is limited. ExcelJS provides the `numFmt` string but does not apply it. The implementation applies a subset of common formats (numbers, percentages, dates) and falls back to the raw value for unrecognized format strings.
+- Display formatting (`format=display`) is limited. ExcelJS provides the `numFmt` string but does not apply it. The implementation applies a subset of common formats (numbers, percentages, dates) and falls back to the native value for unrecognized format strings. For consistent string representation, use `format=string` instead.
 - Large file performance. ExcelJS parses the entire file into memory. Files exceeding 100,000 rows may cause high memory usage.
 
 **Queue implementation**: Promise-chain serialization. A single `writeChain: Promise<void>` per workbook. Each write operation appends to the chain: `writeChain = writeChain.then(() => executeBatch(...))`. The event loop guarantees sequential execution without mutexes.
@@ -190,7 +190,7 @@ excel-api-go/
 
 Interactive mode: REPL with prompt, command history, tab completion for workbook IDs, sheet names, and column identifiers. Session context tracks the current server connection, workbook, and sheet, allowing short commands without repeating context.
 
-Batch mode: commands from stdin or a file, output to stdout. Intended for scripting and piping. Exit code 0 on success, 1 on error. Output format controlled by `--format` flag (json, csv, markdown, table).
+Batch mode: commands from stdin or a file, output to stdout. Intended for scripting and piping. Exit code 0 on success, 1 on error. Output format controlled by `--format` flag (JSON, CSV, Markdown, table).
 
 **UTF-8 and newline handling.** The formatter layer handles values containing newlines, tabs, and Unicode characters.
 
