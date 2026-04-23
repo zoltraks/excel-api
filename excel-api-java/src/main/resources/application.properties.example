@@ -1,0 +1,11 @@
+# Excel API Java - Configuration Example
+
+server.port=8443
+server.servlet.context-path=/api/v1
+
+spring.application.name=excel-api-java
+
+# Workbook Configuration
+# workbooks.entries[0].id=sample
+# workbooks.entries[0].path=/data/workbooks/sample.xlsx
+# workbooks.entries[0].readonly=false

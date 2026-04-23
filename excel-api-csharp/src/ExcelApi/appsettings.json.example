@@ -1,0 +1,14 @@
+{
+  "Server": {
+    "Urls": "http://0.0.0.0:8443"
+  },
+  "Workbooks": {
+    "Entries": [
+      {
+        "Id": "sample",
+        "Path": "/data/workbooks/sample.xlsx",
+        "Readonly": false
+      }
+    ]
+  }
+}

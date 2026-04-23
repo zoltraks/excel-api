@@ -11,10 +11,40 @@ A passing suite confirms contract conformance.
 **Running tests:**
 
 ```bash
-IMPL=excel-api-node docker compose -f docker-compose.test.yaml up --abort-on-container-exit
+IMAGE=excel-api-node docker compose -f docker-compose.test.yaml up --abort-on-container-exit
 ```
 
 Replace `excel-api-node` with `excel-api-java` or `excel-api-csharp` to test other implementations.
+
+## CLI Utility Testing
+
+The Go CLI (`excel-api-go`) can be used to manually test implementations and validate API responses.
+This provides an additional testing method beyond the automated integration test suite.
+
+**Building the CLI:**
+
+```bash
+cd excel-api-go
+go build -o excel-api-go ./cmd/excel-api-go
+```
+
+**Running CLI tests against a running implementation:**
+
+```bash
+# Start an implementation
+IMAGE=excel-api-node docker compose up
+
+# In another terminal, test with CLI
+./excel-api-go/excel-api-go -server http://localhost:8443 -list-workbooks
+./excel-api-go/excel-api-go -server http://localhost:8443 -get-cell workbook1:sheet1:A1
+./excel-api-go/excel-api-go -server http://localhost:8443 -set-cell workbook1:sheet1:A1:42
+```
+
+**CLI REPL mode for interactive testing:**
+
+```bash
+./excel-api-go/excel-api-go -server http://localhost:8443 -token test-static-token -repl
+```
 
 ## Test Fixtures
 

@@ -22,6 +22,8 @@ The project provides three interchangeable server implementations sharing a sing
 | `docs/ARCHITECTURE.md`                           | Shared architecture, API contract, data model     |
 | `docs/SPECIFICATION.md`                          | Implementation details per component              |
 | `docs/GUIDELINES.md`                             | Repository rules and development workflow         |
+| `docs/TESTING.md`                                | Testing strategy and instructions                 |
+| `docs/DEPLOYMENT.md`                             | Deployment instructions and Docker usage           |
 | `docs/contract/openapi.yaml`                     | Authoritative OpenAPI 3.1 specification           |
 | `docs/standard/ts-node-development.md`           | TypeScript/Node.js coding standard                |
 | `docs/standard/java-spring-maven-development.md` | Java/Spring/Maven coding standard                 |
@@ -41,13 +43,148 @@ docker run -p 8443:8443 -v ./config:/etc/excel-api:ro excel-api-node
 Or use Docker Compose to start any implementation:
 
 ```bash
-IMPL=excel-api-node docker compose up
+IMAGE=excel-api-node docker compose up
 ```
 
 Run integration tests against a running implementation:
 
 ```bash
-IMPL=excel-api-java docker compose -f docker-compose.test.yaml up --abort-on-container-exit
+IMAGE=excel-api-java docker compose -f docker-compose.test.yaml up --abort-on-container-exit
+```
+
+## Testing Each Implementation
+
+### Node.js Implementation
+
+**Build:**
+```bash
+cd excel-api-node
+npm run build
+```
+
+**Lint:**
+```bash
+npm run lint
+```
+
+**Unit Tests:**
+```bash
+npm test -- --run
+```
+
+**Integration Tests:**
+```bash
+IMAGE=excel-api-node docker compose -f docker-compose.test.yaml up --abort-on-container-exit
+```
+
+**CLI Testing:**
+```bash
+# Build the CLI
+cd ../excel-api-go
+go build -o excel-api-go ./cmd/excel-api-go
+
+# Start the Node.js server
+cd ../excel-api-node
+npm run dev
+
+# In another terminal, test with CLI
+./excel-api-go --server http://localhost:8443 --list-workbooks
+./excel-api-go --server http://localhost:8443 --get-cell workbook1:sheet1:A1
+```
+
+### Java Implementation
+
+**Build:**
+```bash
+cd excel-api-java
+mvn clean compile
+```
+
+**Lint:**
+```bash
+mvn checkstyle:check
+```
+
+**Unit Tests:**
+```bash
+mvn test
+```
+
+**Integration Tests:**
+```bash
+IMAGE=excel-api-java docker compose -f docker-compose.test.yaml up --abort-on-container-exit
+```
+
+**CLI Testing:**
+```bash
+# Build the CLI
+cd ../excel-api-go
+go build -o excel-api-go ./cmd/excel-api-go
+
+# Start the Java server
+cd ../excel-api-java
+mvn spring-boot:run
+
+# In another terminal, test with CLI
+./excel-api-go --server http://localhost:8443/api/v1 --list-workbooks
+./excel-api-go --server http://localhost:8443/api/v1 --get-cell workbook1:sheet1:A1
+```
+
+### C# Implementation
+
+**Build:**
+```bash
+cd excel-api-csharp/src/ExcelApi
+dotnet build
+```
+
+**Lint:**
+```bash
+dotnet format --verify-no-changes
+```
+
+**Unit Tests:**
+```bash
+cd ../ExcelApi.Test
+dotnet test
+```
+
+**Integration Tests:**
+```bash
+IMAGE=excel-api-csharp docker compose -f docker-compose.test.yaml up --abort-on-container-exit
+```
+
+**CLI Testing:**
+```bash
+# Build the CLI
+cd ../../excel-api-go
+go build -o excel-api-go ./cmd/excel-api-go
+
+# Start the C# server
+cd ../../excel-api-csharp/src/ExcelApi
+dotnet run
+
+# In another terminal, test with CLI
+./excel-api-go --server http://localhost:8443 --list-workbooks
+./excel-api-go --server http://localhost:8443 --get-cell workbook1:sheet1:A1
+```
+
+### Go CLI
+
+**Build:**
+```bash
+cd excel-api-go
+go build -o excel-api-go ./cmd/excel-api-go
+```
+
+**Lint:**
+```bash
+gofmt -l .
+```
+
+**Unit Tests:**
+```bash
+go test ./...
 ```
 
 ## License

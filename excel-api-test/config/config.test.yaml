@@ -47,5 +47,5 @@ auth:
     algorithm: "HS256"
 
 logging:
-  level: "verbose"
+  level: "debug"
   format: "json"

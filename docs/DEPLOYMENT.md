@@ -29,7 +29,7 @@ docker run -p 8443:8443 \
 The `docker-compose.yaml` in the repository root starts any implementation with shared volumes.
 
 ```bash
-IMPL=excel-api-java docker compose up
+IMAGE=excel-api-java docker compose up
 ```
 
 ## Configuration

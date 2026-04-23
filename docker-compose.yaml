@@ -1,13 +1,13 @@
 services:
   excel-api:
     build:
-      context: ./${IMPL:-excel-api-node}
+      context: ./${IMAGE:-excel-api-node}
     ports:
       - "8443:8443"
     volumes:
-      - ./data/workbooks:/data/workbooks
-      - ./data/locks:/data/locks
-      - ./config:/etc/excel-api:ro
+      - ./work/data/workbooks:/data/workbooks
+      - ./work/data/locks:/data/locks
+      - ./work/config:/etc/excel-api:ro
     environment:
       - CONFIG_PATH=/etc/excel-api/config.yaml
       - ACCESS_PATH=/etc/excel-api/access.yaml

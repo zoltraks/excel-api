@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <springProperty scope="context" name="LOG_LEVEL" source="logging.level" defaultValue="info"/>
+    <springProperty scope="context" name="LOG_FORMAT" source="logging.format" defaultValue="json"/>
+
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{ISO8601} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <root level="${LOG_LEVEL}">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+
+    <logger name="pl.alyx.api.excel" level="${LOG_LEVEL}" additivity="false">
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+</configuration>

@@ -8,6 +8,7 @@ RUN dotnet publish src/ExcelApi/ExcelApi.csproj \
     -p:PublishReadyToRun=true
 
 FROM mcr.microsoft.com/dotnet/runtime-deps:8.0-alpine
+RUN apk add --no-cache curl
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 WORKDIR /app
 COPY --from=builder /app .

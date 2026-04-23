@@ -95,7 +95,7 @@ Files remain on the local filesystem and are accessed through a service layer th
 | API Server | Java 21 + Spring     | `excel-api-java/`    | Full-featured implementation using POI     |
 | API Server | C# + ASP.NET 8       | `excel-api-csharp/`  | Mid-weight implementation using ClosedXML  |
 | CLI Client | Go 1.22+             | `excel-api-go/`      | Interactive and batch console client       |
-| Test Suite | TypeScript + Jest    | `excel-api-test/`    | Black-box integration tests                |
+| Test Suite | TypeScript + Vitest  | `excel-api-test/`    | Black-box integration tests                |
 
 ## Goals
 
@@ -252,7 +252,7 @@ The CLI handles UTF-8 values including embedded newlines. In Markdown table outp
 
 ## Integration Test Suite
 
-**Excel API Test** (`excel-api-test/`). TypeScript test suite using Jest, executing against any server implementation via HTTP. Tests are black-box — they know only the API contract, never the implementation.
+**Excel API Test** (`excel-api-test/`). TypeScript test suite using Vitest, executing against any server implementation via HTTP. Tests are black-box — they know only the API contract, never the implementation.
 
 Test fixtures are pre-built Excel files covering: simple data, styled rows, formula cells, large datasets. Test configuration provides OAuth2 credentials and static tokens for authorization testing.
 
@@ -490,6 +490,48 @@ Non-functional requirements form the foundations of the architecture and carry n
 | N-10 | Performance targets (API response times, lock duration)                                      | Performance      |
 | N-11 | Unit test coverage ≥ 80% per implementation                                                  | Quality          |
 | N-12 | API contract test coverage 100%                                                              | Quality          |
+| N-13 | C# test projects located in src directory alongside main project                              | Code convention  |
+
+## Testing Standards
+
+Each implementation uses its language-standard testing framework with project-specific conventions.
+
+**Node.js** (`excel-api-node/`)
+- Framework: Vitest (ESM-compatible test runner)
+- Test location: `src/**/*.test.ts`
+- Command: `npm test`
+- Coverage target: ≥ 80%
+- Test globals enabled via Vitest config
+
+**Java** (`excel-api-java/`)
+- Framework: JUnit 5 (Jupiter)
+- Test location: `src/test/java/`
+- Command: `mvn test`
+- Coverage target: ≥ 80%
+- Spring Boot Test starter included
+
+**C#** (`excel-api-csharp/`)
+- Framework: MSTest
+- Test location: `src/ExcelApi.Test/` (test project alongside main project in src directory)
+- Command: `dotnet test ExcelApi.sln`
+- Coverage target: ≥ 80%
+- Test project references main project via ProjectReference in solution
+
+**Go** (`excel-api-go/`)
+- Framework: Built-in `testing` package
+- Test location: `*_test.go` files alongside source
+- Command: `go test ./...`
+- Coverage target: ≥ 80%
+- No external test framework required
+
+**Integration Tests** (`excel-api-test/`)
+- Framework: TypeScript + Vitest
+- Test location: `integration/*.test.ts`
+- Command: `npm test`
+- Coverage target: 100% of API contract
+- Black-box tests against running server
+
+All unit tests focus on implementation-specific logic (configuration loading, cache invalidation, file locking, Excel operations). Integration tests validate API contract compliance across all implementations.
 
 ## Use Cases
 
