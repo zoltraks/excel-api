@@ -36,9 +36,9 @@ openapi:
   servers:
     - url: http://localhost:8443/api/v1
       description: Local server
-workbooks:
-  base_dir: /data/workbooks
-  registry:
+registry:
+  directory: /data/workbooks
+  workbooks:
     - id: sample
       path: sample.xlsx
       readonly: false
@@ -70,8 +70,8 @@ logging:
       expect(config.server.host).toBe('0.0.0.0');
       expect(config.server.base_path).toBe('/api/v1');
       expect(config.server.tls.enabled).toBe(false);
-      expect(config.workbooks.registry).toHaveLength(1);
-      expect(config.workbooks.registry[0].id).toBe('sample');
+      expect(config.registry.workbooks).toHaveLength(1);
+      expect(config.registry.workbooks[0].id).toBe('sample');
     });
 
     it('should throw error if config file does not exist', () => {
@@ -92,9 +92,9 @@ openapi:
   servers:
     - url: http://localhost:8443/api/v1
       description: Local server
-workbooks:
-  base_dir: /data/workbooks
-  registry: []
+registry:
+  directory: /data/workbooks
+  workbooks: []
 queue:
   batch_max_size: 100
   batch_debounce_ms: 100
@@ -133,9 +133,9 @@ openapi:
   servers:
     - url: http://localhost:8443/api/v1
       description: Local server
-workbooks:
-  base_dir: /data/workbooks
-  registry: []
+registry:
+  directory: /data/workbooks
+  workbooks: []
 queue:
   batch_max_size: 100
   batch_debounce_ms: 100

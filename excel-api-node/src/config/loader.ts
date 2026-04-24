@@ -35,9 +35,9 @@ const SheetHeaderConfigSchema = z.object({
   legend_sheet: z.string().optional(),
 });
 
-const WorkbookConfigSchema = z.object({
-  base_dir: z.string(),
-  registry: z.array(
+const RegistryConfigSchema = z.object({
+  directory: z.string(),
+  workbooks: z.array(
     z.object({
       id: z.string(),
       path: z.string(),
@@ -82,7 +82,7 @@ const LoggingConfigSchema = z.object({
 const ConfigSchema = z.object({
   server: ServerConfigSchema,
   openapi: OpenAPIConfigSchema,
-  workbooks: WorkbookConfigSchema,
+  registry: RegistryConfigSchema,
   queue: QueueConfigSchema,
   cache: CacheConfigSchema,
   auth: AuthConfigSchema,
@@ -90,7 +90,7 @@ const ConfigSchema = z.object({
   profiles: z.record(z.lazy(() => z.object({
     server: ServerConfigSchema.partial().optional(),
     openapi: OpenAPIConfigSchema.partial().optional(),
-    workbooks: WorkbookConfigSchema.partial().optional(),
+    registry: RegistryConfigSchema.partial().optional(),
     queue: QueueConfigSchema.partial().optional(),
     cache: CacheConfigSchema.partial().optional(),
     auth: AuthConfigSchema.partial().optional(),
@@ -189,6 +189,14 @@ function resolveConfigPath(options: {
   return path.join('config', defaultFileName);
 }
 
+function resolveRelativePath(configPath: string, workDir?: string): string {
+  if (path.isAbsolute(configPath)) {
+    return configPath;
+  }
+  const baseDir = workDir ?? process.cwd();
+  return path.join(baseDir, configPath);
+}
+
 export function loadConfig(options?: {
   workDir?: string;
   configPath?: string;
@@ -221,20 +229,42 @@ export function loadConfig(options?: {
   try {
     const parsedConfig = ConfigSchema.parse(configData);
 
+    // Resolve relative paths
+    const resolvedConfig = {
+      ...parsedConfig,
+      registry: {
+        ...parsedConfig.registry,
+        directory: resolveRelativePath(parsedConfig.registry.directory, workDir),
+      },
+      queue: {
+        ...parsedConfig.queue,
+        lock_dir: resolveRelativePath(parsedConfig.queue.lock_dir, workDir),
+      },
+      logging: parsedConfig.logging.file
+        ? {
+            ...parsedConfig.logging,
+            file: {
+              ...parsedConfig.logging.file,
+              path: resolveRelativePath(parsedConfig.logging.file.path, workDir),
+            },
+          }
+        : parsedConfig.logging,
+    };
+
     // Apply profile if CONFIG_PROFILE environment variable is set
     const profileName = process.env.CONFIG_PROFILE;
-    if (profileName && parsedConfig.profiles && profileName in parsedConfig.profiles) {
-      const profile = parsedConfig.profiles[profileName];
+    if (profileName && resolvedConfig.profiles && profileName in resolvedConfig.profiles) {
+      const profile = resolvedConfig.profiles[profileName];
       // Deep merge profile with base config
       const mergedConfig = {
-        ...parsedConfig,
-        server: { ...parsedConfig.server, ...profile.server },
-        openapi: { ...parsedConfig.openapi, ...profile.openapi },
-        workbooks: { ...parsedConfig.workbooks, ...profile.workbooks },
-        queue: { ...parsedConfig.queue, ...profile.queue },
-        cache: { ...parsedConfig.cache, ...profile.cache },
-        auth: { ...parsedConfig.auth, ...profile.auth },
-        logging: { ...parsedConfig.logging, ...profile.logging },
+        ...resolvedConfig,
+        server: { ...resolvedConfig.server, ...profile.server },
+        openapi: { ...resolvedConfig.openapi, ...profile.openapi },
+        registry: { ...resolvedConfig.registry, ...profile.registry },
+        queue: { ...resolvedConfig.queue, ...profile.queue },
+        cache: { ...resolvedConfig.cache, ...profile.cache },
+        auth: { ...resolvedConfig.auth, ...profile.auth },
+        logging: { ...resolvedConfig.logging, ...profile.logging },
       };
       // Remove profiles from merged config
       const { profiles, ...finalConfig } = mergedConfig;
@@ -242,7 +272,7 @@ export function loadConfig(options?: {
     }
 
     // Remove profiles from config if no profile selected
-    const { profiles, ...finalConfig } = parsedConfig;
+    const { profiles, ...finalConfig } = resolvedConfig;
     return finalConfig as Config;
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -255,9 +285,13 @@ export function loadConfig(options?: {
 export function loadAccessConfig(options?: {
   workDir?: string;
   accessPath?: string;
+  logger?: {
+    warn: (message: string, additional?: Record<string, unknown>) => void;
+  };
 }): AccessConfig {
   const workDir = options?.workDir ?? process.env.WORK;
   const accessPath = options?.accessPath ?? process.env.ACCESS;
+  const logger = options?.logger;
 
   const resolveOptions: {
     workDir?: string;
@@ -279,7 +313,12 @@ export function loadAccessConfig(options?: {
   const stats = fs.statSync(accessFilePath);
   const mode = stats.mode & 0o777;
   if (mode !== 0o600) {
-    console.warn(`WARNING: access.yaml has insecure permissions: ${mode.toString(8)} (should be 600)`);
+    const message = `access.yaml has insecure permissions: ${mode.toString(8)} (should be 600)`;
+    if (logger) {
+      logger.warn(message);
+    } else {
+      console.warn(`WARNING: ${message}`);
+    }
   }
 
   const accessFile = fs.readFileSync(accessFilePath, 'utf8');

@@ -28,7 +28,7 @@ public class CellController {
             @PathVariable String cellRef,
             @RequestParam(defaultValue = "native") String format) throws IOException {
 
-        WorkbookConfig.WorkbookEntry entry = workbookConfig.getRegistry().stream()
+        WorkbookConfig.WorkbookEntry entry = workbookConfig.getWorkbooks().stream()
             .filter(w -> w.getId().equals(id))
             .findFirst()
             .orElse(null);
@@ -48,7 +48,7 @@ public class CellController {
             @PathVariable String cellRef,
             @RequestBody Map<String, Object> request) throws IOException {
 
-        WorkbookConfig.WorkbookEntry entry = workbookConfig.getRegistry().stream()
+        WorkbookConfig.WorkbookEntry entry = workbookConfig.getWorkbooks().stream()
                 .filter(w -> w.getId().equals(id))
                 .findFirst()
                 .orElse(null);
@@ -73,7 +73,7 @@ public class CellController {
             @PathVariable String rangeRef,
             @RequestParam(defaultValue = "native") String format) throws IOException {
 
-        WorkbookConfig.WorkbookEntry entry = workbookConfig.getRegistry().stream()
+        WorkbookConfig.WorkbookEntry entry = workbookConfig.getWorkbooks().stream()
             .filter(w -> w.getId().equals(id))
             .findFirst()
             .orElse(null);

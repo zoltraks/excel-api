@@ -12,9 +12,9 @@ openapi:
     - url: "http://localhost:8443/api/v1"
       description: "Test"
 
-workbooks:
-  base_dir: "/data/workbooks"
-  registry:
+registry:
+  directory: "fixture"
+  workbooks:
     - id: "simple"
       path: "simple.xlsx"
       readonly: false
@@ -32,7 +32,7 @@ queue:
   batch_max_size: 50
   batch_debounce_ms: 100
   lock_timeout_ms: 10000
-  lock_dir: "/data/locks"
+  lock_dir: "locks"
 
 cache:
   enabled: true

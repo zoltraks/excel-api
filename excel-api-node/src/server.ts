@@ -14,6 +14,7 @@ import { createAuthMiddleware, createScopeCheckMiddleware } from './auth/middlew
 import { initFileLock, getFileLock } from './lock/lockfile.js';
 import { initCache, getCache } from './cache/mtimeCache.js';
 import cors from '@fastify/cors';
+import { initLogger, getLogger, LogLevel } from './logger/index.js';
 
 // Parse command-line arguments
 function parseArgs(): { workDir?: string; configPath?: string; accessPath?: string } {
@@ -42,6 +43,17 @@ const config = loadConfig({
   ...(args.workDir && { workDir: args.workDir }),
   ...(args.configPath && { configPath: args.configPath }),
 });
+
+// Initialize logger as per ts-node-development.md startup sequence
+const logLevelMap: Record<string, LogLevel> = {
+  'error': LogLevel.ERROR,
+  'warn': LogLevel.WARN,
+  'info': LogLevel.INFO,
+  'debug': LogLevel.DEBUG,
+};
+initLogger(logLevelMap[config.logging.level] || LogLevel.INFO);
+const logger = getLogger();
+
 initRegistry(config);
 const registry = getRegistry();
 
@@ -49,6 +61,9 @@ const registry = getRegistry();
 const accessConfig = loadAccessConfig({
   ...(args.workDir && { workDir: args.workDir }),
   ...(args.accessPath && { accessPath: args.accessPath }),
+  logger: {
+    warn: (message: string, additional?: Record<string, unknown>) => logger.warn(message, additional),
+  },
 });
 const jwtAuth = new JWTAuth(
   accessConfig.jwt.secret,
@@ -134,32 +149,38 @@ if (config.logging.file && config.logging.file.enabled) {
 }
 
 const server = Fastify({
-  logger: {
-    level: config.logging.level,
-  },
+  logger: false, // Disable Fastify's default Pino logger
 });
 
-// Add file logging hook
-if (fileLogger) {
-  server.addHook('onResponse', (request, reply, done) => {
-    const logData = {
-      level: 'info',
-      time: Date.now(),
-      req: {
-        method: request.method,
-        url: request.url,
-        hostname: request.hostname,
-        remoteAddress: request.ip,
-      },
-      res: {
-        statusCode: reply.statusCode,
-        responseTime: reply.getResponseTime(),
-      },
-    };
+// Add request logging hook using custom logger
+server.addHook('onResponse', (request, reply, done) => {
+  const now = new Date();
+  const logData = {
+    level: 'info',
+    date: now.toISOString().split('T')[0],
+    time: now.toTimeString().split(' ')[0] + '.' + now.getMilliseconds().toString().padStart(3, '0'),
+    message: 'Request completed',
+    request: {
+      method: request.method,
+      url: request.url,
+    },
+    response: {
+      statusCode: reply.statusCode,
+      responseTime: reply.elapsedTime,
+    },
+    remote: request.ip,
+  };
+
+  // Log to console using custom logger
+  logger.info('Request completed', logData);
+
+  // Log to file if file logger is enabled
+  if (fileLogger) {
     fileLogger.log(logData);
-    done();
-  });
-}
+  }
+
+  done();
+});
 
 // Register content type parser for application/x-www-form-urlencoded
 server.addContentTypeParser('application/x-www-form-urlencoded', (_request, payload, done) => {
@@ -880,9 +901,10 @@ const start = async (): Promise<void> => {
   const port = config.server.port;
   const host = config.server.host;
   await server.listen({ port, host });
+  logger.info(`Server listening at http://${host}:${port}`);
 };
 
 start().catch((err) => {
-  console.error(err);
+  logger.error('Server startup failed', { error: err.message });
   process.exit(1);
 });

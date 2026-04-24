@@ -2,7 +2,8 @@ namespace BigBytes.ExcelApi;
 
 public class WorkbookConfig
 {
-    public List<WorkbookEntry> Registry { get; set; } = new List<WorkbookEntry>();
+    public string Directory { get; set; } = "";
+    public List<WorkbookEntry> Workbooks { get; set; } = new List<WorkbookEntry>();
     public Dictionary<string, WorkbookProfile> Profiles { get; set; } = new Dictionary<string, WorkbookProfile>();
 }
 

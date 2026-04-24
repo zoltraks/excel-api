@@ -29,7 +29,7 @@ public class ColumnsController {
             @PathVariable String id,
             @PathVariable String sheetName) throws IOException {
 
-        WorkbookConfig.WorkbookEntry entry = workbookConfig.getRegistry().stream()
+        WorkbookConfig.WorkbookEntry entry = workbookConfig.getWorkbooks().stream()
                 .filter(w -> w.getId().equals(id))
                 .findFirst()
                 .orElse(null);

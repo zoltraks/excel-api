@@ -26,9 +26,9 @@ export interface SheetHeaderConfig {
   legend_sheet?: string;
 }
 
-export interface WorkbookConfig {
-  base_dir: string;
-  registry: Array<{
+export interface RegistryConfig {
+  directory: string;
+  workbooks: Array<{
     id: string;
     path: string;
     readonly: boolean;
@@ -71,7 +71,7 @@ export interface LoggingConfig {
 export interface Config {
   server: ServerConfig;
   openapi: OpenAPIConfig;
-  workbooks: WorkbookConfig;
+  registry: RegistryConfig;
   queue: QueueConfig;
   cache: CacheConfig;
   auth: AuthConfig;

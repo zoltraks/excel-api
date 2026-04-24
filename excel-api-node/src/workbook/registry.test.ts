@@ -14,17 +14,15 @@ describe('Workbook Registry', () => {
       host: '0.0.0.0',
       base_path: '/api/v1',
       tls: { enabled: false },
-      cors: { enabled: false, allowed_origins: [] },
-      profiles: undefined,
     },
     openapi: {
       title: 'Excel API',
       description: 'API for Excel file operations',
       servers: [{ url: 'http://localhost:8443/api/v1', description: 'Local server' }],
     },
-    workbooks: {
-      base_dir: tempDir,
-      registry: [
+    registry: {
+      directory: tempDir,
+      workbooks: [
         { id: 'test1', path: 'test1.xlsx', readonly: false },
         { id: 'test2', path: 'test2.xlsx', readonly: true },
       ],
@@ -51,6 +49,10 @@ describe('Workbook Registry', () => {
     logging: {
       level: 'info',
       format: 'json',
+      file: {
+        enabled: false,
+        path: '/var/log/excel-api/excel-api-node.log',
+      },
     },
   };
 
@@ -114,9 +116,9 @@ describe('Workbook Registry', () => {
   it('should warn on missing workbook files', () => {
     const configWithMissing: Config = {
       ...config,
-      workbooks: {
-        ...config.workbooks,
-        registry: [
+      registry: {
+        ...config.registry,
+        workbooks: [
           { id: 'missing', path: 'missing.xlsx', readonly: false },
         ],
       },

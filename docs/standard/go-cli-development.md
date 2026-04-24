@@ -233,11 +233,25 @@ cd cmd/excel-api-go
 go build -o ../../bin/excel-api-go .
 ```
 
+On Windows, the output file must have the `.exe` extension:
+
+```bash
+cd cmd/excel-api-go
+go build -o ../../bin/excel-api-go.exe .
+```
+
 **Production build:**
 
 ```bash
 cd cmd/excel-api-go
 go build -ldflags="-s -w" -o ../../bin/excel-api-go .
+```
+
+On Windows:
+
+```bash
+cd cmd/excel-api-go
+go build -ldflags="-s -w" -o ../../bin/excel-api-go.exe .
 ```
 
 **Cross-compilation:**

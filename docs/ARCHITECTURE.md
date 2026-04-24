@@ -174,9 +174,64 @@ Each registered workbook has an in-memory cache entry containing parsed sheet da
 
 **Cache bypass.** The `Cache-Control: no-cache` request header forces a cache miss, causing the file to be re-read from disk.
 
+## Logging Format
+
+All implementations use structured JSON logging for consistency and machine-readability. The log format is standardized across Node, Java, and C# implementations.
+
+**JSON log entry format:**
+
+```json
+{
+  "level": "info",
+  "date": "2025-03-15",
+  "time": "14:24:58.123",
+  "message": "Request completed",
+  "request": {
+    "method": "GET",
+    "url": "/api/v1/workbooks"
+  },
+  "response": {
+    "statusCode": 200,
+    "responseTime": 45
+  },
+  "remote": "127.0.0.1"
+}
+```
+
+**Field descriptions:**
+
+- `level` - Log level (info, error, debug, warn)
+- `date` - Local server date in YYYY-MM-DD format
+- `time` - Local server time in 24h format with milliseconds (hh:mm:ss.fff)
+- `message` - Log message (one-word key name)
+- `request` - HTTP request details (one-word key name, optional)
+- `response` - HTTP response details (one-word key name, optional)
+- `remote` - Client IP address (one-word key name, optional)
+
+**Notes:**
+
+- The `hostname` field is excluded as it is not useful in containerized environments
+- Date and time use local server timezone for operational convenience
+- Milliseconds provide precision for performance analysis
+- The format is consistent across all server implementations
+
 ## Configuration Architecture
 
 **`config.yaml`** is the primary configuration file. It is loaded at startup and validated against the expected structure. Missing required fields or invalid values terminate the process with exit code 1 and a descriptive error message.
+
+**Configuration structure:**
+
+```yaml
+registry:
+  directory: "path/to/excel/files"
+  workbooks:
+    - id: "workbook-id"
+      path: "workbook.xlsx"
+      readonly: false
+```
+
+- `registry.directory` - Base directory for Excel files (relative paths resolved against working directory)
+- `registry.workbooks` - Array of workbook registrations with id, path, and readonly flag
 
 Configuration hierarchy (lowest to highest priority):
 
@@ -186,7 +241,9 @@ Configuration hierarchy (lowest to highest priority):
 
 **`access.yaml`** is the sensitive configuration file. It contains credentials, secrets, and access control rules. It is loaded separately with restricted file permission checks (warning if not `0600`). Its values are never logged, even at verbose/trace level.
 
-**Working directory** is specified via the `--work` command-line parameter or `WORK` environment variable. The value can be a relative path (resolved from the current working directory) or an absolute path. When specified, the working directory becomes the base for configuration file resolution.
+**Working directory** is specified via the `--work` command-line parameter or `WORK` environment variable. The value can be a relative path (resolved from the current working directory) or an absolute path. When specified, the working directory becomes the base for configuration file resolution and for resolving all relative paths within the configuration.
+
+**Path resolution:** All relative paths in configuration files (including `registry.directory`, `queue.lock_dir`, etc.) are resolved relative to the working directory. If no working directory is specified via `--work` or `WORK`, the current working directory at program startup is used.
 
 **Configuration file resolution** follows this logic:
 

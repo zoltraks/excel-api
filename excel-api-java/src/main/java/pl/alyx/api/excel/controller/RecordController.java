@@ -32,7 +32,7 @@ public class RecordController {
             @RequestParam(defaultValue = "100") int limit,
             @RequestParam(defaultValue = "native") String format) throws IOException {
 
-        WorkbookConfig.WorkbookEntry entry = workbookConfig.getRegistry().stream()
+        WorkbookConfig.WorkbookEntry entry = workbookConfig.getWorkbooks().stream()
             .filter(w -> w.getId().equals(id))
             .findFirst()
             .orElse(null);
@@ -60,7 +60,7 @@ public class RecordController {
             @RequestParam(defaultValue = "1") int headerRowCount,
             @RequestParam(defaultValue = "native") String format) throws IOException {
 
-        WorkbookConfig.WorkbookEntry entry = workbookConfig.getRegistry().stream()
+        WorkbookConfig.WorkbookEntry entry = workbookConfig.getWorkbooks().stream()
             .filter(w -> w.getId().equals(id))
             .findFirst()
             .orElse(null);
@@ -85,7 +85,7 @@ public class RecordController {
             @PathVariable String sheetName,
             @RequestBody Map<String, Object> request) throws IOException {
 
-        WorkbookConfig.WorkbookEntry entry = workbookConfig.getRegistry().stream()
+        WorkbookConfig.WorkbookEntry entry = workbookConfig.getWorkbooks().stream()
                 .filter(w -> w.getId().equals(id))
                 .findFirst()
                 .orElse(null);
@@ -114,7 +114,7 @@ public class RecordController {
             @PathVariable int recordIndex,
             @RequestBody Map<String, Object> request) throws IOException {
 
-        WorkbookConfig.WorkbookEntry entry = workbookConfig.getRegistry().stream()
+        WorkbookConfig.WorkbookEntry entry = workbookConfig.getWorkbooks().stream()
                 .filter(w -> w.getId().equals(id))
                 .findFirst()
                 .orElse(null);
@@ -140,7 +140,7 @@ public class RecordController {
             @PathVariable String sheetName,
             @PathVariable int recordIndex) throws IOException {
 
-        WorkbookConfig.WorkbookEntry entry = workbookConfig.getRegistry().stream()
+        WorkbookConfig.WorkbookEntry entry = workbookConfig.getWorkbooks().stream()
                 .filter(w -> w.getId().equals(id))
                 .findFirst()
                 .orElse(null);

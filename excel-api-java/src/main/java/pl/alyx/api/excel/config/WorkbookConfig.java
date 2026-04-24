@@ -9,16 +9,25 @@ import java.util.List;
 import java.util.Map;
 
 @Component
-@ConfigurationProperties(prefix = "workbooks")
+@ConfigurationProperties(prefix = "registry")
 public class WorkbookConfig {
-    private List<WorkbookEntry> registry = new ArrayList<>();
+    private String directory;
+    private List<WorkbookEntry> workbooks = new ArrayList<>();
 
-    public List<WorkbookEntry> getRegistry() {
-        return registry;
+    public String getDirectory() {
+        return directory;
     }
 
-    public void setRegistry(List<WorkbookEntry> registry) {
-        this.registry = registry;
+    public void setDirectory(String directory) {
+        this.directory = directory;
+    }
+
+    public List<WorkbookEntry> getWorkbooks() {
+        return workbooks;
+    }
+
+    public void setWorkbooks(List<WorkbookEntry> workbooks) {
+        this.workbooks = workbooks;
     }
 
     public static class WorkbookEntry {

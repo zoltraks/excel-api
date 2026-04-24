@@ -21,7 +21,7 @@ public class LockStatusController {
 
     @GetMapping("/lock-status")
     public ResponseEntity<Map<String, Object>> getLockStatus(@PathVariable String id) {
-        WorkbookConfig.WorkbookEntry entry = workbookConfig.getRegistry().stream()
+        WorkbookConfig.WorkbookEntry entry = workbookConfig.getWorkbooks().stream()
                 .filter(w -> w.getId().equals(id))
                 .findFirst()
                 .orElse(null);

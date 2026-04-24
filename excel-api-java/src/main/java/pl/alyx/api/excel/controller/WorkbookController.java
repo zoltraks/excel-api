@@ -39,7 +39,7 @@ public class WorkbookController {
     public WorkbookListResponse listWorkbooks() throws IOException {
         List<WorkbookInfo> workbooks = new ArrayList<>();
 
-        for (WorkbookConfig.WorkbookEntry entry : workbookConfig.getRegistry()) {
+        for (WorkbookConfig.WorkbookEntry entry : workbookConfig.getWorkbooks()) {
             java.nio.file.Path path = Paths.get(entry.getPath());
             if (Files.exists(path)) {
                 long sizeBytes = Files.size(path);
@@ -63,7 +63,7 @@ public class WorkbookController {
 
     @GetMapping("/{id}")
     public ResponseEntity<Map<String, Object>> getWorkbook(@PathVariable String id) throws IOException {
-        WorkbookConfig.WorkbookEntry entry = workbookConfig.getRegistry().stream()
+        WorkbookConfig.WorkbookEntry entry = workbookConfig.getWorkbooks().stream()
             .filter(w -> w.getId().equals(id))
             .findFirst()
             .orElse(null);

@@ -71,6 +71,50 @@ The separation exists because this is a multi-language project with independent 
 - Ask for clarification when requirements are missing or ambiguous.
 - **Documentation Awareness**: Maintain full awareness of all guideline files and their specialized purposes. If any file is added, removed, or its purpose changes, update this file accordingly.
 
+## Applying the change
+
+These rules apply to every change made in this project. Follow them in order — do not skip steps.
+
+**Understand the change**
+
+- Read the request carefully.
+- Identify all components, modules, and documentation files affected.
+- All implementations must be consistent with the requested change.
+
+**Update documentation first**
+
+- Before writing any code, update the relevant project documentation.
+- Choose the proper document file that is part of the project documentation (`PROJECT.md`, `ARCHITECTURE.md`, `SPECIFICATION.md`), API specification, example files.
+- If the change introduces new concepts, endpoints, or behaviors, document them before implementing.
+
+**Create an implementation plan**
+
+- For each affected component, produce a short implementation plan: what will change, which files are touched, what new files are needed.
+- Present the plan and ask for review before proceeding.
+- Do not start coding until the plan is approved.
+
+**Implement**
+
+- Follow the approved plan component by component.
+- For all new functions, create unit tests.
+- For all changed functions, update existing tests to match.
+
+**Verify**
+
+After implementation, run the full verification loop:
+
+```
+build → lint → test → fix errors and warnings → repeat
+```
+
+- Repeat until every component builds cleanly without any errors and warnings.
+- The solution must be production ready and match project requirements and documentation.
+
+**Repeat until the work is done**
+
+- If the change spans multiple components, repeat steps 3–5 for each one.
+- Do not consider the task complete until all components pass and documentation is consistent with the final implementation.
+
 ## Memorization Convention
 
 When the user says "memorize" or "remember", update the most relevant file in `docs/` with the new rule. If no specialized file is appropriate, update this file.
@@ -174,3 +218,4 @@ After editing `docs/contract/openapi.yaml`, run `shell/sync-openapi.sh` to propa
 - **Archive Access**: Do not read any document from `docs/archive` unless specifically instructed. The archive directory contains historical documents and is not part of the active documentation set.
 - **OpenAPI Synchronization**: Only modify `docs/contract/openapi.yaml`. The copies in `excel-api-node/resources/openapi.yaml`, `excel-api-java/src/main/resources/openapi.yaml`, and `excel-api-csharp/src/ExcelApi/Resources/openapi.yaml` must be synced by running `bash shell/sync-openapi.sh`, not manually edited.
 - **Copyright Compliance**: `docs/COPYRIGHTS.md` contains mandatory copyright and licensing rules that must be obeyed. All code must be original, AI-generated code must be verified for originality, and dependency licensing must be compatible (MIT, Apache 2.0, BSD, ISC, Boost only; GPL not allowed).
+- **No Legacy Checking**: Unless specifically told to do so, do not implement additional support for previous behavior or create legacy checking for deprecated configuration keys or features.

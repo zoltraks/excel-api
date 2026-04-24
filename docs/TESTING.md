@@ -40,10 +40,7 @@ This provides an additional testing method beyond the automated integration test
 
 **Building the CLI:**
 
-```bash
-cd excel-api-go
-go build -o excel-api-go ./cmd/excel-api-go
-```
+See `docs/standard/go-cli-development.md` for build instructions including Windows-specific requirements.
 
 **Running CLI tests against a running implementation:**
 

@@ -18,12 +18,8 @@ class WorkbookRegistry {
   private baseDir: string;
 
   constructor(config: Config) {
-    this.baseDir = config.workbooks.base_dir;
-    this.loadRegistry(config);
-  }
-
-  private loadRegistry(config: Config): void {
-    for (const entry of config.workbooks.registry) {
+    this.baseDir = config.registry.directory;
+    for (const entry of config.registry.workbooks) {
       const fullPath = path.join(this.baseDir, entry.path);
       if (!fs.existsSync(fullPath)) {
         console.warn(`Warning: Workbook file not found: ${fullPath}`);

@@ -51,21 +51,23 @@ if (fileLogger != null)
     {
         await next();
 
+        var now = DateTime.Now;
         var logData = new
         {
             level = "info",
-            time = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-            req = new
+            date = now.ToString("yyyy-MM-dd"),
+            time = now.ToString("HH:mm:ss.fff"),
+            message = "Request completed",
+            request = new
             {
                 method = context.Request.Method,
-                url = context.Request.Path.ToString(),
-                host = context.Request.Host.ToString(),
-                remoteAddress = context.Connection.RemoteIpAddress?.ToString()
+                url = context.Request.Path.ToString()
             },
-            res = new
+            response = new
             {
                 statusCode = context.Response.StatusCode
-            }
+            },
+            remote = context.Connection.RemoteIpAddress?.ToString()
         };
 
         fileLogger.Log(logData);
@@ -118,7 +120,7 @@ app.MapGet("/metrics", () =>
 
 app.MapGet("/workbooks", () =>
 {
-    var workbooks = workbookConfig.Registry
+    var workbooks = workbookConfig.Workbooks
         .Where(e => File.Exists(e.Path))
         .Select(e => new
         {
@@ -139,7 +141,7 @@ app.MapGet("/workbooks", () =>
 
 app.MapGet("/workbooks/{id}", (string id) =>
 {
-    var entry = workbookConfig.Registry.FirstOrDefault(w => w.Id == id);
+    var entry = workbookConfig.Workbooks.FirstOrDefault(w => w.Id == id);
     if (entry == null || !File.Exists(entry.Path))
     {
         return Results.NotFound(new { error = "WORKBOOK_NOT_FOUND", message = $"Workbook with ID '{id}' not found" });
@@ -161,7 +163,7 @@ app.MapGet("/workbooks/{id}", (string id) =>
 
 app.MapGet("/workbooks/{id}/sheets/{sheetName}", (string id, string sheetName) =>
 {
-    var entry = workbookConfig.Registry.FirstOrDefault(w => w.Id == id);
+    var entry = workbookConfig.Workbooks.FirstOrDefault(w => w.Id == id);
     if (entry == null)
     {
         return Results.NotFound(new { error = "WORKBOOK_NOT_FOUND", message = $"Workbook with ID '{id}' not found" });
@@ -247,7 +249,7 @@ app.MapPost("/auth/token", (dynamic request) =>
 
 app.MapGet("/workbooks/{id}/sheets/{sheetName}/cells/{cellRef}", (string id, string sheetName, string cellRef, string format = "native") =>
 {
-    var entry = workbookConfig.Registry.FirstOrDefault(w => w.Id == id);
+    var entry = workbookConfig.Workbooks.FirstOrDefault(w => w.Id == id);
     if (entry == null)
     {
         return Results.NotFound(new { error = "WORKBOOK_NOT_FOUND", message = $"Workbook with ID '{id}' not found" });
@@ -267,7 +269,7 @@ app.MapGet("/workbooks/{id}/sheets/{sheetName}/cells/{cellRef}", (string id, str
 
 app.MapGet("/workbooks/{id}/sheets/{sheetName}/ranges/{rangeRef}", (string id, string sheetName, string rangeRef, string format = "native") =>
 {
-    var entry = workbookConfig.Registry.FirstOrDefault(w => w.Id == id);
+    var entry = workbookConfig.Workbooks.FirstOrDefault(w => w.Id == id);
     if (entry == null)
     {
         return Results.NotFound(new { error = "WORKBOOK_NOT_FOUND", message = $"Workbook with ID '{id}' not found" });
@@ -280,7 +282,7 @@ app.MapGet("/workbooks/{id}/sheets/{sheetName}/ranges/{rangeRef}", (string id, s
 
 app.MapGet("/workbooks/{id}/sheets/{sheetName}/records", (string id, string sheetName, int offset = 0, int limit = 100, string format = "native") =>
 {
-    var entry = workbookConfig.Registry.FirstOrDefault(w => w.Id == id);
+    var entry = workbookConfig.Workbooks.FirstOrDefault(w => w.Id == id);
     if (entry == null)
     {
         return Results.NotFound(new { error = "WORKBOOK_NOT_FOUND", message = $"Workbook with ID '{id}' not found" });
@@ -293,7 +295,7 @@ app.MapGet("/workbooks/{id}/sheets/{sheetName}/records", (string id, string shee
 
 app.MapGet("/workbooks/{id}/sheets/{sheetName}/records/{recordIndex}", (string id, string sheetName, int recordIndex, string format = "native") =>
 {
-    var entry = workbookConfig.Registry.FirstOrDefault(w => w.Id == id);
+    var entry = workbookConfig.Workbooks.FirstOrDefault(w => w.Id == id);
     if (entry == null)
     {
         return Results.NotFound(new { error = "WORKBOOK_NOT_FOUND", message = $"Workbook with ID '{id}' not found" });
@@ -306,7 +308,7 @@ app.MapGet("/workbooks/{id}/sheets/{sheetName}/records/{recordIndex}", (string i
 
 app.MapPut("/workbooks/{id}/sheets/{sheetName}/cells/{cellRef}", (string id, string sheetName, string cellRef, dynamic request) =>
 {
-    var entry = workbookConfig.Registry.FirstOrDefault(w => w.Id == id);
+    var entry = workbookConfig.Workbooks.FirstOrDefault(w => w.Id == id);
     if (entry == null)
     {
         return Results.NotFound(new { error = "WORKBOOK_NOT_FOUND", message = $"Workbook with ID '{id}' not found" });
@@ -332,7 +334,7 @@ app.MapPut("/workbooks/{id}/sheets/{sheetName}/cells/{cellRef}", (string id, str
 
 app.MapPost("/workbooks/{id}/sheets/{sheetName}/records", (string id, string sheetName, dynamic request) =>
 {
-    var entry = workbookConfig.Registry.FirstOrDefault(w => w.Id == id);
+    var entry = workbookConfig.Workbooks.FirstOrDefault(w => w.Id == id);
     if (entry == null)
     {
         return Results.NotFound(new { error = "WORKBOOK_NOT_FOUND", message = $"Workbook with ID '{id}' not found" });
@@ -354,7 +356,7 @@ app.MapPost("/workbooks/{id}/sheets/{sheetName}/records", (string id, string she
 
 app.MapPut("/workbooks/{id}/sheets/{sheetName}/records/{recordIndex}", (string id, string sheetName, int recordIndex, dynamic request) =>
 {
-    var entry = workbookConfig.Registry.FirstOrDefault(w => w.Id == id);
+    var entry = workbookConfig.Workbooks.FirstOrDefault(w => w.Id == id);
     if (entry == null)
     {
         return Results.NotFound(new { error = "WORKBOOK_NOT_FOUND", message = $"Workbook with ID '{id}' not found" });
@@ -373,7 +375,7 @@ app.MapPut("/workbooks/{id}/sheets/{sheetName}/records/{recordIndex}", (string i
 
 app.MapDelete("/workbooks/{id}/sheets/{sheetName}/records/{recordIndex}", (string id, string sheetName, int recordIndex) =>
 {
-    var entry = workbookConfig.Registry.FirstOrDefault(w => w.Id == id);
+    var entry = workbookConfig.Workbooks.FirstOrDefault(w => w.Id == id);
     if (entry == null)
     {
         return Results.NotFound(new { error = "WORKBOOK_NOT_FOUND", message = $"Workbook with ID '{id}' not found" });
@@ -391,7 +393,7 @@ app.MapDelete("/workbooks/{id}/sheets/{sheetName}/records/{recordIndex}", (strin
 
 app.MapGet("/workbooks/{id}/sheets/{sheetName}/columns", (string id, string sheetName) =>
 {
-    var entry = workbookConfig.Registry.FirstOrDefault(w => w.Id == id);
+    var entry = workbookConfig.Workbooks.FirstOrDefault(w => w.Id == id);
     if (entry == null)
     {
         return Results.NotFound(new { error = "WORKBOOK_NOT_FOUND", message = $"Workbook with ID '{id}' not found" });
@@ -404,7 +406,7 @@ app.MapGet("/workbooks/{id}/sheets/{sheetName}/columns", (string id, string shee
 
 app.MapGet("/workbooks/{id}/lock-status", (string id) =>
 {
-    var entry = workbookConfig.Registry.FirstOrDefault(w => w.Id == id);
+    var entry = workbookConfig.Workbooks.FirstOrDefault(w => w.Id == id);
     if (entry == null)
     {
         return Results.NotFound(new { error = "WORKBOOK_NOT_FOUND", message = $"Workbook with ID '{id}' not found" });

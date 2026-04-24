@@ -12,9 +12,9 @@ openapi:
     - url: "http://localhost:8443/api/v1"
       description: "Local"
 
-workbooks:
-  base_dir: "/data/workbooks"
-  registry:
+registry:
+  directory: "/data/workbooks"
+  workbooks:
     - id: "sample"
       path: "sample.xlsx"
       readonly: false
