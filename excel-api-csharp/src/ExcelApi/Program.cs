@@ -7,12 +7,22 @@ using System.IO;
 using System.Threading;
 using BigBytes.ExcelApi;
 using BigBytes.ExcelApi.Config;
+using BigBytes.ExcelApi.Logging;
 using BigBytes.ExcelApi.Util;
+using Microsoft.Extensions.Logging.Console;
 
 // Parse command-line arguments
 var configArgs = ParseConfigArgs(args);
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Configure logging to use JSON format
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole(options =>
+{
+    options.FormatterName = "customJson";
+});
+builder.Services.AddSingleton<ConsoleFormatter, JsonConsoleFormatter>();
 
 // Add CORS services
 builder.Services.AddCors(options =>
@@ -185,9 +195,16 @@ app.MapGet("/workbooks/{id}/sheets/{sheetName}", (string id, string sheetName) =
 app.MapGet("/openapi.yaml", () =>
 {
     var assembly = System.Reflection.Assembly.GetExecutingAssembly();
-    var resourceName = "ExcelApi.Resources.openapi.yaml";
+    var resourceName = "BigBytes.ExcelApi.Resources.openapi.yaml";
+    var stream = assembly.GetManifestResourceStream(resourceName);
 
-    using var stream = assembly.GetManifestResourceStream(resourceName);
+    if (stream == null)
+    {
+        // Try alternative resource name
+        resourceName = "ExcelApi.Resources.openapi.yaml";
+        stream = assembly.GetManifestResourceStream(resourceName);
+    }
+
     if (stream == null)
     {
         return Results.NotFound("OpenAPI specification not found");
@@ -206,38 +223,54 @@ app.MapGet("/openapi.yaml", () =>
     return Results.Text(content, "application/yaml");
 });
 
-app.MapGet("/openapi.json", () =>
+app.MapPost("/auth/token", async (Microsoft.AspNetCore.Http.HttpRequest request) =>
 {
-    var assembly = System.Reflection.Assembly.GetExecutingAssembly();
-    var resourceName = "ExcelApi.Resources.openapi.yaml";
+    string grantType = null;
+    string clientId = null;
+    string clientSecret = null;
+    string username = null;
+    string password = null;
 
-    using var stream = assembly.GetManifestResourceStream(resourceName);
-    if (stream == null)
+    string contentType = request.ContentType?.Split(';')[0];
+
+    if (contentType == "application/x-www-form-urlencoded")
     {
-        return Results.NotFound("OpenAPI specification not found");
+        var formData = await request.ReadFormAsync();
+        grantType = formData["grant_type"];
+        clientId = formData["client_id"];
+        clientSecret = formData["client_secret"];
+        username = formData["username"];
+        password = formData["password"];
+    }
+    else
+    {
+        var jsonRequest = await request.ReadFromJsonAsync<Dictionary<string, string>>();
+        if (jsonRequest != null)
+        {
+            grantType = jsonRequest.GetValueOrDefault("grant_type");
+            clientId = jsonRequest.GetValueOrDefault("client_id");
+            clientSecret = jsonRequest.GetValueOrDefault("client_secret");
+            username = jsonRequest.GetValueOrDefault("username");
+            password = jsonRequest.GetValueOrDefault("password");
+        }
     }
 
-    using var reader = new StreamReader(stream);
-    var content = reader.ReadToEnd();
+    if (grantType == "client_credentials")
+    {
+        if (clientId == "test-client" && clientSecret == "test-secret")
+        {
+            return Results.Ok(new
+            {
+                access_token = "dummy-token",
+                token_type = "Bearer",
+                expires_in = 3600,
+                scope = "read write admin"
+            });
+        }
 
-    // Replace dynamic fields
-    content = content.Replace("${server.host}", "0.0.0.0");
-    content = content.Replace("${server.port}", "8443");
-    content = content.Replace("${server.basePath}", "/api/v1");
-    content = content.Replace("${implementation}", "excel-api-csharp");
-    content = content.Replace("${version}", "0.0.1");
-
-    // TODO: Convert YAML to JSON using YamlDotNet
-    // For now, return YAML as JSON (not ideal but functional)
-    return Results.Text(content, "application/json");
-});
-
-app.MapPost("/auth/token", (dynamic request) =>
-{
-    string grantType = request.grant_type;
-
-    // TODO: Implement OAuth2 token generation
-    if (grantType == "client_credentials" || grantType == "password")
+        return Results.StatusCode(401);
+    }
+    else if (grantType == "password")
     {
         return Results.Ok(new
         {

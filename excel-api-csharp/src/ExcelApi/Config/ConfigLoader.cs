@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text.RegularExpressions;
 using YamlDotNet.Serialization;
@@ -53,20 +54,76 @@ public static class ConfigLoader
         var deserializer = new DeserializerBuilder()
             .WithNamingConvention(UnderscoredNamingConvention.Instance)
             .Build();
+        
+        var serializer = new SerializerBuilder()
+            .WithNamingConvention(UnderscoredNamingConvention.Instance)
+            .Build();
+
+        // For WorkbookConfig, extract the registry section first
+        if (!isAccess && typeof(T) == typeof(WorkbookConfig))
+        {
+            var fullConfig = deserializer.Deserialize<Dictionary<string, object>>(content) ?? 
+                throw new InvalidOperationException("Failed to deserialize config");
+            
+            if (fullConfig.ContainsKey("registry"))
+            {
+                var registryYaml = serializer.Serialize(fullConfig["registry"]);
+                var workbookConfig = deserializer.Deserialize<T>(registryYaml) ?? 
+                    throw new InvalidOperationException("Failed to deserialize workbook config");
+                
+                // Resolve lifecycle with override hierarchy: CLI > env > config
+                if (workbookConfig is WorkbookConfig wbConfig)
+                {
+                    string? cliLife = Environment.GetEnvironmentVariable("EXCEL_API_LIFE");
+                    string? envLife = Environment.GetEnvironmentVariable("LIFE");
+                    string? configLife = wbConfig.Lifecycle?.Life;
+
+                    if (cliLife != null || envLife != null || configLife != null)
+                    {
+                        string resolvedLife = cliLife ?? envLife ?? configLife ?? string.Empty;
+                        wbConfig.Lifecycle = new LifecycleConfig { Life = resolvedLife };
+                    }
+                    
+                    // Resolve registry directory relative to work directory
+                    if (!string.IsNullOrEmpty(wbConfig.Directory) && !Path.IsPathRooted(wbConfig.Directory))
+                    {
+                        if (!string.IsNullOrEmpty(workDir))
+                        {
+                            wbConfig.Directory = Path.Combine(workDir, wbConfig.Directory);
+                        }
+                    }
+                    
+                    // Resolve workbook paths relative to registry directory
+                    foreach (var workbook in wbConfig.Workbooks)
+                    {
+                        if (!string.IsNullOrEmpty(workbook.Path) && !Path.IsPathRooted(workbook.Path))
+                        {
+                            workbook.Path = Path.Combine(wbConfig.Directory, workbook.Path);
+                        }
+                    }
+                }
+                
+                return workbookConfig;
+            }
+            else
+            {
+                throw new InvalidOperationException("Config file does not contain 'registry' section");
+            }
+        }
 
         var config = deserializer.Deserialize<T>(content) ?? throw new InvalidOperationException("Failed to deserialize config");
 
         // Resolve lifecycle with override hierarchy: CLI > env > config (only for WorkbookConfig)
-        if (!isAccess && config is WorkbookConfig workbookConfig)
+        if (!isAccess && config is WorkbookConfig wbConfig2)
         {
             string? cliLife = Environment.GetEnvironmentVariable("EXCEL_API_LIFE");
             string? envLife = Environment.GetEnvironmentVariable("LIFE");
-            string? configLife = workbookConfig.Lifecycle?.Life;
+            string? configLife = wbConfig2.Lifecycle?.Life;
 
             if (cliLife != null || envLife != null || configLife != null)
             {
                 string resolvedLife = cliLife ?? envLife ?? configLife ?? string.Empty;
-                workbookConfig.Lifecycle = new LifecycleConfig { Life = resolvedLife };
+                wbConfig2.Lifecycle = new LifecycleConfig { Life = resolvedLife };
             }
         }
 
