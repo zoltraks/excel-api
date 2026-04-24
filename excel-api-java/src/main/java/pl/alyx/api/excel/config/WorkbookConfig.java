@@ -1,6 +1,5 @@
 package pl.alyx.api.excel.config;
 
-import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -9,7 +8,6 @@ import java.util.List;
 import java.util.Map;
 
 @Component
-@ConfigurationProperties(prefix = "registry")
 public class WorkbookConfig {
     private String directory;
     private List<WorkbookEntry> workbooks = new ArrayList<>();
@@ -28,6 +26,57 @@ public class WorkbookConfig {
 
     public void setWorkbooks(List<WorkbookEntry> workbooks) {
         this.workbooks = workbooks;
+    }
+
+    public void loadFromConfigMap(Map<String, Object> config) {
+        if (config.containsKey("registry") && config.get("registry") instanceof Map) {
+            Map<String, Object> registry = (Map<String, Object>) config.get("registry");
+            if (registry.containsKey("directory")) {
+                this.directory = (String) registry.get("directory");
+            }
+            if (registry.containsKey("workbooks") && registry.get("workbooks") instanceof List) {
+                List<Map<String, Object>> workbookMaps = (List<Map<String, Object>>) registry.get("workbooks");
+                this.workbooks = new ArrayList<>();
+                for (Map<String, Object> workbookMap : workbookMaps) {
+                    WorkbookEntry entry = new WorkbookEntry();
+                    if (workbookMap.containsKey("id")) {
+                        entry.setId((String) workbookMap.get("id"));
+                    }
+                    if (workbookMap.containsKey("path")) {
+                        entry.setPath((String) workbookMap.get("path"));
+                    }
+                    if (workbookMap.containsKey("readonly")) {
+                        entry.setReadonly((Boolean) workbookMap.get("readonly"));
+                    }
+                    if (workbookMap.containsKey("sheets") && workbookMap.get("sheets") instanceof Map) {
+                        Map<String, Map<String, Object>> sheetsMap = (Map<String, Map<String, Object>>) workbookMap.get("sheets");
+                        Map<String, SheetHeaderConfig> sheets = new HashMap<>();
+                        for (Map.Entry<String, Map<String, Object>> sheetEntry : sheetsMap.entrySet()) {
+                            SheetHeaderConfig sheetConfig = new SheetHeaderConfig();
+                            Map<String, Object> sheetConfigMap = sheetEntry.getValue();
+                            if (sheetConfigMap.containsKey("mode")) {
+                                sheetConfig.setMode((String) sheetConfigMap.get("mode"));
+                            }
+                            if (sheetConfigMap.containsKey("identifier_row")) {
+                                sheetConfig.setIdentifierRow((Integer) sheetConfigMap.get("identifier_row"));
+                            }
+                            if (sheetConfigMap.containsKey("type_row")) {
+                                sheetConfig.setTypeRow((Integer) sheetConfigMap.get("type_row"));
+                            }
+                            if (sheetConfigMap.containsKey("description_row")) {
+                                sheetConfig.setDescriptionRow((Integer) sheetConfigMap.get("description_row"));
+                            }
+                            if (sheetConfigMap.containsKey("legend_sheet")) {
+                                sheetConfig.setLegendSheet((String) sheetConfigMap.get("legend_sheet"));
+                            }
+                            sheets.put(sheetEntry.getKey(), sheetConfig);
+                        }
+                        entry.setSheets(sheets);
+                    }
+                    this.workbooks.add(entry);
+                }
+            }
+        }
     }
 
     public static class WorkbookEntry {
@@ -70,7 +119,7 @@ public class WorkbookConfig {
     }
 
     public static class SheetHeaderConfig {
-        private String mode; // "single", "multi", "legend", "none"
+        private String mode;
         private Integer identifierRow;
         private Integer typeRow;
         private Integer descriptionRow;

@@ -18,6 +18,12 @@ public class ConfigLoader {
 
     private static final Pattern VAR_PATTERN = Pattern.compile("\\$\\{([^}]+)\\}");
 
+    private final WorkbookConfig workbookConfig;
+
+    public ConfigLoader(WorkbookConfig workbookConfig) {
+        this.workbookConfig = workbookConfig;
+    }
+
     @Bean
     @Primary
     @ConfigurationProperties
@@ -51,6 +57,22 @@ public class ConfigLoader {
             lifecycle.put("life", resolvedLife);
             config.put("lifecycle", lifecycle);
         }
+
+        // Resolve registry directory relative to work directory
+        if (config.containsKey("registry") && config.get("registry") instanceof Map) {
+            Map<String, Object> registry = (Map<String, Object>) config.get("registry");
+            if (registry.containsKey("directory") && registry.get("directory") instanceof String) {
+                String registryDir = (String) registry.get("directory");
+                if (!Paths.get(registryDir).isAbsolute()) {
+                    if (workDir != null && !workDir.isEmpty()) {
+                        registry.put("directory", Paths.get(workDir, registryDir).toString());
+                    }
+                }
+            }
+        }
+
+        // Populate WorkbookConfig from the config map
+        workbookConfig.loadFromConfigMap(config);
 
         return config;
     }

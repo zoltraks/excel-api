@@ -4,6 +4,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import pl.alyx.api.excel.config.AccessConfig;
 import pl.alyx.api.excel.security.JwtUtil;
@@ -28,12 +29,12 @@ public class AuthController {
     }
 
     @PostMapping("/token")
-    public ResponseEntity<?> getToken(@RequestBody Map<String, String> request) {
-        String grantType = request.get("grant_type");
+    public ResponseEntity<?> getToken(@RequestBody(required = false) Map<String, String> jsonRequest) {
+        String grantType = jsonRequest != null ? jsonRequest.get("grant_type") : null;
 
         if ("client_credentials".equals(grantType)) {
-            String clientId = request.get("client_id");
-            String clientSecret = request.get("client_secret");
+            String clientId = jsonRequest.get("client_id");
+            String clientSecret = jsonRequest.get("client_secret");
 
             if (!validateOAuth2Client(clientId, clientSecret)) {
                 return ResponseEntity.status(STATUS_UNAUTHORIZED).body(Map.of(
@@ -52,8 +53,60 @@ public class AuthController {
                     "scope", String.join(" ", scopes)
             ));
         } else if ("password".equals(grantType)) {
-            String username = request.get("username");
-            String password = request.get("password");
+            String username = jsonRequest.get("username");
+            String password = jsonRequest.get("password");
+
+            if (!validateUser(username, password)) {
+                return ResponseEntity.status(STATUS_UNAUTHORIZED).body(Map.of(
+                        "error", "invalid_grant",
+                        "error_description", "Invalid username or password"
+                ));
+            }
+
+            List<String> scopes = getScopesForUser(username);
+            String token = jwtUtil.generateToken(username, scopes, DEFAULT_EXPIRATION_MINUTES);
+
+            return ResponseEntity.ok(Map.of(
+                    "access_token", token,
+                    "token_type", "Bearer",
+                    "expires_in", DEFAULT_EXPIRATION_SECONDS,
+                    "scope", String.join(" ", scopes)
+            ));
+        } else {
+            return ResponseEntity.status(STATUS_BAD_REQUEST).body(Map.of(
+                    "error", "unsupported_grant_type",
+                    "error_description", "Grant type not supported"
+            ));
+        }
+    }
+
+    @PostMapping(value = "/token", consumes = "application/x-www-form-urlencoded")
+    public ResponseEntity<?> getTokenForm(@RequestParam Map<String, String> formRequest) {
+        String grantType = formRequest.get("grant_type");
+
+        if ("client_credentials".equals(grantType)) {
+            String clientId = formRequest.get("client_id");
+            String clientSecret = formRequest.get("client_secret");
+
+            if (!validateOAuth2Client(clientId, clientSecret)) {
+                return ResponseEntity.status(STATUS_UNAUTHORIZED).body(Map.of(
+                        "error", "invalid_client",
+                        "error_description", "Invalid client credentials"
+                ));
+            }
+
+            List<String> scopes = getScopesForClient(clientId);
+            String token = jwtUtil.generateToken(clientId, scopes, DEFAULT_EXPIRATION_MINUTES);
+
+            return ResponseEntity.ok(Map.of(
+                    "access_token", token,
+                    "token_type", "Bearer",
+                    "expires_in", DEFAULT_EXPIRATION_SECONDS,
+                    "scope", String.join(" ", scopes)
+            ));
+        } else if ("password".equals(grantType)) {
+            String username = formRequest.get("username");
+            String password = formRequest.get("password");
 
             if (!validateUser(username, password)) {
                 return ResponseEntity.status(STATUS_UNAUTHORIZED).body(Map.of(

@@ -4,17 +4,10 @@
     <springProperty scope="context" name="LOG_FORMAT" source="logging.format" defaultValue="json"/>
 
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
-        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
-            <fieldNames>
-                <timestamp>time</timestamp>
-                <message>message</message>
-                <level>level</level>
-            </fieldNames>
-            <timestampPattern>yyyy-MM-dd HH:mm:ss.SSS</timestampPattern>
-            <includeMdc>false</includeMdc>
-            <includeContext>false</includeContext>
-            <includeStructuredArguments>false</includeStructuredArguments>
-            <customFields>{"service":"excel-api-java"}</customFields>
+        <encoder class="ch.qos.logback.core.encoder.LayoutWrappingEncoder">
+            <layout class="pl.alyx.api.excel.logging.JsonLayout">
+                <timestampPattern>yyyy-MM-dd HH:mm:ss.SSS</timestampPattern>
+            </layout>
         </encoder>
     </appender>
 

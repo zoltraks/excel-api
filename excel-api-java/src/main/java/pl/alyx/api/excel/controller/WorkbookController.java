@@ -38,9 +38,15 @@ public class WorkbookController {
     @GetMapping
     public WorkbookListResponse listWorkbooks() throws IOException {
         List<WorkbookInfo> workbooks = new ArrayList<>();
+        String registryDir = workbookConfig.getDirectory();
 
         for (WorkbookConfig.WorkbookEntry entry : workbookConfig.getWorkbooks()) {
-            java.nio.file.Path path = Paths.get(entry.getPath());
+            java.nio.file.Path path;
+            if (registryDir != null && !registryDir.isEmpty()) {
+                path = Paths.get(registryDir, entry.getPath());
+            } else {
+                path = Paths.get(entry.getPath());
+            }
             if (Files.exists(path)) {
                 long sizeBytes = Files.size(path);
                 long modifiedTime = Files.getLastModifiedTime(path).toMillis();
@@ -50,7 +56,7 @@ public class WorkbookController {
 
                 workbooks.add(new WorkbookInfo(
                     entry.getId(),
-                    entry.getPath(),
+                    path.toString(),
                     entry.isReadonly(),
                     modifiedAt,
                     sizeBytes
@@ -72,7 +78,13 @@ public class WorkbookController {
             return ResponseEntity.notFound().build();
         }
 
-        java.nio.file.Path path = Paths.get(entry.getPath());
+        String registryDir = workbookConfig.getDirectory();
+        java.nio.file.Path path;
+        if (registryDir != null && !registryDir.isEmpty()) {
+            path = Paths.get(registryDir, entry.getPath());
+        } else {
+            path = Paths.get(entry.getPath());
+        }
         if (!Files.exists(path)) {
             return ResponseEntity.notFound().build();
         }
@@ -84,7 +96,7 @@ public class WorkbookController {
                 .format(ISO_FORMATTER);
 
         // Load actual sheets from Excel file
-        List<SheetInfo> sheets = excelService.readSheetNames(entry.getPath());
+        List<SheetInfo> sheets = excelService.readSheetNames(path.toString());
 
         Map<String, Object> response = new HashMap<>();
         response.put("id", entry.getId());

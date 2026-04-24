@@ -69,7 +69,8 @@ lifecycle:
         Files.writeString(Paths.get(CONFIG_PATH), configContent);
         System.setProperty("excel.api.config.path", CONFIG_PATH);
 
-        ConfigLoader loader = new ConfigLoader();
+        WorkbookConfig workbookConfig = new WorkbookConfig();
+        ConfigLoader loader = new ConfigLoader(workbookConfig);
         Map<String, Object> config = loader.loadConfig();
 
         assertNotNull(config.get("lifecycle"));
@@ -122,7 +123,8 @@ lifecycle:
         System.setProperty("excel.api.config.path", CONFIG_PATH);
         System.setProperty("LIFE", "60s");
 
-        ConfigLoader loader = new ConfigLoader();
+        WorkbookConfig workbookConfig = new WorkbookConfig();
+        ConfigLoader loader = new ConfigLoader(workbookConfig);
         Map<String, Object> config = loader.loadConfig();
 
         assertNotNull(config.get("lifecycle"));
@@ -177,7 +179,8 @@ lifecycle:
         System.setProperty("LIFE", "60s");
         System.setProperty("excel.api.life", "90s");
 
-        ConfigLoader loader = new ConfigLoader();
+        WorkbookConfig workbookConfig = new WorkbookConfig();
+        ConfigLoader loader = new ConfigLoader(workbookConfig);
         Map<String, Object> config = loader.loadConfig();
 
         assertNotNull(config.get("lifecycle"));
@@ -229,7 +232,8 @@ logging:
         Files.writeString(Paths.get(CONFIG_PATH), configContent);
         System.setProperty("excel.api.config.path", CONFIG_PATH);
 
-        ConfigLoader loader = new ConfigLoader();
+        WorkbookConfig workbookConfig = new WorkbookConfig();
+        ConfigLoader loader = new ConfigLoader(workbookConfig);
         Map<String, Object> config = loader.loadConfig();
 
         assertNull(config.get("lifecycle"));
