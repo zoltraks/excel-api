@@ -40,6 +40,7 @@ Examples:
 - **Refactoring process**: `docs/REFACTORING.md`.
 - **Testing strategy**: `docs/TESTING.md`.
 - **Deployment**: `docs/DEPLOYMENT.md`.
+- **Versioning**: `docs/VERSIONING.md`.
 
 **Development standards** (one per implementation language):
 
@@ -163,10 +164,7 @@ When the user says "memorize" or "remember", update the most relevant file in `d
 
 **CHANGELOG Maintenance**
 
-- Maintain `CHANGELOG.md` in the repository root directory.
-- Update it immediately after version changes or significant releases.
-- When creating a CHANGELOG entry, use `git log` to review all commits since the last version bump. Examine file changes and consolidate related updates into meaningful categories.
-- Each version entry must include a version number as H2 heading, a brief summary sentence, and a bulleted list of changes using hyphens grouped logically and written in past tense.
+- For version bumping rules and CHANGELOG format, see `docs/VERSIONING.md`.
 
 ## Naming Conventions
 
