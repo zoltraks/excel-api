@@ -186,7 +186,19 @@ Configuration hierarchy (lowest to highest priority):
 
 **`access.yaml`** is the sensitive configuration file. It contains credentials, secrets, and access control rules. It is loaded separately with restricted file permission checks (warning if not `0600`). Its values are never logged, even at verbose/trace level.
 
-The path to each file is provided via environment variables `CONFIG_PATH` and `ACCESS_PATH`, with defaults of `/etc/excel-api/config.yaml` and `/etc/excel-api/access.yaml`.
+**Working directory** is specified via the `--work` command-line parameter or `WORK` environment variable. The value can be a relative path (resolved from the current working directory) or an absolute path. When specified, the working directory becomes the base for configuration file resolution.
+
+**Configuration file resolution** follows this logic:
+
+1. If `--config` parameter or `CONFIG` environment variable is specified, use that path (relative to working directory if `--work` is set, or absolute)
+2. Otherwise, if `--work` parameter or `WORK` environment variable is specified, search for `config/config.yaml` in the working directory
+3. Otherwise, use default `config/config.yaml` from current working directory
+
+**Access file resolution** follows the same logic:
+
+1. If `--access` parameter or `ACCESS` environment variable is specified, use that path (relative to working directory if `--work` is set, or absolute)
+2. Otherwise, if `--work` parameter or `WORK` environment variable is specified, search for `config/access.yaml` in the working directory
+3. Otherwise, use default `config/access.yaml` from current working directory
 
 ## Dynamic OpenAPI Endpoint
 

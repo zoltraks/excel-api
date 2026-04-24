@@ -35,11 +35,28 @@ func main() {
 	serverUrl := flag.String("server", "http://localhost:8443/api/v1", "Server URL")
 	token := flag.String("token", "", "Auth token")
 	profile := flag.String("profile", "", "Connection profile (from ~/.excel-api/profiles.json)")
+	workDir := flag.String("work", "", "Working directory for config files")
+	configPath := flag.String("config", "", "Path to config.yaml")
+	accessPath := flag.String("access", "", "Path to access.yaml")
 	flag.Parse()
 
 	// Load connection profile if specified
 	if *profile != "" {
-		profileServerUrl, profileToken := loadProfile(*profile)
+		// Check environment variables as fallback
+		workDirEnv := *workDir
+		if workDirEnv == "" {
+			workDirEnv = os.Getenv("WORK")
+		}
+		configPathEnv := *configPath
+		if configPathEnv == "" {
+			configPathEnv = os.Getenv("CONFIG")
+		}
+		accessPathEnv := *accessPath
+		if accessPathEnv == "" {
+			accessPathEnv = os.Getenv("ACCESS")
+		}
+
+		profileServerUrl, profileToken := loadProfile(*profile, workDirEnv, configPathEnv, accessPathEnv)
 		if profileServerUrl != "" {
 			serverUrl = &profileServerUrl
 		}
@@ -784,15 +801,11 @@ type ProfileConfig struct {
 	Profiles map[string]Profile `json:"profiles"`
 }
 
-func loadProfile(profileName string) (string, string) {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error getting home directory: %v\n", err)
-		return "", ""
-	}
+func loadProfile(profileName, workDir, configPath, accessPath string) (string, string) {
+	// Use new resolution logic for config path
+	resolvedConfigPath := resolveConfigPath(workDir, configPath, accessPath, false)
 
-	configPath := filepath.Join(homeDir, ".excel-api", "profiles.json")
-	data, err := os.ReadFile(configPath)
+	data, err := os.ReadFile(resolvedConfigPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error reading profile file: %v\n", err)
 		return "", ""
@@ -811,4 +824,31 @@ func loadProfile(profileName string) (string, string) {
 	}
 
 	return profile.URL, profile.Token
+}
+
+func resolveConfigPath(workDir, configPath, accessPath string, isAccess bool) string {
+	targetPath := configPath
+	if isAccess {
+		targetPath = accessPath
+	}
+	defaultFileName := "config.yaml"
+	if isAccess {
+		defaultFileName = "access.yaml"
+	}
+
+	// Step 1: If --config/--access parameter or CONFIG/ACCESS env var is specified
+	if targetPath != "" {
+		if workDir != "" && !filepath.IsAbs(targetPath) {
+			return filepath.Join(workDir, targetPath)
+		}
+		return targetPath
+	}
+
+	// Step 2: If --work parameter or WORK env var is specified
+	if workDir != "" {
+		return filepath.Join(workDir, "config", defaultFileName)
+	}
+
+	// Step 3: Use default path from current working directory
+	return filepath.Join("config", defaultFileName)
 }

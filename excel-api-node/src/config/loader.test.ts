@@ -63,7 +63,7 @@ logging:
 `;
       fs.writeFileSync(configPath, configContent);
 
-      const config = loadConfig(configPath);
+      const config = loadConfig({ configPath });
 
       expect(config).toBeDefined();
       expect(config.server.port).toBe(8443);
@@ -75,7 +75,7 @@ logging:
     });
 
     it('should throw error if config file does not exist', () => {
-      expect(() => loadConfig('/nonexistent/config.yaml')).toThrow('Config file not found');
+      expect(() => loadConfig({ configPath: '/nonexistent/config.yaml' })).toThrow('Config file not found');
     });
 
     it('should throw error on invalid configuration', () => {
@@ -116,10 +116,10 @@ logging:
 `;
       fs.writeFileSync(configPath, invalidConfig);
 
-      expect(() => loadConfig(configPath)).toThrow('Config validation failed');
+      expect(() => loadConfig({ configPath })).toThrow('Config validation failed');
     });
 
-    it('should use CONFIG_PATH environment variable when no path provided', () => {
+    it('should use CONFIG environment variable when no path provided', () => {
       const configContent = `
 server:
   port: 8443
@@ -156,14 +156,14 @@ logging:
   format: json
 `;
       fs.writeFileSync(configPath, configContent);
-      process.env.CONFIG_PATH = configPath;
+      process.env.CONFIG = configPath;
 
       const config = loadConfig();
 
       expect(config).toBeDefined();
       expect(config.server.port).toBe(8443);
 
-      delete process.env.CONFIG_PATH;
+      delete process.env.CONFIG;
     });
   });
 
@@ -202,7 +202,7 @@ acl:
       fs.writeFileSync(accessPath, accessContent);
       fs.chmodSync(accessPath, 0o600);
 
-      const accessConfig = loadAccessConfig(accessPath);
+      const accessConfig = loadAccessConfig({ accessPath });
 
       expect(accessConfig).toBeDefined();
       expect(accessConfig.jwt.secret).toBe('0123456789abcdef0123456789abcdef');
@@ -212,7 +212,7 @@ acl:
     });
 
     it('should throw error if access file does not exist', () => {
-      expect(() => loadAccessConfig('/nonexistent/access.yaml')).toThrow('Access file not found');
+      expect(() => loadAccessConfig({ accessPath: '/nonexistent/access.yaml' })).toThrow('Access file not found');
     });
 
     it('should warn on insecure file permissions', () => {
@@ -231,7 +231,7 @@ acl:
       fs.chmodSync(accessPath, 0o644);
 
       // Should not throw, just warn
-      expect(() => loadAccessConfig(accessPath)).not.toThrow();
+      expect(() => loadAccessConfig({ accessPath })).not.toThrow();
     });
 
     it('should throw error on invalid access configuration', () => {
@@ -248,10 +248,10 @@ acl:
 `;
       fs.writeFileSync(accessPath, invalidAccess);
 
-      expect(() => loadAccessConfig(accessPath)).toThrow('Access config validation failed');
+      expect(() => loadAccessConfig({ accessPath })).toThrow('Access config validation failed');
     });
 
-    it('should use ACCESS_PATH environment variable when no path provided', () => {
+    it('should use ACCESS environment variable when no path provided', () => {
       const accessContent = `
 jwt:
   secret: 0123456789abcdef0123456789abcdef
@@ -265,14 +265,14 @@ acl:
 `;
       fs.writeFileSync(accessPath, accessContent);
       fs.chmodSync(accessPath, 0o600);
-      process.env.ACCESS_PATH = accessPath;
+      process.env.ACCESS = accessPath;
 
       const accessConfig = loadAccessConfig();
 
       expect(accessConfig).toBeDefined();
       expect(accessConfig.jwt.secret).toBe('0123456789abcdef0123456789abcdef');
 
-      delete process.env.ACCESS_PATH;
+      delete process.env.ACCESS;
     });
   });
 });

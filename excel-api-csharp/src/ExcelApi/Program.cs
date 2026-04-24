@@ -5,6 +5,10 @@ using System.Collections.Generic;
 using System.Linq;
 using System.IO;
 using BigBytes.ExcelApi;
+using BigBytes.ExcelApi.Config;
+
+// Parse command-line arguments
+var configArgs = ParseConfigArgs(args);
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -71,11 +75,12 @@ if (fileLogger != null)
 var startTime = DateTime.UtcNow;
 var excelService = new ExcelService();
 
-// TODO: Load from configuration (appsettings.json or environment variables)
-var workbookConfig = new WorkbookConfig
-{
-    Registry = new List<WorkbookEntry>()
-};
+// Load configuration using new resolution logic
+var workDir = configArgs.WorkDir ?? Environment.GetEnvironmentVariable("WORK");
+var configPath = configArgs.ConfigPath ?? Environment.GetEnvironmentVariable("CONFIG");
+var accessPath = configArgs.AccessPath ?? Environment.GetEnvironmentVariable("ACCESS");
+
+var workbookConfig = ConfigLoader.LoadConfig<WorkbookConfig>(workDir, configPath, false);
 
 app.MapGet("/health", () =>
 {
@@ -414,3 +419,34 @@ app.MapGet("/workbooks/{id}/lock-status", (string id) =>
 });
 
 app.Run("http://0.0.0.0:8443");
+
+ConfigArgs ParseConfigArgs(string[] args)
+{
+    var result = new ConfigArgs();
+    for (int i = 0; i < args.Length; i++)
+    {
+        if (args[i] == "--work" && i + 1 < args.Length)
+        {
+            result.WorkDir = args[i + 1];
+            i++;
+        }
+        else if (args[i] == "--config" && i + 1 < args.Length)
+        {
+            result.ConfigPath = args[i + 1];
+            i++;
+        }
+        else if (args[i] == "--access" && i + 1 < args.Length)
+        {
+            result.AccessPath = args[i + 1];
+            i++;
+        }
+    }
+    return result;
+}
+
+class ConfigArgs
+{
+    public string? WorkDir { get; set; }
+    public string? ConfigPath { get; set; }
+    public string? AccessPath { get; set; }
+}

@@ -1,6 +1,7 @@
 // Configuration loader with validation
 
 import * as fs from 'fs';
+import * as path from 'path';
 import * as yaml from 'yaml';
 import { z } from 'zod';
 import type { Config, AccessConfig } from './types.js';
@@ -160,8 +161,52 @@ function interpolateVariables(obj: unknown): unknown {
   return obj;
 }
 
-export function loadConfig(configPath?: string): Config {
-  const configFilePath = configPath ?? process.env.CONFIG_PATH ?? '/etc/excel-api/config.yaml';
+function resolveConfigPath(options: {
+  workDir?: string;
+  configPath?: string;
+  accessPath?: string;
+  isAccess?: boolean;
+}): string {
+  const { workDir, configPath, accessPath, isAccess = false } = options;
+
+  const targetPath = isAccess ? accessPath : configPath;
+  const defaultFileName = isAccess ? 'access.yaml' : 'config.yaml';
+
+  // Step 1: If --config/--access parameter or CONFIG/ACCESS env var is specified
+  if (targetPath) {
+    if (workDir && !path.isAbsolute(targetPath)) {
+      return path.join(workDir, targetPath);
+    }
+    return targetPath;
+  }
+
+  // Step 2: If --work parameter or WORK env var is specified
+  if (workDir) {
+    return path.join(workDir, 'config', defaultFileName);
+  }
+
+  // Step 3: Use default path from current working directory
+  return path.join('config', defaultFileName);
+}
+
+export function loadConfig(options?: {
+  workDir?: string;
+  configPath?: string;
+}): Config {
+  const workDir = options?.workDir ?? process.env.WORK;
+  const configPath = options?.configPath ?? process.env.CONFIG;
+
+  const resolveOptions: {
+    workDir?: string;
+    configPath?: string;
+    accessPath?: string;
+    isAccess: boolean;
+  } = { isAccess: false };
+
+  if (workDir) resolveOptions.workDir = workDir;
+  if (configPath) resolveOptions.configPath = configPath;
+
+  const configFilePath = resolveConfigPath(resolveOptions);
 
   if (!fs.existsSync(configFilePath)) {
     throw new Error(`Config file not found: ${configFilePath}`);
@@ -207,8 +252,24 @@ export function loadConfig(configPath?: string): Config {
   }
 }
 
-export function loadAccessConfig(accessPath?: string): AccessConfig {
-  const accessFilePath = accessPath ?? process.env.ACCESS_PATH ?? '/etc/excel-api/access.yaml';
+export function loadAccessConfig(options?: {
+  workDir?: string;
+  accessPath?: string;
+}): AccessConfig {
+  const workDir = options?.workDir ?? process.env.WORK;
+  const accessPath = options?.accessPath ?? process.env.ACCESS;
+
+  const resolveOptions: {
+    workDir?: string;
+    configPath?: string;
+    accessPath?: string;
+    isAccess: boolean;
+  } = { isAccess: true };
+
+  if (workDir) resolveOptions.workDir = workDir;
+  if (accessPath) resolveOptions.accessPath = accessPath;
+
+  const accessFilePath = resolveConfigPath(resolveOptions);
 
   if (!fs.existsSync(accessFilePath)) {
     throw new Error(`Access file not found: ${accessFilePath}`);

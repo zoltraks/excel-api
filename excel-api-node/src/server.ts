@@ -15,12 +15,41 @@ import { initFileLock, getFileLock } from './lock/lockfile.js';
 import { initCache, getCache } from './cache/mtimeCache.js';
 import cors from '@fastify/cors';
 
-const config = loadConfig();
+// Parse command-line arguments
+function parseArgs(): { workDir?: string; configPath?: string; accessPath?: string } {
+  const args = process.argv.slice(2);
+  const result: { workDir?: string; configPath?: string; accessPath?: string } = {};
+
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === '--work' && i + 1 < args.length) {
+      result.workDir = args[i + 1];
+      i++;
+    } else if (args[i] === '--config' && i + 1 < args.length) {
+      result.configPath = args[i + 1];
+      i++;
+    } else if (args[i] === '--access' && i + 1 < args.length) {
+      result.accessPath = args[i + 1];
+      i++;
+    }
+  }
+
+  return result;
+}
+
+const args = parseArgs();
+
+const config = loadConfig({
+  ...(args.workDir && { workDir: args.workDir }),
+  ...(args.configPath && { configPath: args.configPath }),
+});
 initRegistry(config);
 const registry = getRegistry();
 
 // Initialize authentication
-const accessConfig = loadAccessConfig();
+const accessConfig = loadAccessConfig({
+  ...(args.workDir && { workDir: args.workDir }),
+  ...(args.accessPath && { accessPath: args.accessPath }),
+});
 const jwtAuth = new JWTAuth(
   accessConfig.jwt.secret,
   config.auth.jwt.issuer,

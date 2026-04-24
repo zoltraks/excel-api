@@ -20,15 +20,18 @@ public class AccessConfigLoader {
     @Bean
     @ConfigurationProperties(prefix = "auth")
     public AccessConfig loadAccessConfig() throws Exception {
-        String accessPath = System.getenv().getOrDefault("ACCESS_PATH", "/etc/excel-api/access.yaml");
+        String workDir = System.getProperty("excel.api.work.dir", System.getenv().getOrDefault("WORK", null));
+        String accessPath = System.getProperty("excel.api.access.path", System.getenv().getOrDefault("ACCESS", null));
 
-        if (!Files.exists(Paths.get(accessPath))) {
-            throw new RuntimeException("Access file not found: " + accessPath);
+        String resolvedPath = ConfigPathResolver.resolveConfigPath(workDir, null, accessPath, true);
+
+        if (!Files.exists(Paths.get(resolvedPath))) {
+            throw new RuntimeException("Access file not found: " + resolvedPath);
         }
 
         // Check file permissions (should be 0600)
         try {
-            var permissions = Files.getPosixFilePermissions(Paths.get(accessPath));
+            var permissions = Files.getPosixFilePermissions(Paths.get(resolvedPath));
             var mode = PosixFilePermissions.toString(permissions);
             if (!mode.equals("rw-------")) {
                 System.err.println("WARNING: access.yaml has insecure permissions: " + mode + " (should be 600)");
@@ -37,7 +40,7 @@ public class AccessConfigLoader {
             // Windows or non-POSIX system, skip permission check
         }
 
-        String content = new String(Files.readAllBytes(Paths.get(accessPath)));
+        String content = new String(Files.readAllBytes(Paths.get(resolvedPath)));
 
         // Apply variable interpolation
         content = interpolateVariables(content);

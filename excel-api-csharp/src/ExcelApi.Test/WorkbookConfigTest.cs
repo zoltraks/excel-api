@@ -17,7 +17,7 @@ public class WorkbookConfigTest
     public void TestConfigEntries()
     {
         var config = new WorkbookConfig();
-        Assert.IsNotNull(config.Entries);
+        Assert.IsNotNull(config.Registry);
     }
 
     [TestMethod]
@@ -31,12 +31,12 @@ public class WorkbookConfigTest
     public void TestConfigAddEntry()
     {
         var config = new WorkbookConfig();
-        config.Entries.Add(new WorkbookEntry
+        config.Registry.Add(new WorkbookEntry
         {
             Id = "test1",
             Path = "test.xlsx",
             Readonly = false
         });
-        Assert.AreEqual(1, config.Entries.Count);
+        Assert.AreEqual(1, config.Registry.Count);
     }
 }

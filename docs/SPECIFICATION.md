@@ -45,6 +45,8 @@ excel-api-node/
 
 **OpenAPI loading**: `fs.readFileSync(path.join(__dirname, '../resources/openapi.yaml'))` at startup. Parsed with `yaml` package, fields replaced, serialized back to string and cached.
 
+**Command-line parameters**: The Node implementation accepts `--work`, `--config`, and `--access` parameters. These correspond to environment variables `WORK`, `CONFIG`, and `ACCESS`. The working directory parameter sets the base path for configuration file resolution. Config and access parameters can specify alternate file locations (relative to working directory if set, or absolute paths).
+
 ## Excel API Java
 
 **Stack**: Java 21, Spring Boot 3.x, Apache POI 5.x, Maven.
@@ -91,6 +93,8 @@ excel-api-java/
 **Queue implementation**: `BlockingQueue<WriteOperation>` per workbook, consumed by a single-thread `ExecutorService`. `CompletableFuture<OperationResult>` is the completion signal — the controller `await`s it via `.get()`.
 
 **OpenAPI loading**: `getClass().getResourceAsStream("/openapi.yaml")` from classpath. Parsed with SnakeYAML, fields replaced, serialized and cached.
+
+**Command-line parameters**: The Java implementation accepts `--work`, `--config`, and `--access` parameters. These correspond to environment variables `WORK`, `CONFIG`, and `ACCESS`. The working directory parameter sets the base path for configuration file resolution. Config and access parameters can specify alternate file locations (relative to working directory if set, or absolute paths).
 
 ## Excel API C#
 
@@ -146,6 +150,8 @@ excel-api-csharp/
 
 **OpenAPI loading**: Embedded resource loaded via `Assembly.GetManifestResourceStream("BigBytes.ExcelApi.Resources.openapi.yaml")`. Parsed with YamlDotNet, fields replaced, serialized and cached.
 
+**Command-line parameters**: The C# implementation accepts `--work`, `--config`, and `--access` parameters. These correspond to environment variables `WORK`, `CONFIG`, and `ACCESS`. The working directory parameter sets the base path for configuration file resolution. Config and access parameters can specify alternate file locations (relative to working directory if set, or absolute paths).
+
 ## Excel API Go (CLI Client)
 
 **Stack**: Go 1.22+, no framework for HTTP (standard `net/http` client), `chzyer/readline` for REPL.
@@ -200,6 +206,8 @@ Batch mode: commands from stdin or a file, output to stdout. Intended for script
 - Table: newlines replaced with `↵` for alignment preservation.
 
 **Authentication persistence.** OAuth2 tokens are cached in memory for the session duration. Token refresh is automatic — the client re-authenticates when a request receives 401 `TOKEN_EXPIRED`.
+
+**Command-line parameters**: The Go CLI accepts `--work`, `--config`, and `--access` parameters. These correspond to environment variables `WORK`, `CONFIG`, and `ACCESS`. The working directory parameter sets the base path for configuration file resolution. Config and access parameters can specify alternate file locations (relative to working directory if set, or absolute paths).
 
 ## Excel API Test (Integration Test Suite)
 
