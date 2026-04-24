@@ -1,5 +1,22 @@
 # Testing Strategy
 
+## Test Environment Setup
+
+**Work Directory Requirement**
+
+For testing purposes, always use the `work` directory in the project repository root.
+Never create example files, temporary files, or scripts in the project directory.
+The `work` directory is git-ignored and safe for test environments.
+
+Allowed: Create directory structure and test files in `work/`
+Forbidden: Create test files or temporary files in the project root or source directories
+
+**Implementation Execution**
+
+Run every implementation from its own directory.
+The `work` directory is at the repository root, outside implementation directories.
+When running implementations for testing, use `--work ../work` to point to the repository root work directory.
+
 ## Integration Tests
 
 The `excel-api-test/` directory contains black-box integration tests written in TypeScript with Jest.

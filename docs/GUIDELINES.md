@@ -149,6 +149,7 @@ After editing `docs/contract/openapi.yaml`, run `shell/sync-openapi.sh` to propa
 
 ## Testing
 
+- **Must read TESTING.md before performing any testing**. This document contains critical requirements for test environment setup.
 - Use environment variables for test configuration. Never hardcode credentials or server addresses.
 - Add or update tests when practical.
 - Run relevant build/lint/test steps for the component being changed.
