@@ -53,16 +53,22 @@ internal/
     config.go                # CLI configuration (server profiles, defaults)
     version.go               # Version constant
 
+bin/                         # Compiled binaries (gitignored)
+  excel-api-go               # Linux/macOS binary
+  excel-api-go.exe           # Windows binary
+
 go.mod
 go.sum
 Dockerfile
 README.md
+.gitignore                  # Must ignore bin/ directory
 ```
 
 * One `.go` file per logical unit. Split files when a file exceeds ~300 lines.
 * Unit tests live in the same package as the implementation, named `*_test.go`.
 * No circular dependencies between packages.
 * All non-`main` packages live under `internal/` to prevent external import.
+* **All compiled binaries must be output to the `bin/` directory. Never build binaries to the project root or subdirectories.**
 
 ## Naming Conventions
 
@@ -226,32 +232,36 @@ func handleError(err error, jsonOutput bool) {
 
 ## Build
 
+**Binary Output Location**
+
+All compiled binaries must be output to the `bin/` directory within the Go CLI project directory. Never build binaries to the project root, subdirectories, or the `cmd/` directory. The `bin/` directory must be gitignored.
+
 **Development build:**
 
 ```bash
 cd cmd/excel-api-go
-go build -o ../../bin/excel-api-go .
+go build -o ../bin/excel-api-go .
 ```
 
 On Windows, the output file must have the `.exe` extension:
 
 ```bash
 cd cmd/excel-api-go
-go build -o ../../bin/excel-api-go.exe .
+go build -o ../bin/excel-api-go.exe .
 ```
 
 **Production build:**
 
 ```bash
 cd cmd/excel-api-go
-go build -ldflags="-s -w" -o ../../bin/excel-api-go .
+go build -ldflags="-s -w" -o ../bin/excel-api-go .
 ```
 
 On Windows:
 
 ```bash
 cd cmd/excel-api-go
-go build -ldflags="-s -w" -o ../../bin/excel-api-go.exe .
+go build -ldflags="-s -w" -o ../bin/excel-api-go.exe .
 ```
 
 **Cross-compilation:**

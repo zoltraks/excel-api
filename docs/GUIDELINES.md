@@ -211,6 +211,7 @@ After editing `docs/contract/openapi.yaml`, run `shell/sync-openapi.sh` to propa
 - Do not add generated files to the repository unless explicitly required.
 - Do not change version numbers in project artifacts unless explicitly instructed.
 - **Header Versions**: Do not bump version numbers in document headers unless explicitly instructed by the user.
+- **Binary Output Location**: All compiled binaries must be output to a dedicated `bin/` directory within each project directory (e.g., `excel-api-go/bin/`, `excel-api-java/bin/`, etc.). Never build binaries to the repository root, subdirectories, or source directories. The `bin/` directory must be gitignored.
 
 ## Memorized General Rules
 

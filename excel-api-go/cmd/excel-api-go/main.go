@@ -16,6 +16,46 @@ import (
 
 var version = "0.0.1"
 
+type TokenResponse struct {
+	AccessToken string `json:"access_token"`
+	TokenType   string `json:"token_type"`
+	ExpiresIn   int    `json:"expires_in"`
+	Scope       string `json:"scope"`
+}
+
+func obtainToken(serverUrl, clientId, clientSecret string) (string, error) {
+	url := fmt.Sprintf("%s/auth/token", serverUrl)
+	data := fmt.Sprintf("grant_type=client_credentials&client_id=%s&client_secret=%s", clientId, clientSecret)
+	
+	req, err := http.NewRequest("POST", url, strings.NewReader(data))
+	if err != nil {
+		return "", fmt.Errorf("error creating request: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("error requesting token: %v", err)
+	}
+	defer resp.Body.Close()
+	
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("server returned status: %d", resp.StatusCode)
+	}
+	
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("error reading response: %v", err)
+	}
+	
+	var tokenResp TokenResponse
+	if err := json.Unmarshal(body, &tokenResp); err != nil {
+		return "", fmt.Errorf("error parsing token response: %v", err)
+	}
+	
+	return tokenResp.AccessToken, nil
+}
+
 func main() {
 	ver := flag.Bool("version", false, "Print version and exit")
 	repl := flag.Bool("repl", false, "Start interactive REPL mode")
@@ -32,8 +72,10 @@ func main() {
 	updateRecord := flag.String("update-record", "", "Update record (format: workbookId:sheetName:recordIndex:json)")
 	deleteRecord := flag.String("delete-record", "", "Delete record (format: workbookId:sheetName:recordIndex)")
 	format := flag.String("format", "native", "Output format (native/display/string/csv/markdown/table)")
-	serverUrl := flag.String("server", "http://localhost:8443/api/v1", "Server URL")
-	token := flag.String("token", "", "Auth token")
+	serverUrl := flag.String("server", "http://localhost:8443", "Server URL")
+	token := flag.String("token", "", "Auth token (static)")
+	clientId := flag.String("client-id", "", "OAuth2 client ID")
+	clientSecret := flag.String("client-secret", "", "OAuth2 client secret")
 	profile := flag.String("profile", "", "Connection profile (from ~/.excel-api/profiles.json)")
 	workDir := flag.String("work", "", "Working directory for config files")
 	configPath := flag.String("config", "", "Path to config.yaml")
@@ -65,6 +107,19 @@ func main() {
 		}
 	}
 
+	// Use OAuth2 if client credentials provided, otherwise use static token
+	authToken := *token
+	authPrefix := "Token" // Default to static token prefix
+	if *clientId != "" && *clientSecret != "" {
+		obtainedToken, err := obtainToken(*serverUrl, *clientId, *clientSecret)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error obtaining token: %v\n", err)
+			os.Exit(1)
+		}
+		authToken = obtainedToken
+		authPrefix = "Bearer" // OAuth2 tokens use Bearer prefix
+	}
+
 	if *ver {
 		fmt.Printf("Excel API Go CLI v%s\n", version)
 		return
@@ -76,7 +131,7 @@ func main() {
 	}
 
 	if *repl {
-		runREPL(*serverUrl, *token)
+		runREPL(*serverUrl, authToken, authPrefix)
 		return
 	}
 
@@ -86,92 +141,94 @@ func main() {
 	}
 
 	if *listWorkbooks {
-		listWorkbooksCmd(*serverUrl)
+		listWorkbooksCmd(*serverUrl, authToken, authPrefix)
 		return
 	}
 
 	if *getWorkbook != "" {
-		getWorkbookCmd(*serverUrl, *getWorkbook)
+		getWorkbookCmd(*serverUrl, *getWorkbook, authToken, authPrefix)
 		return
 	}
 
 	if *getCell != "" {
 		parts := strings.Split(*getCell, ":")
-		if len(parts) != 3 {
+		if len(parts) < 3 {
 			fmt.Fprintf(os.Stderr, "Invalid cell format. Expected: workbookId:sheetName:cellRef\n")
 			os.Exit(1)
 		}
-		getCellCmd(*serverUrl, parts[0], parts[1], parts[2], *format)
+		getCellCmd(*serverUrl, parts[0], parts[1], parts[2], *format, authToken, authPrefix)
 		return
 	}
 
 	if *getRange != "" {
 		parts := strings.Split(*getRange, ":")
-		if len(parts) != 3 {
+		if len(parts) < 3 {
 			fmt.Fprintf(os.Stderr, "Invalid range format. Expected: workbookId:sheetName:rangeRef\n")
 			os.Exit(1)
 		}
-		getRangeCmd(*serverUrl, parts[0], parts[1], parts[2], *format)
+		getRangeCmd(*serverUrl, parts[0], parts[1], parts[2], *format, authToken, authPrefix)
 		return
 	}
 
 	if *listRecords != "" {
 		parts := strings.Split(*listRecords, ":")
-		if len(parts) != 2 {
+		if len(parts) < 2 {
 			fmt.Fprintf(os.Stderr, "Invalid records format. Expected: workbookId:sheetName\n")
 			os.Exit(1)
 		}
-		listRecordsCmd(*serverUrl, parts[0], parts[1], *format)
+		listRecordsCmd(*serverUrl, parts[0], parts[1], *format, authToken, authPrefix)
 		return
 	}
 
 	if *getRecord != "" {
 		parts := strings.Split(*getRecord, ":")
-		if len(parts) != 3 {
+		if len(parts) < 3 {
 			fmt.Fprintf(os.Stderr, "Invalid record format. Expected: workbookId:sheetName:recordIndex\n")
 			os.Exit(1)
 		}
-		getRecordCmd(*serverUrl, parts[0], parts[1], parts[2], *format, *token)
+		getRecordCmd(*serverUrl, parts[0], parts[1], parts[2], *format, authToken, authPrefix)
 		return
 	}
 
 	if *setCell != "" {
 		parts := strings.Split(*setCell, ":")
-		if len(parts) != 4 {
+		if len(parts) < 4 {
 			fmt.Fprintf(os.Stderr, "Invalid set-cell format. Expected: workbookId:sheetName:cellRef:value\n")
 			os.Exit(1)
 		}
-		setCellCmd(*serverUrl, parts[0], parts[1], parts[2], parts[3], *token)
+		setCellCmd(*serverUrl, parts[0], parts[1], parts[2], strings.Join(parts[3:], ":"), authToken, authPrefix)
 		return
 	}
 
 	if *addRecord != "" {
-		parts := strings.SplitN(*addRecord, ":", 3)
-		if len(parts) != 3 {
+		parts := strings.Split(*addRecord, ":")
+		if len(parts) < 3 {
 			fmt.Fprintf(os.Stderr, "Invalid add-record format. Expected: workbookId:sheetName:json\n")
 			os.Exit(1)
 		}
-		addRecordCmd(*serverUrl, parts[0], parts[1], parts[2], *token)
+		jsonData := strings.Join(parts[2:], ":")
+		addRecordCmd(*serverUrl, parts[0], parts[1], jsonData, authToken, authPrefix)
 		return
 	}
 
 	if *updateRecord != "" {
-		parts := strings.SplitN(*updateRecord, ":", 4)
-		if len(parts) != 4 {
+		parts := strings.Split(*updateRecord, ":")
+		if len(parts) < 4 {
 			fmt.Fprintf(os.Stderr, "Invalid update-record format. Expected: workbookId:sheetName:recordIndex:json\n")
 			os.Exit(1)
 		}
-		updateRecordCmd(*serverUrl, parts[0], parts[1], parts[2], parts[3], *token)
+		jsonData := strings.Join(parts[3:], ":")
+		updateRecordCmd(*serverUrl, parts[0], parts[1], parts[2], jsonData, authToken, authPrefix)
 		return
 	}
 
 	if *deleteRecord != "" {
 		parts := strings.Split(*deleteRecord, ":")
-		if len(parts) != 3 {
+		if len(parts) < 3 {
 			fmt.Fprintf(os.Stderr, "Invalid delete-record format. Expected: workbookId:sheetName:recordIndex\n")
 			os.Exit(1)
 		}
-		deleteRecordCmd(*serverUrl, parts[0], parts[1], parts[2], *token)
+		deleteRecordCmd(*serverUrl, parts[0], parts[1], parts[2], authToken, authPrefix)
 		return
 	}
 
@@ -202,8 +259,18 @@ func showStatistics(serverUrl string) {
 	fmt.Println(string(body))
 }
 
-func listWorkbooksCmd(serverUrl string) {
-	resp, err := http.Get(fmt.Sprintf("%s/workbooks", serverUrl))
+func listWorkbooksCmd(serverUrl, token, authPrefix string) {
+	url := fmt.Sprintf("%s/workbooks", serverUrl)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error creating request: %v\n", err)
+		os.Exit(1)
+	}
+	if token != "" {
+		req.Header.Set("Authorization", authPrefix+" "+token)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error fetching workbooks: %v\n", err)
 		os.Exit(1)
@@ -237,8 +304,18 @@ func listWorkbooksCmd(serverUrl string) {
 	}
 }
 
-func getWorkbookCmd(serverUrl, id string) {
-	resp, err := http.Get(fmt.Sprintf("%s/workbooks/%s", serverUrl, id))
+func getWorkbookCmd(serverUrl, id, token, authPrefix string) {
+	url := fmt.Sprintf("%s/workbooks/%s", serverUrl, id)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error creating request: %v\n", err)
+		os.Exit(1)
+	}
+	if token != "" {
+		req.Header.Set("Authorization", authPrefix+" "+token)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error fetching workbook: %v\n", err)
 		os.Exit(1)
@@ -269,9 +346,18 @@ func getWorkbookCmd(serverUrl, id string) {
 	fmt.Printf("  Modified: %s\n", result["modified_at"])
 }
 
-func getCellCmd(serverUrl, workbookId, sheetName, cellRef, format string) {
+func getCellCmd(serverUrl, workbookId, sheetName, cellRef, format, token, authPrefix string) {
 	url := fmt.Sprintf("%s/workbooks/%s/sheets/%s/cells/%s?format=%s", serverUrl, workbookId, sheetName, cellRef, format)
-	resp, err := http.Get(url)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error creating request: %v\n", err)
+		os.Exit(1)
+	}
+	if token != "" {
+		req.Header.Set("Authorization", authPrefix+" "+token)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error fetching cell: %v\n", err)
 		os.Exit(1)
@@ -300,9 +386,18 @@ func getCellCmd(serverUrl, workbookId, sheetName, cellRef, format string) {
 	fmt.Printf("  Type: %s\n", result["type"])
 }
 
-func getRangeCmd(serverUrl, workbookId, sheetName, rangeRef, format string) {
+func getRangeCmd(serverUrl, workbookId, sheetName, rangeRef, format, token, authPrefix string) {
 	url := fmt.Sprintf("%s/workbooks/%s/sheets/%s/ranges/%s?format=%s", serverUrl, workbookId, sheetName, rangeRef, format)
-	resp, err := http.Get(url)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error creating request: %v\n", err)
+		os.Exit(1)
+	}
+	if token != "" {
+		req.Header.Set("Authorization", authPrefix+" "+token)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error fetching range: %v\n", err)
 		os.Exit(1)
@@ -332,9 +427,18 @@ func getRangeCmd(serverUrl, workbookId, sheetName, rangeRef, format string) {
 	}
 }
 
-func listRecordsCmd(serverUrl, workbookId, sheetName, format string) {
+func listRecordsCmd(serverUrl, workbookId, sheetName, format, token, authPrefix string) {
 	url := fmt.Sprintf("%s/workbooks/%s/sheets/%s/records?format=%s", serverUrl, workbookId, sheetName, format)
-	resp, err := http.Get(url)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error creating request: %v\n", err)
+		os.Exit(1)
+	}
+	if token != "" {
+		req.Header.Set("Authorization", authPrefix+" "+token)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error fetching records: %v\n", err)
 		os.Exit(1)
@@ -370,7 +474,7 @@ func listRecordsCmd(serverUrl, workbookId, sheetName, format string) {
 	}
 }
 
-func getRecordCmd(serverUrl, workbookId, sheetName, recordIndex, format, token string) {
+func getRecordCmd(serverUrl, workbookId, sheetName, recordIndex, format, token, authPrefix string) {
 	url := fmt.Sprintf("%s/workbooks/%s/sheets/%s/records/%s?format=%s", serverUrl, workbookId, sheetName, recordIndex, format)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -378,7 +482,7 @@ func getRecordCmd(serverUrl, workbookId, sheetName, recordIndex, format, token s
 		os.Exit(1)
 	}
 	if token != "" {
-		req.Header.Set("Authorization", "Bearer "+token)
+		req.Header.Set("Authorization", authPrefix+" "+token)
 	}
 
 	resp, err := http.DefaultClient.Do(req)
@@ -409,7 +513,7 @@ func getRecordCmd(serverUrl, workbookId, sheetName, recordIndex, format, token s
 	fmt.Printf("  Data: %v\n", result["data"])
 }
 
-func setCellCmd(serverUrl, workbookId, sheetName, cellRef, value, token string) {
+func setCellCmd(serverUrl, workbookId, sheetName, cellRef, value, token, authPrefix string) {
 	url := fmt.Sprintf("%s/workbooks/%s/sheets/%s/cells/%s", serverUrl, workbookId, sheetName, cellRef)
 	payload := map[string]interface{}{"value": value}
 	jsonData, err := json.Marshal(payload)
@@ -425,7 +529,7 @@ func setCellCmd(serverUrl, workbookId, sheetName, cellRef, value, token string) 
 	}
 	req.Header.Set("Content-Type", "application/json")
 	if token != "" {
-		req.Header.Set("Authorization", "Bearer "+token)
+		req.Header.Set("Authorization", authPrefix+" "+token)
 	}
 
 	resp, err := http.DefaultClient.Do(req)
@@ -443,7 +547,7 @@ func setCellCmd(serverUrl, workbookId, sheetName, cellRef, value, token string) 
 	fmt.Printf("Cell %s set to: %s\n", cellRef, value)
 }
 
-func addRecordCmd(serverUrl, workbookId, sheetName, jsonData, token string) {
+func addRecordCmd(serverUrl, workbookId, sheetName, jsonData, token, authPrefix string) {
 	url := fmt.Sprintf("%s/workbooks/%s/sheets/%s/records", serverUrl, workbookId, sheetName)
 	payload := map[string]interface{}{"data": jsonData}
 	reqBody, err := json.Marshal(payload)
@@ -459,7 +563,7 @@ func addRecordCmd(serverUrl, workbookId, sheetName, jsonData, token string) {
 	}
 	req.Header.Set("Content-Type", "application/json")
 	if token != "" {
-		req.Header.Set("Authorization", "Bearer "+token)
+		req.Header.Set("Authorization", authPrefix+" "+token)
 	}
 
 	resp, err := http.DefaultClient.Do(req)
@@ -477,7 +581,7 @@ func addRecordCmd(serverUrl, workbookId, sheetName, jsonData, token string) {
 	fmt.Printf("Record added to %s\n", sheetName)
 }
 
-func updateRecordCmd(serverUrl, workbookId, sheetName, recordIndex, jsonData, token string) {
+func updateRecordCmd(serverUrl, workbookId, sheetName, recordIndex, jsonData, token, authPrefix string) {
 	url := fmt.Sprintf("%s/workbooks/%s/sheets/%s/records/%s", serverUrl, workbookId, sheetName, recordIndex)
 	payload := map[string]interface{}{"data": jsonData}
 	reqBody, err := json.Marshal(payload)
@@ -493,7 +597,7 @@ func updateRecordCmd(serverUrl, workbookId, sheetName, recordIndex, jsonData, to
 	}
 	req.Header.Set("Content-Type", "application/json")
 	if token != "" {
-		req.Header.Set("Authorization", "Bearer "+token)
+		req.Header.Set("Authorization", authPrefix+" "+token)
 	}
 
 	resp, err := http.DefaultClient.Do(req)
@@ -511,7 +615,7 @@ func updateRecordCmd(serverUrl, workbookId, sheetName, recordIndex, jsonData, to
 	fmt.Printf("Record [%s] updated in %s\n", recordIndex, sheetName)
 }
 
-func deleteRecordCmd(serverUrl, workbookId, sheetName, recordIndex, token string) {
+func deleteRecordCmd(serverUrl, workbookId, sheetName, recordIndex, token, authPrefix string) {
 	url := fmt.Sprintf("%s/workbooks/%s/sheets/%s/records/%s", serverUrl, workbookId, sheetName, recordIndex)
 	req, err := http.NewRequest("DELETE", url, nil)
 	if err != nil {
@@ -519,7 +623,7 @@ func deleteRecordCmd(serverUrl, workbookId, sheetName, recordIndex, token string
 		os.Exit(1)
 	}
 	if token != "" {
-		req.Header.Set("Authorization", "Bearer "+token)
+		req.Header.Set("Authorization", authPrefix+" "+token)
 	}
 
 	resp, err := http.DefaultClient.Do(req)
@@ -537,44 +641,42 @@ func deleteRecordCmd(serverUrl, workbookId, sheetName, recordIndex, token string
 	fmt.Printf("Record [%s] deleted from %s\n", recordIndex, sheetName)
 }
 
-func runREPL(serverUrl, token string) {
-	scanner := bufio.NewScanner(os.Stdin)
-	fmt.Printf("Excel API CLI (connected to %s)\n", serverUrl)
+func runREPL(serverUrl, token, authPrefix string) {
+	fmt.Println("Excel API Go CLI - Interactive REPL Mode")
 	fmt.Println("Type 'help' for available commands, 'exit' to quit")
-
+	
+	scanner := bufio.NewScanner(os.Stdin)
 	for {
 		fmt.Print("> ")
 		if !scanner.Scan() {
 			break
 		}
-
-		line := strings.TrimSpace(scanner.Text())
+		
+		line := scanner.Text()
 		if line == "" {
 			continue
 		}
-
-		if line == "exit" || line == "quit" {
+		
+		if line == "exit" {
 			fmt.Println("Goodbye!")
-			break
+			return
 		}
-
+		
 		if line == "help" {
 			printREPLHelp()
 			continue
 		}
-
-		// Parse and execute command
+		
 		parts := strings.Fields(line)
 		if len(parts) == 0 {
 			continue
 		}
-
+		
 		command := parts[0]
 		args := parts[1:]
-
-		executeREPLCommand(command, args, serverUrl, token)
+		executeREPLCommand(command, args, serverUrl, token, authPrefix)
 	}
-
+	
 	if scanner.Err() != nil {
 		fmt.Fprintf(os.Stderr, "Error reading input: %v\n", scanner.Err())
 	}
@@ -595,58 +697,58 @@ func printREPLHelp() {
 	fmt.Println("  exit                             - Exit the REPL")
 }
 
-func executeREPLCommand(command string, args []string, serverUrl, token string) {
+func executeREPLCommand(command string, args []string, serverUrl, token, authPrefix string) {
 	switch command {
 	case "list-workbooks":
-		listWorkbooksCmd(serverUrl)
+		listWorkbooksCmd(serverUrl, token, authPrefix)
 	case "get-workbook":
 		if len(args) < 1 {
 			fmt.Println("usage: get-workbook <id>")
 			return
 		}
-		getWorkbookCmd(serverUrl, args[0])
+		getWorkbookCmd(serverUrl, args[0], token, authPrefix)
 	case "get-cell":
 		if len(args) < 3 {
 			fmt.Println("usage: get-cell <id> <sheet> <ref>")
 			return
 		}
-		getCellCmd(serverUrl, args[0], args[1], args[2], "native")
+		getCellCmd(serverUrl, args[0], args[1], args[2], "native", token, authPrefix)
 	case "get-range":
 		if len(args) < 3 {
 			fmt.Println("usage: get-range <id> <sheet> <range>")
 			return
 		}
-		getRangeCmd(serverUrl, args[0], args[1], args[2], "native")
+		getRangeCmd(serverUrl, args[0], args[1], args[2], "native", token, authPrefix)
 	case "get-records":
 		if len(args) < 2 {
 			fmt.Println("usage: get-records <id> <sheet>")
 			return
 		}
-		listRecordsCmd(serverUrl, args[0], args[1], "native")
+		listRecordsCmd(serverUrl, args[0], args[1], "native", token, authPrefix)
 	case "set-cell":
 		if len(args) < 4 {
 			fmt.Println("usage: set-cell <id> <sheet> <ref> <val>")
 			return
 		}
-		setCellCmd(serverUrl, args[0], args[1], args[2], strings.Join(args[3:], " "), token)
+		setCellCmd(serverUrl, args[0], args[1], args[2], strings.Join(args[3:], " "), token, authPrefix)
 	case "add-record":
 		if len(args) < 3 {
 			fmt.Println("usage: add-record <id> <sheet> <json>")
 			return
 		}
-		addRecordCmd(serverUrl, args[0], args[1], strings.Join(args[2:], " "), token)
+		addRecordCmd(serverUrl, args[0], args[1], strings.Join(args[2:], " "), token, authPrefix)
 	case "update-record":
 		if len(args) < 4 {
 			fmt.Println("usage: update-record <id> <sheet> <idx> <json>")
 			return
 		}
-		updateRecordCmd(serverUrl, args[0], args[1], args[2], strings.Join(args[3:], " "), token)
+		updateRecordCmd(serverUrl, args[0], args[1], args[2], strings.Join(args[3:], " "), token, authPrefix)
 	case "delete-record":
 		if len(args) < 3 {
 			fmt.Println("usage: delete-record <id> <sheet> <idx>")
 			return
 		}
-		deleteRecordCmd(serverUrl, args[0], args[1], args[2], token)
+		deleteRecordCmd(serverUrl, args[0], args[1], args[2], token, authPrefix)
 	default:
 		fmt.Printf("Unknown command: %s\n", command)
 	}
