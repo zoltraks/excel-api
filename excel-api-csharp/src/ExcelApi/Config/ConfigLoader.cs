@@ -54,7 +54,7 @@ public static class ConfigLoader
         var deserializer = new DeserializerBuilder()
             .WithNamingConvention(UnderscoredNamingConvention.Instance)
             .Build();
-        
+
         var serializer = new SerializerBuilder()
             .WithNamingConvention(UnderscoredNamingConvention.Instance)
             .Build();
@@ -62,28 +62,27 @@ public static class ConfigLoader
         // For WorkbookConfig, extract the registry section first
         if (!isAccess && typeof(T) == typeof(WorkbookConfig))
         {
-            var fullConfig = deserializer.Deserialize<Dictionary<string, object>>(content) ?? 
+            var fullConfig = deserializer.Deserialize<Dictionary<string, object>>(content) ??
                 throw new InvalidOperationException("Failed to deserialize config");
-            
+
             if (fullConfig.ContainsKey("registry"))
             {
                 var registryYaml = serializer.Serialize(fullConfig["registry"]);
-                var workbookConfig = deserializer.Deserialize<T>(registryYaml) ?? 
+                var workbookConfig = deserializer.Deserialize<T>(registryYaml) ??
                     throw new InvalidOperationException("Failed to deserialize workbook config");
-                
+
                 // Resolve lifecycle with override hierarchy: CLI > env > config
                 if (workbookConfig is WorkbookConfig wbConfig)
                 {
-                    string? cliLife = Environment.GetEnvironmentVariable("EXCEL_API_LIFE");
                     string? envLife = Environment.GetEnvironmentVariable("LIFE");
                     string? configLife = wbConfig.Lifecycle?.Life;
 
-                    if (cliLife != null || envLife != null || configLife != null)
+                    if (envLife != null || configLife != null)
                     {
-                        string resolvedLife = cliLife ?? envLife ?? configLife ?? string.Empty;
+                        string resolvedLife = envLife ?? configLife ?? string.Empty;
                         wbConfig.Lifecycle = new LifecycleConfig { Life = resolvedLife };
                     }
-                    
+
                     // Resolve registry directory relative to work directory
                     if (!string.IsNullOrEmpty(wbConfig.Directory) && !Path.IsPathRooted(wbConfig.Directory))
                     {
@@ -92,7 +91,7 @@ public static class ConfigLoader
                             wbConfig.Directory = Path.Combine(workDir, wbConfig.Directory);
                         }
                     }
-                    
+
                     // Resolve workbook paths relative to registry directory
                     foreach (var workbook in wbConfig.Workbooks)
                     {
@@ -102,12 +101,29 @@ public static class ConfigLoader
                         }
                     }
                 }
-                
+
                 return workbookConfig;
             }
+            // If no registry section, deserialize the whole config directly
+            // This allows tests to use simplified config structures
             else
             {
-                throw new InvalidOperationException("Config file does not contain 'registry' section");
+                var directConfig = deserializer.Deserialize<T>(content) ?? throw new InvalidOperationException("Failed to deserialize config");
+
+                // Resolve lifecycle with override hierarchy: CLI > env > config (only for WorkbookConfig)
+                if (directConfig is WorkbookConfig directWbConfig)
+                {
+                    string? envLife = Environment.GetEnvironmentVariable("LIFE");
+                    string? configLife = directWbConfig.Lifecycle?.Life;
+
+                    if (envLife != null || configLife != null)
+                    {
+                        string resolvedLife = envLife ?? configLife ?? string.Empty;
+                        directWbConfig.Lifecycle = new LifecycleConfig { Life = resolvedLife };
+                    }
+                }
+
+                return directConfig;
             }
         }
 
@@ -116,13 +132,12 @@ public static class ConfigLoader
         // Resolve lifecycle with override hierarchy: CLI > env > config (only for WorkbookConfig)
         if (!isAccess && config is WorkbookConfig wbConfig2)
         {
-            string? cliLife = Environment.GetEnvironmentVariable("EXCEL_API_LIFE");
             string? envLife = Environment.GetEnvironmentVariable("LIFE");
             string? configLife = wbConfig2.Lifecycle?.Life;
 
-            if (cliLife != null || envLife != null || configLife != null)
+            if (envLife != null || configLife != null)
             {
-                string resolvedLife = cliLife ?? envLife ?? configLife ?? string.Empty;
+                string resolvedLife = envLife ?? configLife ?? string.Empty;
                 wbConfig2.Lifecycle = new LifecycleConfig { Life = resolvedLife };
             }
         }

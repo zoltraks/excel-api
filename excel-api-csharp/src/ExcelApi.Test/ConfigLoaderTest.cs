@@ -29,14 +29,14 @@ lifecycle:
   life: 30s
 """;
         File.WriteAllText(ConfigPath, configContent);
-        Environment.SetEnvironmentVariable("EXCEL_API_CONFIG_PATH", ConfigPath);
+        Environment.SetEnvironmentVariable("CONFIG", ConfigPath);
 
         var config = ConfigLoader.LoadConfig<WorkbookConfig>(null, ConfigPath, false);
 
         Assert.IsNotNull(config.Lifecycle);
         Assert.AreEqual("30s", config.Lifecycle.Life);
 
-        Environment.SetEnvironmentVariable("EXCEL_API_CONFIG_PATH", null);
+        Environment.SetEnvironmentVariable("CONFIG", null);
         File.Delete(ConfigPath);
     }
 
@@ -51,7 +51,7 @@ lifecycle:
   life: 30s
 """;
         File.WriteAllText(ConfigPath, configContent);
-        Environment.SetEnvironmentVariable("EXCEL_API_CONFIG_PATH", ConfigPath);
+        Environment.SetEnvironmentVariable("CONFIG", ConfigPath);
         Environment.SetEnvironmentVariable("LIFE", "60s");
 
         var config = ConfigLoader.LoadConfig<WorkbookConfig>(null, ConfigPath, false);
@@ -59,7 +59,7 @@ lifecycle:
         Assert.IsNotNull(config.Lifecycle);
         Assert.AreEqual("60s", config.Lifecycle.Life);
 
-        Environment.SetEnvironmentVariable("EXCEL_API_CONFIG_PATH", null);
+        Environment.SetEnvironmentVariable("CONFIG", null);
         Environment.SetEnvironmentVariable("LIFE", null);
         File.Delete(ConfigPath);
     }
@@ -75,18 +75,16 @@ lifecycle:
   life: 30s
 """;
         File.WriteAllText(ConfigPath, configContent);
-        Environment.SetEnvironmentVariable("EXCEL_API_CONFIG_PATH", ConfigPath);
+        Environment.SetEnvironmentVariable("CONFIG", ConfigPath);
         Environment.SetEnvironmentVariable("LIFE", "60s");
-        Environment.SetEnvironmentVariable("EXCEL_API_LIFE", "90s");
 
         var config = ConfigLoader.LoadConfig<WorkbookConfig>(null, ConfigPath, false);
 
         Assert.IsNotNull(config.Lifecycle);
-        Assert.AreEqual("90s", config.Lifecycle.Life);
+        Assert.AreEqual("60s", config.Lifecycle.Life);
 
-        Environment.SetEnvironmentVariable("EXCEL_API_CONFIG_PATH", null);
+        Environment.SetEnvironmentVariable("CONFIG", null);
         Environment.SetEnvironmentVariable("LIFE", null);
-        Environment.SetEnvironmentVariable("EXCEL_API_LIFE", null);
         File.Delete(ConfigPath);
     }
 
@@ -99,13 +97,13 @@ workbooks: []
 profiles: {}
 """;
         File.WriteAllText(ConfigPath, configContent);
-        Environment.SetEnvironmentVariable("EXCEL_API_CONFIG_PATH", ConfigPath);
+        Environment.SetEnvironmentVariable("CONFIG", ConfigPath);
 
         var config = ConfigLoader.LoadConfig<WorkbookConfig>(null, ConfigPath, false);
 
         Assert.IsNull(config.Lifecycle);
 
-        Environment.SetEnvironmentVariable("EXCEL_API_CONFIG_PATH", null);
+        Environment.SetEnvironmentVariable("CONFIG", null);
         File.Delete(ConfigPath);
     }
 }

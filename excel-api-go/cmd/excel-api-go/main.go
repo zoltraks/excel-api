@@ -26,33 +26,33 @@ type TokenResponse struct {
 func obtainToken(serverUrl, clientId, clientSecret string) (string, error) {
 	url := fmt.Sprintf("%s/auth/token", serverUrl)
 	data := fmt.Sprintf("grant_type=client_credentials&client_id=%s&client_secret=%s", clientId, clientSecret)
-	
+
 	req, err := http.NewRequest("POST", url, strings.NewReader(data))
 	if err != nil {
 		return "", fmt.Errorf("error creating request: %v", err)
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	
+
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("error requesting token: %v", err)
 	}
 	defer resp.Body.Close()
-	
+
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("server returned status: %d", resp.StatusCode)
 	}
-	
+
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", fmt.Errorf("error reading response: %v", err)
 	}
-	
+
 	var tokenResp TokenResponse
 	if err := json.Unmarshal(body, &tokenResp); err != nil {
 		return "", fmt.Errorf("error parsing token response: %v", err)
 	}
-	
+
 	return tokenResp.AccessToken, nil
 }
 
@@ -644,39 +644,39 @@ func deleteRecordCmd(serverUrl, workbookId, sheetName, recordIndex, token, authP
 func runREPL(serverUrl, token, authPrefix string) {
 	fmt.Println("Excel API Go CLI - Interactive REPL Mode")
 	fmt.Println("Type 'help' for available commands, 'exit' to quit")
-	
+
 	scanner := bufio.NewScanner(os.Stdin)
 	for {
 		fmt.Print("> ")
 		if !scanner.Scan() {
 			break
 		}
-		
+
 		line := scanner.Text()
 		if line == "" {
 			continue
 		}
-		
+
 		if line == "exit" {
 			fmt.Println("Goodbye!")
 			return
 		}
-		
+
 		if line == "help" {
 			printREPLHelp()
 			continue
 		}
-		
+
 		parts := strings.Fields(line)
 		if len(parts) == 0 {
 			continue
 		}
-		
+
 		command := parts[0]
 		args := parts[1:]
 		executeREPLCommand(command, args, serverUrl, token, authPrefix)
 	}
-	
+
 	if scanner.Err() != nil {
 		fmt.Fprintf(os.Stderr, "Error reading input: %v\n", scanner.Err())
 	}

@@ -225,13 +225,13 @@ app.MapGet("/openapi.yaml", () =>
 
 app.MapPost("/auth/token", async (Microsoft.AspNetCore.Http.HttpRequest request) =>
 {
-    string grantType = null;
-    string clientId = null;
-    string clientSecret = null;
-    string username = null;
-    string password = null;
+    string? grantType = null;
+    string? clientId = null;
+    string? clientSecret = null;
+    string? username = null;
+    string? password = null;
 
-    string contentType = request.ContentType?.Split(';')[0];
+    string? contentType = request.ContentType?.Split(';')[0];
 
     if (contentType == "application/x-www-form-urlencoded")
     {
@@ -468,7 +468,7 @@ if (workbookConfig.Lifecycle?.Life != null)
     {
         var lifeSpan = DurationParser.Parse(workbookConfig.Lifecycle.Life);
         Console.WriteLine($"Lifecycle limit set to {workbookConfig.Lifecycle.Life}, will shut down gracefully after this duration");
-        
+
         var cts = new CancellationTokenSource();
         _ = Task.Delay(lifeSpan, cts.Token).ContinueWith(_ =>
         {

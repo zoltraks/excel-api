@@ -20,8 +20,14 @@ public class AccessConfigLoader {
     @Bean
     @ConfigurationProperties(prefix = "auth")
     public AccessConfig loadAccessConfig() throws Exception {
-        String workDir = System.getProperty("excel.api.work.dir", System.getenv().getOrDefault("WORK", null));
-        String accessPath = System.getProperty("excel.api.access.path", System.getenv().getOrDefault("ACCESS", null));
+        String workDir = System.getProperty(
+            "excel.api.work.dir",
+            System.getenv().getOrDefault("WORK", null)
+        );
+        String accessPath = System.getProperty(
+            "excel.api.access.path",
+            System.getenv().getOrDefault("ACCESS", null)
+        );
 
         String resolvedPath = ConfigPathResolver.resolveConfigPath(workDir, null, accessPath, true);
 

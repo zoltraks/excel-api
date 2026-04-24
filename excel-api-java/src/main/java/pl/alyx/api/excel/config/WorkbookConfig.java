@@ -28,6 +28,7 @@ public class WorkbookConfig {
         this.workbooks = workbooks;
     }
 
+    @SuppressWarnings("unchecked")
     public void loadFromConfigMap(Map<String, Object> config) {
         if (config.containsKey("registry") && config.get("registry") instanceof Map) {
             Map<String, Object> registry = (Map<String, Object>) config.get("registry");
@@ -49,7 +50,8 @@ public class WorkbookConfig {
                         entry.setReadonly((Boolean) workbookMap.get("readonly"));
                     }
                     if (workbookMap.containsKey("sheets") && workbookMap.get("sheets") instanceof Map) {
-                        Map<String, Map<String, Object>> sheetsMap = (Map<String, Map<String, Object>>) workbookMap.get("sheets");
+                        Map<String, Map<String, Object>> sheetsMap =
+                            (Map<String, Map<String, Object>>) workbookMap.get("sheets");
                         Map<String, SheetHeaderConfig> sheets = new HashMap<>();
                         for (Map.Entry<String, Map<String, Object>> sheetEntry : sheetsMap.entrySet()) {
                             SheetHeaderConfig sheetConfig = new SheetHeaderConfig();

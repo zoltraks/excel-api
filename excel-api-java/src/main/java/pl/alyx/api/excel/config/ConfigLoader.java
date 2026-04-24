@@ -29,8 +29,14 @@ public class ConfigLoader {
     @ConfigurationProperties
     @SuppressWarnings("unchecked")
     public Map<String, Object> loadConfig() throws Exception {
-        String workDir = System.getProperty("excel.api.work.dir", System.getenv().getOrDefault("WORK", null));
-        String configPath = System.getProperty("excel.api.config.path", System.getenv().getOrDefault("CONFIG", null));
+        String workDir = System.getProperty(
+            "excel.api.work.dir",
+            System.getenv().getOrDefault("WORK", null)
+        );
+        String configPath = System.getProperty(
+            "excel.api.config.path",
+            System.getenv().getOrDefault("CONFIG", null)
+        );
 
         String resolvedPath = ConfigPathResolver.resolveConfigPath(workDir, configPath, null, false);
 
@@ -49,7 +55,9 @@ public class ConfigLoader {
         // Resolve lifecycle with override hierarchy: CLI > env > config
         String cliLife = System.getProperty("excel.api.life");
         String envLife = System.getProperty("LIFE", System.getenv("LIFE"));
-        Object configLife = config.get("lifecycle") instanceof Map ? ((Map<?, ?>) config.get("lifecycle")).get("life") : null;
+        Object configLife = config.get("lifecycle") instanceof Map
+            ? ((Map<?, ?>) config.get("lifecycle")).get("life")
+            : null;
 
         if (cliLife != null || envLife != null || configLife != null) {
             String resolvedLife = cliLife != null ? cliLife : (envLife != null ? envLife : String.valueOf(configLife));

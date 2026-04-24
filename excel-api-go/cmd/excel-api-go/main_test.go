@@ -9,14 +9,14 @@ import (
 func TestResolveConfigPath(t *testing.T) {
 	sep := string(filepath.Separator)
 	isWindows := runtime.GOOS == "windows"
-	
+
 	tests := []struct {
-		name        string
-		workDir     string
-		configPath  string
-		accessPath  string
-		isAccess    bool
-		expected    string
+		name       string
+		workDir    string
+		configPath string
+		accessPath string
+		isAccess   bool
+		expected   string
 	}{
 		{
 			name:       "absolute config path",
