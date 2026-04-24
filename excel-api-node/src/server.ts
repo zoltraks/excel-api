@@ -16,10 +16,30 @@ import { initCache, getCache } from './cache/mtimeCache.js';
 import cors from '@fastify/cors';
 import { initLogger, getLogger, LogLevel } from './logger/index.js';
 
+// Parse duration string (e.g., "13s", "3m", "154h") to milliseconds
+function parseDuration(duration: string): number {
+  const match = duration.match(/^(\d+)([smh])$/);
+  if (!match) {
+    throw new Error(`Invalid duration format: ${duration}. Expected format: <number><unit> where unit is s, m, or h.`);
+  }
+  const value = parseInt(match[1], 10);
+  const unit = match[2];
+  switch (unit) {
+    case 's':
+      return value * 1000;
+    case 'm':
+      return value * 60 * 1000;
+    case 'h':
+      return value * 60 * 60 * 1000;
+    default:
+      throw new Error(`Invalid duration unit: ${unit}. Expected s, m, or h.`);
+  }
+}
+
 // Parse command-line arguments
-function parseArgs(): { workDir?: string; configPath?: string; accessPath?: string } {
+function parseArgs(): { workDir?: string; configPath?: string; accessPath?: string; life?: string } {
   const args = process.argv.slice(2);
-  const result: { workDir?: string; configPath?: string; accessPath?: string } = {};
+  const result: { workDir?: string; configPath?: string; accessPath?: string; life?: string } = {};
 
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '--work' && i + 1 < args.length) {
@@ -30,6 +50,9 @@ function parseArgs(): { workDir?: string; configPath?: string; accessPath?: stri
       i++;
     } else if (args[i] === '--access' && i + 1 < args.length) {
       result.accessPath = args[i + 1];
+      i++;
+    } else if (args[i] === '--life' && i + 1 < args.length) {
+      result.life = args[i + 1];
       i++;
     }
   }
@@ -42,6 +65,7 @@ const args = parseArgs();
 const config = loadConfig({
   ...(args.workDir && { workDir: args.workDir }),
   ...(args.configPath && { configPath: args.configPath }),
+  ...(args.life && { cliLife: args.life }),
 });
 
 // Initialize logger as per ts-node-development.md startup sequence
@@ -902,6 +926,19 @@ const start = async (): Promise<void> => {
   const host = config.server.host;
   await server.listen({ port, host });
   logger.info(`Server listening at http://${host}:${port}`);
+
+  // Set up lifecycle limit if configured
+  if (config.lifecycle?.life) {
+    const lifeMs = parseDuration(config.lifecycle.life);
+    logger.info(`Lifecycle limit set to ${config.lifecycle.life}, will shut down gracefully after this duration`);
+    
+    setTimeout(async () => {
+      logger.info('Lifecycle limit reached, initiating graceful shutdown');
+      await server.close();
+      logger.info('Server shut down gracefully');
+      process.exit(0);
+    }, lifeMs);
+  }
 };
 
 start().catch((err) => {

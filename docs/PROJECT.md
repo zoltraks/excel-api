@@ -343,11 +343,32 @@ Three endpoints are accessible without authorization: `POST /auth/token`, `GET /
 
 Each implementation uses two configuration files.
 
-**`config.yaml`** contains non-sensitive settings: server port and TLS, workbook registry (file ID to path mapping, readonly flag, per-sheet header configuration), queue parameters (batch size, debounce, lock timeout), cache settings (invalidation strategy, poll interval), authorization mode, JWT issuer and expiration, logging level and format, and OpenAPI metadata overrides (title, description, servers list).
+**`config.yaml`** contains non-sensitive settings: server port and TLS, workbook registry (file ID to path mapping, readonly flag, per-sheet header configuration), queue parameters (batch size, debounce, lock timeout), cache settings (invalidation strategy, poll interval), authorization mode, JWT issuer and expiration, logging level and format, OpenAPI metadata overrides (title, description, servers list), and lifecycle limit for development testing.
 
 **`access.yaml`** contains sensitive data: JWT signing secret, OAuth2 client credentials and user password hashes (bcrypt), static token values with names and scopes, and ACL rules mapping scopes to allowed HTTP methods.
 
 The separation ensures `access.yaml` can have restrictive file permissions (`0600`) while `config.yaml` can be safely committed to version control. Both files are validated at startup. Invalid configuration terminates the process with a descriptive error.
+
+**Configuration Parameter Overriding**
+
+Configuration parameters can be specified through three mechanisms with a strict override hierarchy: command line arguments take precedence over environment variables, which take precedence over configuration file values.
+
+Override hierarchy (highest to lowest priority):
+1. Command line arguments (e.g., `--port 8443`, `--life 30s`)
+2. Environment variables (e.g., `PORT=8443`, `LIFE=30s`)
+3. Configuration file values (e.g., `port: 8443`, `life: 30s` in `config.yaml`)
+
+This hierarchy applies to all configurable parameters across all implementations.
+
+**Lifecycle Management**
+
+For development and testing purposes, all implementations support a lifecycle limit through the `--life` command line parameter, `LIFE` environment variable, or `life` configuration value in `config.yaml`. When specified, the service will stop gracefully after the specified duration.
+
+The value must be in canonical duration format: `<number><unit>` where `<unit>` is `s` (seconds), `m` (minutes), or `h` (hours). Examples: `13s` for 13 seconds, `3m` for 3 minutes, `154h` for 154 hours.
+
+Configuration override hierarchy for lifecycle limit: `--life` command line parameter (highest priority) > `LIFE` environment variable > `life` value in `config.yaml` (lowest priority).
+
+When the lifecycle limit is reached, the service completes in-flight requests, closes connections, and exits with status code 0. This feature is intended for automated testing scenarios where services need to terminate after a fixed duration.
 
 ## Error Format
 

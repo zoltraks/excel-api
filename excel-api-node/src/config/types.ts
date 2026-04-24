@@ -68,6 +68,10 @@ export interface LoggingConfig {
   };
 }
 
+export interface LifecycleConfig {
+  life?: string;
+}
+
 export interface Config {
   server: ServerConfig;
   openapi: OpenAPIConfig;
@@ -76,6 +80,7 @@ export interface Config {
   cache: CacheConfig;
   auth: AuthConfig;
   logging: LoggingConfig;
+  lifecycle?: LifecycleConfig;
   profiles?: Record<string, Partial<Config>>;
 }
 

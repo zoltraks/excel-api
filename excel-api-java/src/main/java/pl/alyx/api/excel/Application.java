@@ -21,6 +21,9 @@ public class Application {
         if (configArgs.accessPath != null) {
             System.setProperty("excel.api.access.path", configArgs.accessPath);
         }
+        if (configArgs.life != null) {
+            System.setProperty("excel.api.life", configArgs.life);
+        }
 
         SpringApplication.run(Application.class, args);
     }
@@ -37,6 +40,9 @@ public class Application {
             } else if ("--access".equals(args[i]) && i + 1 < args.length) {
                 result.accessPath = args[i + 1];
                 i++;
+            } else if ("--life".equals(args[i]) && i + 1 < args.length) {
+                result.life = args[i + 1];
+                i++;
             }
         }
         return result;
@@ -46,5 +52,6 @@ public class Application {
         String workDir;
         String configPath;
         String accessPath;
+        String life;
     }
 }

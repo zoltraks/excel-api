@@ -79,6 +79,10 @@ const LoggingConfigSchema = z.object({
   }).optional(),
 });
 
+const LifecycleConfigSchema = z.object({
+  life: z.string().optional(),
+});
+
 const ConfigSchema = z.object({
   server: ServerConfigSchema,
   openapi: OpenAPIConfigSchema,
@@ -87,6 +91,7 @@ const ConfigSchema = z.object({
   cache: CacheConfigSchema,
   auth: AuthConfigSchema,
   logging: LoggingConfigSchema,
+  lifecycle: LifecycleConfigSchema.optional(),
   profiles: z.record(z.lazy(() => z.object({
     server: ServerConfigSchema.partial().optional(),
     openapi: OpenAPIConfigSchema.partial().optional(),
@@ -95,6 +100,7 @@ const ConfigSchema = z.object({
     cache: CacheConfigSchema.partial().optional(),
     auth: AuthConfigSchema.partial().optional(),
     logging: LoggingConfigSchema.partial().optional(),
+    lifecycle: LifecycleConfigSchema.partial().optional(),
   }))).optional(),
 });
 
@@ -200,6 +206,7 @@ function resolveRelativePath(configPath: string, workDir?: string): string {
 export function loadConfig(options?: {
   workDir?: string;
   configPath?: string;
+  cliLife?: string;
 }): Config {
   const workDir = options?.workDir ?? process.env.WORK;
   const configPath = options?.configPath ?? process.env.CONFIG;
@@ -250,6 +257,13 @@ export function loadConfig(options?: {
           }
         : parsedConfig.logging,
     };
+
+    // Resolve lifecycle with override hierarchy: CLI > env > config
+    if (options?.cliLife || process.env.LIFE || resolvedConfig.lifecycle?.life) {
+      resolvedConfig.lifecycle = {
+        life: options?.cliLife ?? process.env.LIFE ?? resolvedConfig.lifecycle?.life,
+      };
+    }
 
     // Apply profile if CONFIG_PROFILE environment variable is set
     const profileName = process.env.CONFIG_PROFILE;

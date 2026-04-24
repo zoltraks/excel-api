@@ -165,6 +165,190 @@ logging:
 
       delete process.env.CONFIG;
     });
+
+    it('should resolve lifecycle from config file', () => {
+      const configContent = `
+server:
+  port: 8443
+  host: 0.0.0.0
+  base_path: /api/v1
+  tls:
+    enabled: false
+openapi:
+  title: Excel API
+  description: API for Excel file operations
+  servers:
+    - url: http://localhost:8443/api/v1
+      description: Local server
+registry:
+  directory: /data/workbooks
+  workbooks: []
+queue:
+  batch_max_size: 100
+  batch_debounce_ms: 100
+  lock_timeout_ms: 5000
+  lock_dir: /tmp/excel-api/locks
+cache:
+  enabled: true
+  invalidation: mtime
+  poll_interval_ms: 1000
+auth:
+  mode: jwt
+  jwt:
+    issuer: excel-api
+    expiration_minutes: 60
+    algorithm: HS256
+logging:
+  level: info
+  format: json
+lifecycle:
+  life: 30s
+`;
+      fs.writeFileSync(configPath, configContent);
+
+      const config = loadConfig({ configPath });
+
+      expect(config.lifecycle?.life).toBe('30s');
+    });
+
+    it('should override lifecycle with environment variable', () => {
+      const configContent = `
+server:
+  port: 8443
+  host: 0.0.0.0
+  base_path: /api/v1
+  tls:
+    enabled: false
+openapi:
+  title: Excel API
+  description: API for Excel file operations
+  servers:
+    - url: http://localhost:8443/api/v1
+      description: Local server
+registry:
+  directory: /data/workbooks
+  workbooks: []
+queue:
+  batch_max_size: 100
+  batch_debounce_ms: 100
+  lock_timeout_ms: 5000
+  lock_dir: /tmp/excel-api/locks
+cache:
+  enabled: true
+  invalidation: mtime
+  poll_interval_ms: 1000
+auth:
+  mode: jwt
+  jwt:
+    issuer: excel-api
+    expiration_minutes: 60
+    algorithm: HS256
+logging:
+  level: info
+  format: json
+lifecycle:
+  life: 30s
+`;
+      fs.writeFileSync(configPath, configContent);
+      process.env.LIFE = '60s';
+
+      const config = loadConfig({ configPath });
+
+      expect(config.lifecycle?.life).toBe('60s');
+
+      delete process.env.LIFE;
+    });
+
+    it('should override lifecycle with CLI argument', () => {
+      const configContent = `
+server:
+  port: 8443
+  host: 0.0.0.0
+  base_path: /api/v1
+  tls:
+    enabled: false
+openapi:
+  title: Excel API
+  description: API for Excel file operations
+  servers:
+    - url: http://localhost:8443/api/v1
+      description: Local server
+registry:
+  directory: /data/workbooks
+  workbooks: []
+queue:
+  batch_max_size: 100
+  batch_debounce_ms: 100
+  lock_timeout_ms: 5000
+  lock_dir: /tmp/excel-api/locks
+cache:
+  enabled: true
+  invalidation: mtime
+  poll_interval_ms: 1000
+auth:
+  mode: jwt
+  jwt:
+    issuer: excel-api
+    expiration_minutes: 60
+    algorithm: HS256
+logging:
+  level: info
+  format: json
+lifecycle:
+  life: 30s
+`;
+      fs.writeFileSync(configPath, configContent);
+      process.env.LIFE = '60s';
+
+      const config = loadConfig({ configPath, cliLife: '90s' });
+
+      expect(config.lifecycle?.life).toBe('90s');
+
+      delete process.env.LIFE;
+    });
+
+    it('should not set lifecycle if none provided', () => {
+      const configContent = `
+server:
+  port: 8443
+  host: 0.0.0.0
+  base_path: /api/v1
+  tls:
+    enabled: false
+openapi:
+  title: Excel API
+  description: API for Excel file operations
+  servers:
+    - url: http://localhost:8443/api/v1
+      description: Local server
+registry:
+  directory: /data/workbooks
+  workbooks: []
+queue:
+  batch_max_size: 100
+  batch_debounce_ms: 100
+  lock_timeout_ms: 5000
+  lock_dir: /tmp/excel-api/locks
+cache:
+  enabled: true
+  invalidation: mtime
+  poll_interval_ms: 1000
+auth:
+  mode: jwt
+  jwt:
+    issuer: excel-api
+    expiration_minutes: 60
+    algorithm: HS256
+logging:
+  level: info
+  format: json
+`;
+      fs.writeFileSync(configPath, configContent);
+
+      const config = loadConfig({ configPath });
+
+      expect(config.lifecycle).toBeUndefined();
+    });
   });
 
   describe('loadAccessConfig', () => {

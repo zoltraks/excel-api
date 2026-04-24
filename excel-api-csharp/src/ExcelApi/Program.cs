@@ -4,8 +4,10 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.IO;
+using System.Threading;
 using BigBytes.ExcelApi;
 using BigBytes.ExcelApi.Config;
+using BigBytes.ExcelApi.Util;
 
 // Parse command-line arguments
 var configArgs = ParseConfigArgs(args);
@@ -81,6 +83,12 @@ var excelService = new ExcelService();
 var workDir = configArgs.WorkDir ?? Environment.GetEnvironmentVariable("WORK");
 var configPath = configArgs.ConfigPath ?? Environment.GetEnvironmentVariable("CONFIG");
 var accessPath = configArgs.AccessPath ?? Environment.GetEnvironmentVariable("ACCESS");
+
+// Set CLI life as environment variable for ConfigLoader
+if (configArgs.Life != null)
+{
+    Environment.SetEnvironmentVariable("EXCEL_API_LIFE", configArgs.Life);
+}
 
 var workbookConfig = ConfigLoader.LoadConfig<WorkbookConfig>(workDir, configPath, false);
 
@@ -420,6 +428,28 @@ app.MapGet("/workbooks/{id}/lock-status", (string id) =>
     });
 });
 
+// Set up lifecycle limit if configured
+if (workbookConfig.Lifecycle?.Life != null)
+{
+    try
+    {
+        var lifeSpan = DurationParser.Parse(workbookConfig.Lifecycle.Life);
+        Console.WriteLine($"Lifecycle limit set to {workbookConfig.Lifecycle.Life}, will shut down gracefully after this duration");
+        
+        var cts = new CancellationTokenSource();
+        _ = Task.Delay(lifeSpan, cts.Token).ContinueWith(_ =>
+        {
+            Console.WriteLine("Lifecycle limit reached, initiating graceful shutdown");
+            Environment.Exit(0);
+        });
+    }
+    catch (ArgumentException ex)
+    {
+        Console.Error.WriteLine($"Invalid lifecycle duration format: {workbookConfig.Lifecycle.Life}");
+        Console.Error.WriteLine(ex.Message);
+    }
+}
+
 app.Run("http://0.0.0.0:8443");
 
 ConfigArgs ParseConfigArgs(string[] args)
@@ -442,6 +472,11 @@ ConfigArgs ParseConfigArgs(string[] args)
             result.AccessPath = args[i + 1];
             i++;
         }
+        else if (args[i] == "--life" && i + 1 < args.Length)
+        {
+            result.Life = args[i + 1];
+            i++;
+        }
     }
     return result;
 }
@@ -451,4 +486,5 @@ class ConfigArgs
     public string? WorkDir { get; set; }
     public string? ConfigPath { get; set; }
     public string? AccessPath { get; set; }
+    public string? Life { get; set; }
 }

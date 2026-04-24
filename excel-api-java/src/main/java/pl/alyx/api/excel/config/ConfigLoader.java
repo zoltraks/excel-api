@@ -38,7 +38,21 @@ public class ConfigLoader {
         content = interpolateVariables(content);
 
         ObjectMapper yamlMapper = new ObjectMapper(new YAMLFactory());
-        return yamlMapper.readValue(content, Map.class);
+        Map<String, Object> config = yamlMapper.readValue(content, Map.class);
+
+        // Resolve lifecycle with override hierarchy: CLI > env > config
+        String cliLife = System.getProperty("excel.api.life");
+        String envLife = System.getProperty("LIFE", System.getenv("LIFE"));
+        Object configLife = config.get("lifecycle") instanceof Map ? ((Map<?, ?>) config.get("lifecycle")).get("life") : null;
+
+        if (cliLife != null || envLife != null || configLife != null) {
+            String resolvedLife = cliLife != null ? cliLife : (envLife != null ? envLife : String.valueOf(configLife));
+            Map<String, Object> lifecycle = new java.util.HashMap<>();
+            lifecycle.put("life", resolvedLife);
+            config.put("lifecycle", lifecycle);
+        }
+
+        return config;
     }
 
     private static String interpolateVariables(String content) {

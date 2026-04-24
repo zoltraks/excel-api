@@ -5,6 +5,12 @@ public class WorkbookConfig
     public string Directory { get; set; } = "";
     public List<WorkbookEntry> Workbooks { get; set; } = new List<WorkbookEntry>();
     public Dictionary<string, WorkbookProfile> Profiles { get; set; } = new Dictionary<string, WorkbookProfile>();
+    public LifecycleConfig? Lifecycle { get; set; }
+}
+
+public class LifecycleConfig
+{
+    public string? Life { get; set; }
 }
 
 public class WorkbookEntry

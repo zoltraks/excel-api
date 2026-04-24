@@ -8,7 +8,7 @@ namespace BigBytes.ExcelApi.Config;
 
 public static class ConfigLoader
 {
-    private static readonly Regex VarPattern = new Regex(@"\$\{([^}]+}\)", RegexOptions.Compiled);
+    private static readonly Regex VarPattern = new Regex(@"\$\{([^}]+)\}", RegexOptions.Compiled);
 
     public static T LoadConfig<T>(string? workDir, string? configPath, bool isAccess) where T : class
     {
@@ -54,7 +54,23 @@ public static class ConfigLoader
             .WithNamingConvention(UnderscoredNamingConvention.Instance)
             .Build();
 
-        return deserializer.Deserialize<T>(content) ?? throw new InvalidOperationException("Failed to deserialize config");
+        var config = deserializer.Deserialize<T>(content) ?? throw new InvalidOperationException("Failed to deserialize config");
+
+        // Resolve lifecycle with override hierarchy: CLI > env > config (only for WorkbookConfig)
+        if (!isAccess && config is WorkbookConfig workbookConfig)
+        {
+            string? cliLife = Environment.GetEnvironmentVariable("EXCEL_API_LIFE");
+            string? envLife = Environment.GetEnvironmentVariable("LIFE");
+            string? configLife = workbookConfig.Lifecycle?.Life;
+
+            if (cliLife != null || envLife != null || configLife != null)
+            {
+                string resolvedLife = cliLife ?? envLife ?? configLife ?? string.Empty;
+                workbookConfig.Lifecycle = new LifecycleConfig { Life = resolvedLife };
+            }
+        }
+
+        return config;
     }
 
     private static string InterpolateVariables(string content)
