@@ -11,13 +11,26 @@ public static class HealthEndpoints
             var now = DateTime.UtcNow;
             var uptimeSeconds = (long)(now - startTime).TotalSeconds;
             var serverTime = now.ToString("o");
-            var timezone = TimeZoneInfo.Local.Id;
+            var localTz = TimeZoneInfo.Local;
+            string timezone;
+            if (localTz.HasIanaId)
+            {
+                timezone = localTz.Id;
+            }
+            else if (TimeZoneInfo.TryConvertWindowsIdToIanaId(localTz.Id, out string? ianaId))
+            {
+                timezone = ianaId;
+            }
+            else
+            {
+                timezone = localTz.Id;
+            }
 
             return Results.Ok(new
             {
                 status = "ok",
                 implementation = "excel-api-csharp",
-                version = "0.0.1",
+                version = "0.0.2",
                 uptime_seconds = uptimeSeconds,
                 server_time = serverTime,
                 timezone = timezone

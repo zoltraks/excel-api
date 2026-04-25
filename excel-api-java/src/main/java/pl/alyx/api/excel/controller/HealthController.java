@@ -14,7 +14,7 @@ import java.time.format.DateTimeFormatter;
 public class HealthController {
 
     private static final String IMPLEMENTATION = "excel-api-java";
-    private static final String VERSION = "0.0.1";
+    private static final String VERSION = "0.0.2";
     private static final DateTimeFormatter ISO_FORMATTER = DateTimeFormatter.ISO_INSTANT;
     private static final int MILLIS_PER_SECOND = 1000;
 

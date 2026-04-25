@@ -17,9 +17,7 @@ import java.nio.file.Paths;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/workbooks")
@@ -50,16 +48,19 @@ public class WorkbookController {
             if (Files.exists(path)) {
                 long sizeBytes = Files.size(path);
                 long modifiedTime = Files.getLastModifiedTime(path).toMillis();
-                String modifiedAt = Instant.ofEpochMilli(modifiedTime)
-                        .atZone(java.time.ZoneId.systemDefault())
-                        .format(ISO_FORMATTER);
+                String modifiedAt = ISO_FORMATTER.format(Instant.ofEpochMilli(modifiedTime));
+
+                List<String> sheetNames = excelService.readSheetNames(path.toString()).stream()
+                        .map(SheetInfo::getName)
+                        .toList();
 
                 workbooks.add(new WorkbookInfo(
                     entry.getId(),
-                    path.toString(),
+                    entry.getPath(),
                     entry.isReadonly(),
                     modifiedAt,
-                    sizeBytes
+                    sizeBytes,
+                    sheetNames
                 ));
             }
         }
@@ -68,7 +69,7 @@ public class WorkbookController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Map<String, Object>> getWorkbook(@PathVariable String id) throws IOException {
+    public ResponseEntity<WorkbookInfo> getWorkbook(@PathVariable String id) throws IOException {
         WorkbookConfig.WorkbookEntry entry = workbookConfig.getWorkbooks().stream()
             .filter(w -> w.getId().equals(id))
             .findFirst()
@@ -91,20 +92,19 @@ public class WorkbookController {
 
         long sizeBytes = Files.size(path);
         long modifiedTime = Files.getLastModifiedTime(path).toMillis();
-        String modifiedAt = Instant.ofEpochMilli(modifiedTime)
-                .atZone(java.time.ZoneId.systemDefault())
-                .format(ISO_FORMATTER);
+        String modifiedAt = ISO_FORMATTER.format(Instant.ofEpochMilli(modifiedTime));
 
-        // Load actual sheets from Excel file
-        List<SheetInfo> sheets = excelService.readSheetNames(path.toString());
+        List<String> sheetNames = excelService.readSheetNames(path.toString()).stream()
+                .map(SheetInfo::getName)
+                .toList();
 
-        Map<String, Object> response = new HashMap<>();
-        response.put("id", entry.getId());
-        response.put("filename", entry.getPath());
-        response.put("readonly", entry.isReadonly());
-        response.put("modified_at", modifiedAt);
-        response.put("size_bytes", sizeBytes);
-        response.put("sheets", sheets);
+        WorkbookInfo response = new WorkbookInfo(
+                entry.getId(),
+                entry.getPath(),
+                entry.isReadonly(),
+                modifiedAt,
+                sizeBytes,
+                sheetNames);
 
         return ResponseEntity.ok(response);
     }

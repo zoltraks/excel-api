@@ -88,19 +88,23 @@ var configPath = configArgs.ConfigPath ?? Environment.GetEnvironmentVariable("CO
 
 if (configArgs.Life != null)
 {
-    Environment.SetEnvironmentVariable("EXCEL_API_LIFE", configArgs.Life);
+    Environment.SetEnvironmentVariable("LIFE", configArgs.Life);
 }
 
 var workbookConfig = ConfigLoader.LoadConfig<WorkbookConfig>(workDir, configPath, false);
+var serverConfig = ConfigLoader.LoadServerConfig(workDir, configPath);
+var basePath = serverConfig.BasePath.TrimEnd('/');
 
 // Register endpoint groups
 app.MapHealthEndpoints(startTime);
 app.MapOpenApiEndpoints();
 app.MapAuthEndpoints();
-app.MapWorkbookEndpoints(workbookConfig, excelService);
-app.MapSheetEndpoints(workbookConfig, excelService);
-app.MapCellEndpoints(workbookConfig, excelService);
-app.MapRecordEndpoints(workbookConfig, excelService);
+
+var apiGroup = string.IsNullOrEmpty(basePath) ? app.MapGroup("") : app.MapGroup(basePath);
+apiGroup.MapWorkbookEndpoints(workbookConfig, excelService);
+apiGroup.MapSheetEndpoints(workbookConfig, excelService);
+apiGroup.MapCellEndpoints(workbookConfig, excelService);
+apiGroup.MapRecordEndpoints(workbookConfig, excelService);
 
 // Set up lifecycle limit if configured
 if (workbookConfig.Lifecycle?.Life != null)

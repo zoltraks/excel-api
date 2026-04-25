@@ -15,17 +15,18 @@ public static class WorkbookEndpoints
                 .Select(e => new
                 {
                     id = e.Id,
-                    filename = e.Path,
+                    filename = Path.GetFileName(e.Path),
                     @readonly = e.Readonly,
-                    modified_at = File.GetLastWriteTime(e.Path).ToString("o"),
-                    size_bytes = new FileInfo(e.Path).Length
+                    modified_at = File.GetLastWriteTimeUtc(e.Path).ToString("o"),
+                    size_bytes = new FileInfo(e.Path).Length,
+                    sheets = excelService.ReadSheetNames(e.Path)
                 })
                 .ToList();
 
             return Results.Ok(new
             {
                 items = workbooks,
-                total = workbooks.Count()
+                total = workbooks.Count
             });
         });
 
@@ -43,11 +44,11 @@ public static class WorkbookEndpoints
             return Results.Ok(new
             {
                 id = entry.Id,
-                filename = entry.Path,
+                filename = Path.GetFileName(entry.Path),
                 @readonly = entry.Readonly,
-                modified_at = fileInfo.LastWriteTime.ToString("o"),
+                modified_at = fileInfo.LastWriteTimeUtc.ToString("o"),
                 size_bytes = fileInfo.Length,
-                sheets = sheets
+                sheets
             });
         });
 

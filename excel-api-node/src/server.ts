@@ -164,15 +164,17 @@ await server.register(cors, {
   allowedHeaders: ['Content-Type', 'Authorization'],
 });
 
+const basePath = config.server.base_path || '';
+
 await server.register(healthRoutes);
 await server.register(metricsRoutes);
 await server.register(openapiRoutes(config));
 await server.register(authRoutes(oauth2Handler));
-await server.register(workbookRoutes(registry, authMiddleware, aclChecker));
-await server.register(sheetRoutes(registry, authMiddleware, aclChecker));
-await server.register(cellRoutes(registry, authMiddleware, aclChecker));
-await server.register(recordRoutes(registry, authMiddleware, aclChecker));
-await server.register(lockStatusRoutes(registry, authMiddleware, aclChecker));
+await server.register(workbookRoutes(registry, authMiddleware, aclChecker), { prefix: basePath });
+await server.register(sheetRoutes(registry, authMiddleware, aclChecker), { prefix: basePath });
+await server.register(cellRoutes(registry, authMiddleware, aclChecker), { prefix: basePath });
+await server.register(recordRoutes(registry, authMiddleware, aclChecker), { prefix: basePath });
+await server.register(lockStatusRoutes(registry, authMiddleware, aclChecker), { prefix: basePath });
 
 const start = async (): Promise<void> => {
   const port = config.server.port;

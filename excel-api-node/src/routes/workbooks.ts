@@ -21,14 +21,21 @@ export function workbookRoutes(
         const startTime = Date.now();
 
         const workbooks = registry.getAll();
+        const items = await Promise.all(
+          workbooks.map(async (wb: WorkbookInfo) => {
+            const sheetInfos = await readSheetNames(wb.path);
+            return {
+              id: wb.id,
+              filename: wb.filename,
+              readonly: wb.readonly,
+              modified_at: wb.modified_at,
+              size_bytes: wb.size_bytes,
+              sheets: sheetInfos.map((s) => s.name),
+            };
+          })
+        );
         const response = {
-          items: workbooks.map((wb: WorkbookInfo) => ({
-            id: wb.id,
-            filename: wb.filename,
-            readonly: wb.readonly,
-            modified_at: wb.modified_at,
-            size_bytes: wb.size_bytes,
-          })),
+          items,
           total: workbooks.length,
         };
 
@@ -61,7 +68,7 @@ export function workbookRoutes(
           readonly: workbook.readonly,
           modified_at: workbook.modified_at,
           size_bytes: workbook.size_bytes,
-          sheets: sheets.map((s) => ({ name: s.name, index: s.index + 1 })),
+          sheets: sheets.map((s) => s.name),
         };
       }
     );

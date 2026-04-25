@@ -146,6 +146,36 @@ public static class ConfigLoader
         return config;
     }
 
+    public static ServerConfig LoadServerConfig(string? workDir, string? configPath)
+    {
+        string resolvedPath = ConfigPathResolver.ResolveConfigPath(workDir, configPath, null, false);
+
+        if (!File.Exists(resolvedPath))
+        {
+            return new ServerConfig();
+        }
+
+        string content = File.ReadAllText(resolvedPath);
+        content = InterpolateVariables(content);
+
+        var deserializer = new DeserializerBuilder()
+            .WithNamingConvention(UnderscoredNamingConvention.Instance)
+            .Build();
+
+        var serializer = new SerializerBuilder()
+            .WithNamingConvention(UnderscoredNamingConvention.Instance)
+            .Build();
+
+        var fullConfig = deserializer.Deserialize<Dictionary<string, object>>(content);
+        if (fullConfig != null && fullConfig.ContainsKey("server"))
+        {
+            var serverYaml = serializer.Serialize(fullConfig["server"]);
+            return deserializer.Deserialize<ServerConfig>(serverYaml) ?? new ServerConfig();
+        }
+
+        return new ServerConfig();
+    }
+
     private static string InterpolateVariables(string content)
     {
         return VarPattern.Replace(content, match =>

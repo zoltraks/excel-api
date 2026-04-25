@@ -1,20 +1,17 @@
 using ClosedXML.Excel;
-using System.Collections;
 
 namespace BigBytes.ExcelApi.Services;
 
 public class ExcelService
 {
-    public List<SheetInfo> ReadSheetNames(string filePath)
+    public List<string> ReadSheetNames(string filePath)
     {
         using var workbook = new XLWorkbook(filePath);
-        var sheets = new List<SheetInfo>();
+        var sheets = new List<string>();
 
-        for (int i = 0; i < workbook.Worksheets.Count; i++)
+        for (int i = 1; i <= workbook.Worksheets.Count; i++)
         {
-            var worksheet = workbook.Worksheet(i);
-            // 1-based indexing
-            sheets.Add(new SheetInfo { Name = worksheet.Name, Index = i + 1 });
+            sheets.Add(workbook.Worksheet(i).Name);
         }
 
         return sheets;
@@ -461,12 +458,6 @@ public class ExcelService
             cell.Value = value.ToString();
         }
     }
-}
-
-public class SheetInfo
-{
-    public string Name { get; set; } = "";
-    public int Index { get; set; }
 }
 
 public class CellData
