@@ -17,6 +17,7 @@ class ConfigLoaderTest {
     @BeforeEach
     void setUp() throws Exception {
         Files.createDirectories(Paths.get(TEMP_DIR));
+        System.clearProperty("excel.api.life");
     }
 
     @AfterEach
@@ -25,6 +26,7 @@ class ConfigLoaderTest {
             Files.deleteIfExists(Paths.get(CONFIG_PATH));
             Files.deleteIfExists(Paths.get(TEMP_DIR));
         }
+        System.clearProperty("excel.api.life");
     }
 
     @Test

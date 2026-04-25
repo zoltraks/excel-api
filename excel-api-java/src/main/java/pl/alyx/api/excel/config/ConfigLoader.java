@@ -2,7 +2,6 @@ package pl.alyx.api.excel.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
@@ -22,7 +21,6 @@ public class ConfigLoader {
 
     @Bean
     @Primary
-    @ConfigurationProperties
     @SuppressWarnings("unchecked")
     public Map<String, Object> loadConfig() throws Exception {
         String workDir = System.getProperty(
@@ -59,6 +57,7 @@ public class ConfigLoader {
             Map<String, Object> lifecycle = new java.util.HashMap<>();
             lifecycle.put("life", resolvedLife);
             config.put("lifecycle", lifecycle);
+            System.setProperty("excel.api.life", resolvedLife);
         }
 
         // Resolve registry directory relative to work directory
