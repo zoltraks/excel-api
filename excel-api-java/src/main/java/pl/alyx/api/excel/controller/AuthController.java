@@ -30,7 +30,13 @@ public class AuthController {
 
     @PostMapping("/token")
     public ResponseEntity<?> getToken(@RequestBody(required = false) Map<String, String> jsonRequest) {
-        String grantType = jsonRequest != null ? jsonRequest.get("grant_type") : null;
+        if (jsonRequest == null) {
+            return ResponseEntity.status(STATUS_BAD_REQUEST).body(Map.of(
+                    "error", "invalid_request",
+                    "error_description", "Request body is required"
+            ));
+        }
+        String grantType = jsonRequest.get("grant_type");
 
         if ("client_credentials".equals(grantType)) {
             String clientId = jsonRequest.get("client_id");

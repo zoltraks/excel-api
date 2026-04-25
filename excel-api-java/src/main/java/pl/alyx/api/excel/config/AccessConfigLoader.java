@@ -9,13 +9,9 @@ import org.springframework.context.annotation.Configuration;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.attribute.PosixFilePermissions;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 @Configuration
 public class AccessConfigLoader {
-
-    private static final Pattern VAR_PATTERN = Pattern.compile("\\$\\{([^}]+)\\}");
 
     @Bean
     @ConfigurationProperties(prefix = "auth")
@@ -48,25 +44,10 @@ public class AccessConfigLoader {
 
         String content = new String(Files.readAllBytes(Paths.get(resolvedPath)));
 
-        // Apply variable interpolation
-        content = interpolateVariables(content);
+        content = ConfigSupport.interpolateVariables(content);
 
         ObjectMapper yamlMapper = new ObjectMapper(new YAMLFactory());
         return yamlMapper.readValue(content, AccessConfig.class);
     }
 
-    private static String interpolateVariables(String content) {
-        Matcher matcher = VAR_PATTERN.matcher(content);
-        StringBuffer result = new StringBuffer();
-        while (matcher.find()) {
-            String varName = matcher.group(1);
-            String envValue = System.getenv(varName);
-            if (envValue == null) {
-                throw new RuntimeException("Environment variable " + varName + " not found for interpolation");
-            }
-            matcher.appendReplacement(result, envValue);
-        }
-        matcher.appendTail(result);
-        return result.toString();
-    }
 }

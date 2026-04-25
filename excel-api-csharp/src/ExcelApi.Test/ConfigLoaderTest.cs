@@ -1,5 +1,6 @@
 using BigBytes.ExcelApi;
 using BigBytes.ExcelApi.Config;
+using BigBytes.ExcelApi.Excel;
 using System;
 using System.IO;
 using Microsoft.VisualStudio.TestTools.UnitTesting;

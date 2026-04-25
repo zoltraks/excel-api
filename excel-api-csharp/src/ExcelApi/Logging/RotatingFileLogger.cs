@@ -2,7 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 
-namespace BigBytes.ExcelApi;
+namespace BigBytes.ExcelApi.Logging;
 
 public class RotatingFileLogger
 {
@@ -86,3 +86,4 @@ public class RotatingFileLogger
         File.AppendAllText(currentLogFile, logLine);
     }
 }
+

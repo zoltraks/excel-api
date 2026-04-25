@@ -1,4 +1,4 @@
-namespace BigBytes.ExcelApi;
+namespace BigBytes.ExcelApi.Excel;
 
 public class WorkbookConfig
 {
@@ -34,3 +34,4 @@ public class SheetHeaderConfig
     public int? DescriptionRow { get; set; }
     public string LegendSheet { get; set; } = "";
 }
+

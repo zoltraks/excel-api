@@ -10,11 +10,11 @@ import pl.alyx.api.excel.dto.RecordListResponse;
 import pl.alyx.api.excel.dto.SheetInfo;
 import pl.alyx.api.excel.dto.SheetMetadata;
 
+import pl.alyx.api.excel.service.support.CellConverter;
+
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 /**
@@ -22,8 +22,6 @@ import java.util.*;
  */
 @Service
 public class ExcelService {
-
-    private static final DateTimeFormatter ISO_FORMATTER = DateTimeFormatter.ISO_INSTANT;
 
     /**
      * Reads sheet names from an Excel file.
@@ -78,7 +76,7 @@ public class ExcelService {
                 return new CellData("", "empty", null, false, null);
             }
 
-            return convertCell(cell, format);
+            return CellConverter.convertCell(cell, format);
         }
     }
 
@@ -127,7 +125,7 @@ public class ExcelService {
                     for (int c = firstCol; c <= lastCol; c++) {
                         final Cell cell = row.getCell(c);
                         if (cell != null) {
-                            range[r - firstRow][c - firstCol] = convertCell(cell, format);
+                            range[r - firstRow][c - firstCol] = CellConverter.convertCell(cell, format);
                         } else {
                             range[r - firstRow][c - firstCol] = new CellData("", "empty", null, false, null);
                         }
@@ -192,7 +190,7 @@ public class ExcelService {
                     for (int c = 0; c < headers.size(); c++) {
                         final Cell cell = row.getCell(c);
                         if (cell != null) {
-                            data.put(headers.get(c), getCellValue(cell, format));
+                            data.put(headers.get(c), CellConverter.getCellValue(cell, format));
                         }
                     }
 
@@ -252,80 +250,11 @@ public class ExcelService {
             for (int c = 0; c < headers.size(); c++) {
                 final Cell cell = row.getCell(c);
                 if (cell != null) {
-                    data.put(headers.get(c), getCellValue(cell, format));
+                    data.put(headers.get(c), CellConverter.getCellValue(cell, format));
                 }
             }
 
             return new RecordItem(recordIndex, data);
-        }
-    }
-
-    /**
-     * Converts a cell to CellData.
-     * @param cell the cell
-     * @param format the output format
-     * @return the cell data
-     */
-    private CellData convertCell(final Cell cell, final String format) {
-        final Object value = getCellValue(cell, format);
-        final String type = getCellType(cell);
-        final String numberFormat = cell.getCellStyle().getDataFormatString();
-        final boolean isFormula = cell.getCellType() == CellType.FORMULA;
-        final String formatted = format.equals("display") ? cell.getStringCellValue() : null;
-
-        return new CellData(value, type, numberFormat, isFormula, formatted);
-    }
-
-    /**
-     * Gets the value of a cell.
-     * @param cell the cell
-     * @param format the output format
-     * @return the cell value
-     */
-    private Object getCellValue(final Cell cell, final String format) {
-        if (cell == null || cell.getCellType() == CellType.BLANK) {
-            return "";
-        }
-
-        switch (cell.getCellType()) {
-            case STRING:
-                return cell.getStringCellValue();
-            case NUMERIC:
-                if (DateUtil.isCellDateFormatted(cell)) {
-                    final Date date = cell.getDateCellValue();
-                    return format.equals("string") ? ISO_FORMATTER.format(date.toInstant()) : date;
-                }
-                return cell.getNumericCellValue();
-            case BOOLEAN:
-                return cell.getBooleanCellValue();
-            case FORMULA:
-                return cell.getCellFormula();
-            default:
-                return "";
-        }
-    }
-
-    /**
-     * Gets the type of a cell.
-     * @param cell the cell
-     * @return the cell type
-     */
-    private String getCellType(final Cell cell) {
-        if (cell == null || cell.getCellType() == CellType.BLANK) {
-            return "empty";
-        }
-
-        switch (cell.getCellType()) {
-            case STRING:
-                return "string";
-            case NUMERIC:
-                return DateUtil.isCellDateFormatted(cell) ? "date" : "number";
-            case BOOLEAN:
-                return "boolean";
-            case FORMULA:
-                return "formula";
-            default:
-                return "empty";
         }
     }
 
@@ -455,13 +384,13 @@ public class ExcelService {
                 cell = row.createCell(ref.getCol());
             }
 
-            setCellValue(cell, value);
+            CellConverter.setCellValue(cell, value);
 
             try (FileOutputStream fos = new FileOutputStream(filePath)) {
                 workbook.write(fos);
             }
 
-            return convertCell(cell, "native");
+            return CellConverter.convertCell(cell, "native");
         }
     }
 
@@ -520,7 +449,7 @@ public class ExcelService {
                     if (cell == null) {
                         cell = newRow.createCell(i);
                     }
-                    setCellValue(cell, data.get(header));
+                    CellConverter.setCellValue(cell, data.get(header));
                 }
             }
 
@@ -576,7 +505,7 @@ public class ExcelService {
                     if (cell == null) {
                         cell = row.createCell(i);
                     }
-                    setCellValue(cell, data.get(header));
+                    CellConverter.setCellValue(cell, data.get(header));
                 }
             }
 
@@ -614,24 +543,4 @@ public class ExcelService {
         }
     }
 
-    /**
-     * Sets the value of a cell.
-     * @param cell the cell
-     * @param value the value
-     */
-    private void setCellValue(final Cell cell, final Object value) {
-        if (value == null) {
-            cell.setBlank();
-        } else if (value instanceof String) {
-            cell.setCellValue((String) value);
-        } else if (value instanceof Number) {
-            cell.setCellValue(((Number) value).doubleValue());
-        } else if (value instanceof Boolean) {
-            cell.setCellValue((Boolean) value);
-        } else if (value instanceof java.util.Date) {
-            cell.setCellValue((java.util.Date) value);
-        } else {
-            cell.setCellValue(value.toString());
-        }
-    }
 }

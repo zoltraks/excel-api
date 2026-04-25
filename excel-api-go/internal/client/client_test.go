@@ -6,7 +6,7 @@ import (
 )
 
 func TestNewClient(t *testing.T) {
-	client := NewClient("http://localhost:8443")
+	client := NewClient("http://localhost:8443", "", "Token")
 	if client == nil {
 		t.Error("Expected client to be created")
 	}
@@ -19,21 +19,21 @@ func TestNewClient(t *testing.T) {
 }
 
 func TestNewClientTimeout(t *testing.T) {
-	client := NewClient("http://localhost:8443")
+	client := NewClient("http://localhost:8443", "", "Token")
 	if client.httpClient.Timeout != 30*time.Second {
 		t.Errorf("Expected timeout to be 30s, got %v", client.httpClient.Timeout)
 	}
 }
 
 func TestNewClientEmptyURL(t *testing.T) {
-	client := NewClient("")
+	client := NewClient("", "", "Token")
 	if client == nil {
 		t.Error("Expected client to be created even with empty URL")
 	}
 }
 
 func TestNewClientHTTPS(t *testing.T) {
-	client := NewClient("https://api.example.com")
+	client := NewClient("https://api.example.com", "", "Token")
 	if client.baseURL != "https://api.example.com" {
 		t.Errorf("Expected baseURL to be https://api.example.com, got %s", client.baseURL)
 	}

@@ -13,7 +13,7 @@ export interface WorkbookInfo {
   size_bytes: number;
 }
 
-class WorkbookRegistry {
+export class WorkbookRegistry {
   private workbooks: Map<string, WorkbookInfo> = new Map();
   private baseDir: string;
 

@@ -4,6 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.ApplicationListener;
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;
 import pl.alyx.api.excel.util.DurationParser;
 
@@ -25,7 +26,7 @@ public class LifecycleManager implements ApplicationListener<ApplicationReadyEve
     }
 
     @Override
-    public void onApplicationEvent(ApplicationReadyEvent event) {
+    public void onApplicationEvent(@NonNull ApplicationReadyEvent event) {
         Object lifecycle = config.get("lifecycle");
         if (lifecycle instanceof Map) {
             Object life = ((Map<?, ?>) lifecycle).get("life");

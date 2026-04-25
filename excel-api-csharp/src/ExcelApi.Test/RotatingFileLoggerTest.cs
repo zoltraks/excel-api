@@ -1,5 +1,6 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using BigBytes.ExcelApi;
+using BigBytes.ExcelApi.Logging;
 using System;
 using System.IO;
 

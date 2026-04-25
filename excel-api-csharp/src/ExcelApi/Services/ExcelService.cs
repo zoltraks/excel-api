@@ -1,7 +1,7 @@
 using ClosedXML.Excel;
 using System.Collections;
 
-namespace BigBytes.ExcelApi;
+namespace BigBytes.ExcelApi.Services;
 
 public class ExcelService
 {
@@ -242,7 +242,7 @@ public class ExcelService
         }
     }
 
-    public CellData WriteCell(string filePath, string sheetName, string cellRef, object value)
+    public CellData WriteCell(string filePath, string sheetName, string cellRef, object? value)
     {
         var workbook = new XLWorkbook(filePath);
         var worksheet = workbook.Worksheet(sheetName);
@@ -430,7 +430,7 @@ public class ExcelService
         };
     }
 
-    private void SetCellValue(IXLCell cell, object value)
+    private void SetCellValue(IXLCell cell, object? value)
     {
         if (value == null)
         {
@@ -517,3 +517,4 @@ public class ColumnDefinitionsResponse
     public string Source { get; set; } = "";
     public List<ColumnDefinition> Columns { get; set; } = new List<ColumnDefinition>();
 }
+

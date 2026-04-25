@@ -4,6 +4,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"testing"
+
+	"github.com/excel-api/excel-api-go/internal/config"
 )
 
 func TestResolveConfigPath(t *testing.T) {
@@ -102,7 +104,7 @@ func TestResolveConfigPath(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := resolveConfigPath(tt.workDir, tt.configPath, tt.accessPath, tt.isAccess)
+			result := config.ResolveConfigPath(tt.workDir, tt.configPath, tt.accessPath, tt.isAccess)
 			if result != tt.expected {
 				t.Errorf("resolveConfigPath() = %v, want %v", result, tt.expected)
 			}

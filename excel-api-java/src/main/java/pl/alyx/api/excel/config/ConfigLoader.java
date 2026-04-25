@@ -10,13 +10,9 @@ import org.springframework.context.annotation.Primary;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 @Configuration
 public class ConfigLoader {
-
-    private static final Pattern VAR_PATTERN = Pattern.compile("\\$\\{([^}]+)\\}");
 
     private final WorkbookConfig workbookConfig;
 
@@ -46,8 +42,7 @@ public class ConfigLoader {
 
         String content = new String(Files.readAllBytes(Paths.get(resolvedPath)));
 
-        // Apply variable interpolation
-        content = interpolateVariables(content);
+        content = ConfigSupport.interpolateVariables(content);
 
         ObjectMapper yamlMapper = new ObjectMapper(new YAMLFactory());
         Map<String, Object> config = yamlMapper.readValue(content, Map.class);
@@ -85,18 +80,4 @@ public class ConfigLoader {
         return config;
     }
 
-    private static String interpolateVariables(String content) {
-        Matcher matcher = VAR_PATTERN.matcher(content);
-        StringBuffer result = new StringBuffer();
-        while (matcher.find()) {
-            String varName = matcher.group(1);
-            String envValue = System.getenv(varName);
-            if (envValue == null) {
-                throw new RuntimeException("Environment variable " + varName + " not found for interpolation");
-            }
-            matcher.appendReplacement(result, envValue);
-        }
-        matcher.appendTail(result);
-        return result.toString();
-    }
 }

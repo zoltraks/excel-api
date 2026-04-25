@@ -13,13 +13,18 @@ This document describes implementation-specific details, technology choices, kno
 ```text
 excel-api-node/
   src/
-    server.ts             # Entry point
+    server.ts             # Bootstrap only: Fastify creation, plugin and route registration, listen
+    cli/
+      args.ts             # CLI argument parsing
     config/               # Config and access.yaml loading, validation
-    auth/                 # OAuth2 token endpoint, JWT, static token middleware
-    routes/               # Fastify route handlers
-    services/             # Business logic (workbook registry, sheet metadata)
+    auth/                 # JWT, static token middleware
+    routes/               # Fastify route plugins (one file per resource group)
+    services/             # Business logic (one service per resource)
+    errors/               # AppError class hierarchy, centralized error handler
     queue/                # Write queue with Promise-chain serialization
     excel/                # ExcelJS wrapper (read, write, style copy, cache)
+    util/
+      duration.ts         # Canonical duration string parser
   resources/
     openapi.yaml          # Contract copy, loaded at startup
   config/
@@ -62,10 +67,15 @@ excel-api-java/
   src/main/
     java/pl/alyx/api/excel/
       Application.java          # Spring Boot entry point
-      config/                   # Configuration classes, YAML binding
-      auth/                     # OAuth2, JWT filter, static token filter
+      config/                   # Configuration loaders and YAML binding
+        model/                  # Typed config POJOs (ServerConfig, QueueConfig, etc.)
+        ConfigSupport.java      # Shared: variable interpolation, YAML reading
       controller/               # REST controllers
+        advice/                 # GlobalExceptionHandler (@RestControllerAdvice)
+      exception/                # Domain exception classes
+      security/                 # JWT filter, static token filter
       service/                  # Business logic
+        support/                # Shared helpers: header parsing, value conversion
       queue/                    # Write queue with BlockingQueue + ExecutorService
       excel/                    # Apache POI wrapper
     resources/
@@ -109,13 +119,17 @@ excel-api-java/
 ```text
 excel-api-csharp/
   src/ExcelApi/
-    Program.cs                 # Entry point, Minimal API setup
+    Program.cs                 # Bootstrap only: DI registration, middleware, endpoint groups, run
     Config/                    # Configuration loading, YAML deserialization
-    Auth/                      # OAuth2, JWT, static token middleware
-    Controllers/               # Endpoint groups (MapGet, MapPost, etc.)
-    Services/                  # Business logic
+      LifecycleResolver.cs     # Centralized CLI > env > config lifecycle resolution
+    Dto/                       # Request and response model classes
+    Endpoints/                 # Extension methods registering endpoint groups per resource
+    Excel/                     # ClosedXML wrapper, WorkbookConfig
+    Logging/                   # JSON console formatter, RotatingFileLogger
+    Middleware/                # File-logging middleware, CORS extensions
+    Services/                  # Business logic (one service per resource)
     Queue/                     # Channel<T>-based write queue
-    Excel/                     # ClosedXML wrapper
+    Util/                      # DurationParser and other utilities
     Resources/
       openapi.yaml             # Contract copy, embedded resource
     ExcelApi.csproj            # Project file with R2R config
@@ -163,11 +177,11 @@ excel-api-csharp/
 ```text
 excel-api-go/
   cmd/excel-api-go/
-    main.go                    # Entry point, flag parsing
+    main.go                    # Orchestration only: flag parsing, dispatch, exit codes
   internal/
     client/                    # HTTP API client
       client.go                # Connection, auth, base HTTP methods
-      auth.go                  # OAuth2 token acquisition and refresh
+      types.go                 # Request/response structs
       workbooks.go             # Workbook endpoints
       sheets.go                # Sheet endpoints
       records.go               # Record CRUD
@@ -175,16 +189,14 @@ excel-api-go/
       operations.go            # Batch operations
     cli/
       repl.go                  # Interactive REPL loop
-      commands.go              # Command parsing and dispatch
-      completer.go             # Tab completion for sheets, columns
-      context.go               # Session state (current workbook, sheet)
+      commands/                # One file per sub-command
     format/
       markdown.go              # Markdown table formatter
       csv.go                   # CSV formatter with configurable separator
       json.go                  # JSON pretty-printer
       table.go                 # Plain text table formatter
     config/
-      config.go                # CLI configuration and profiles
+      config.go                # CLI configuration, profiles, path resolution
       version.go               # Version constant
   go.mod
   go.sum
