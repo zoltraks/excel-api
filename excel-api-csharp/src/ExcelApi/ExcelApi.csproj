@@ -5,7 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>BigBytes.ExcelApi</RootNamespace>
     <AssemblyName>ExcelApi</AssemblyName>
-    <Version>0.0.1</Version>
+    <Version>0.0.2</Version>
     <ReadyToRun>true</ReadyToRun>
     <SelfContained>true</SelfContained>
     <NoWarn>AD0001</NoWarn>

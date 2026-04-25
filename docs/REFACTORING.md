@@ -2,7 +2,25 @@
 
 ## Creating a Refactoring Proposal
 
-Every non-trivial refactoring starts with a written proposal. The proposal is a markdown document in the `work/` directory (not committed) with the following sections.
+Every non-trivial refactoring starts with a written proposal. For this multi-technology stack repository, create separate proposals for each implementation stack affected by the refactoring.
+
+**Proposal Location and Naming**
+
+Place proposal documents under `docs/refactoring/<version>/` with the following naming convention:
+- `NODE_PROPOSAL.md` — Node.js/TypeScript implementation
+- `CSHARP_PROPOSAL.md` — C#/ASP.NET implementation
+- `JAVA_PROPOSAL.md` — Java/Spring Boot implementation
+- `GO_PROPOSAL.md` — Go CLI implementation
+
+After the refactoring is complete, create corresponding assessment documents:
+- `NODE_ASSESSMENT.md`
+- `CSHARP_ASSESSMENT.md`
+- `JAVA_ASSESSMENT.md`
+- `GO_ASSESSMENT.md`
+
+**Proposal Content**
+
+Each proposal document must include the following sections.
 
 **Problem.** Describe the code smell, standard violation, duplication, or architectural issue. Include file paths and line references.
 

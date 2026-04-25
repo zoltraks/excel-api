@@ -54,7 +54,7 @@ public class ConfigLoader {
 
         // Resolve lifecycle with override hierarchy: CLI > env > config
         String cliLife = System.getProperty("excel.api.life");
-        String envLife = System.getProperty("LIFE", System.getenv("LIFE"));
+        String envLife = System.getenv("LIFE");
         Object configLife = config.get("lifecycle") instanceof Map
             ? ((Map<?, ?>) config.get("lifecycle")).get("life")
             : null;

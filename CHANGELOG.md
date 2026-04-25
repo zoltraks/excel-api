@@ -1,5 +1,15 @@
 # Changelog
 
+## Version 0.0.2
+
+Removed EXCEL_API_* prefixed environment variable fallbacks to simplify configuration across all implementations.
+
+- **Configuration**: Removed EXCEL_API_WORK, EXCEL_API_CONFIG, EXCEL_API_ACCESS, and EXCEL_API_LIFE environment variable fallbacks from Java and C# implementations
+- **Java ConfigLoader**: Fixed lifecycle resolution logic to use System.getenv("LIFE") instead of System.getProperty("LIFE", System.getenv("LIFE"))
+- **Java Tests**: Removed incorrect environment variable test that used system property instead of environment variable
+- **C# Tests**: Updated tests to remove EXCEL_API_* environment variable references
+- **Documentation**: Added rule to VERSIONING.md about checking changes between versions when describing changes
+
 ## Version 0.0.1
 
 Initial repository skeleton with project documentation, API contract, and implementation scaffolding.

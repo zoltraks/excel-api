@@ -95,6 +95,7 @@ One-sentence summary of the release scope and theme.
 - Most recent version is at the top.
 - Do not include sub-headings (e.g. `### Added`, `### Fixed`) inside a version section.
 - Write in past tense.
+- **Change Description**: When describing changes, check the actual changes made between the previous (last) version and the current version being bumped. The CHANGELOG entry must accurately describe the specific changes that occurred between these versions.
 
 ## Examples
 
@@ -109,4 +110,4 @@ One-sentence summary of the release scope and theme.
 
 ## Current Version
 
-The current Excel API version is: **0.0.1**
+The current Excel API version is: **0.0.2**
