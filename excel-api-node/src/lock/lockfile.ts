@@ -1,14 +1,23 @@
 // File locking with lockfile protocol
 
 import * as fs from 'fs';
+import * as os from 'os';
 import * as path from 'path';
 
 export interface LockfileContent {
   pid: number;
   hostname: string;
-  timestamp: string;
+  locked_at: string;
   implementation: string;
 }
+
+export interface LockInfo {
+  locked: boolean;
+  locked_by?: string;
+  locked_since?: string;
+}
+
+const POLL_INTERVAL_MS = 25;
 
 class FileLock {
   private lockDir: string;
@@ -32,48 +41,89 @@ class FileLock {
 
   async acquire(fileId: string): Promise<void> {
     const lockfilePath = this.getLockfilePath(fileId);
+    const deadline = Date.now() + this.lockTimeoutMs;
 
-    // Check if lock exists and is stale
-    if (fs.existsSync(lockfilePath)) {
-      const lockContent = this.readLockfile(lockfilePath);
-      const lockTime = new Date(lockContent.timestamp).getTime();
-      const now = Date.now();
+    let acquired = false;
+    while (!acquired) {
+      const lockContent: LockfileContent = {
+        pid: process.pid,
+        hostname: os.hostname(),
+        locked_at: new Date().toISOString(),
+        implementation: this.implementation,
+      };
 
-      if (now - lockTime < this.lockTimeoutMs) {
-        throw new Error(`File is locked by ${lockContent.hostname} (PID ${lockContent.pid})`);
+      try {
+        // Atomic exclusive create — fails with EEXIST if the lockfile exists
+        fs.writeFileSync(lockfilePath, JSON.stringify(lockContent), { flag: 'wx', mode: 0o644 });
+        acquired = true;
+        continue;
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'EEXIST') {
+          throw error;
+        }
       }
 
-      // Lock is stale, remove it
-      fs.unlinkSync(lockfilePath);
+      const existing = this.tryReadLockfile(lockfilePath);
+      if (existing) {
+        const lockTime = Date.parse(existing.locked_at);
+        if (!Number.isNaN(lockTime) && Date.now() - lockTime >= this.lockTimeoutMs) {
+          // Stale lock — break it and retry
+          try {
+            fs.unlinkSync(lockfilePath);
+          } catch {
+            // Raced with another process; retry loop handles it
+          }
+          continue;
+        }
+        // REASON: re-acquiring a lock held by this process can never unblock — fail fast
+        if (existing.pid === process.pid) {
+          throw new Error(`File is locked by ${existing.hostname} (PID ${existing.pid})`);
+        }
+      }
+
+      if (Date.now() >= deadline) {
+        const holder = existing ? `${existing.hostname} (PID ${existing.pid})` : 'unknown holder';
+        throw new Error(`File is locked by ${holder}`);
+      }
+
+      await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS));
     }
-
-    // Create new lockfile
-    const lockContent: LockfileContent = {
-      pid: process.pid,
-      hostname: require('os').hostname(),
-      timestamp: new Date().toISOString(),
-      implementation: this.implementation,
-    };
-
-    fs.writeFileSync(lockfilePath, JSON.stringify(lockContent), { mode: 0o644 });
   }
 
   release(fileId: string): void {
     const lockfilePath = this.getLockfilePath(fileId);
 
-    if (fs.existsSync(lockfilePath)) {
-      const lockContent = this.readLockfile(lockfilePath);
+    if (!fs.existsSync(lockfilePath)) {
+      return;
+    }
 
-      // Only release if we own the lock
-      if (lockContent.pid === process.pid) {
-        fs.unlinkSync(lockfilePath);
-      }
+    const lockContent = this.tryReadLockfile(lockfilePath);
+
+    // Only release if we own the lock
+    if (lockContent && lockContent.pid === process.pid) {
+      fs.unlinkSync(lockfilePath);
     }
   }
 
-  private readLockfile(lockfilePath: string): LockfileContent {
-    const content = fs.readFileSync(lockfilePath, 'utf8');
-    return JSON.parse(content);
+  private tryReadLockfile(lockfilePath: string): LockfileContent | null {
+    try {
+      const content = fs.readFileSync(lockfilePath, 'utf8');
+      const parsed = JSON.parse(content) as Partial<LockfileContent>;
+      if (typeof parsed.pid !== 'number' || typeof parsed.locked_at !== 'string') {
+        return null;
+      }
+      return parsed as LockfileContent;
+    } catch {
+      return null;
+    }
+  }
+
+  private isStale(lockContent: LockfileContent): boolean {
+    const lockTime = Date.parse(lockContent.locked_at);
+    if (Number.isNaN(lockTime)) {
+      return false;
+    }
+    return Date.now() - lockTime >= this.lockTimeoutMs;
   }
 
   isLocked(fileId: string): boolean {
@@ -83,16 +133,31 @@ class FileLock {
       return false;
     }
 
-    const lockContent = this.readLockfile(lockfilePath);
-    const lockTime = new Date(lockContent.timestamp).getTime();
-    const now = Date.now();
-
-    // Check if lock is stale
-    if (now - lockTime >= this.lockTimeoutMs) {
+    const lockContent = this.tryReadLockfile(lockfilePath);
+    if (!lockContent) {
       return false;
     }
 
-    return true;
+    return !this.isStale(lockContent);
+  }
+
+  getLockInfo(fileId: string): LockInfo {
+    const lockfilePath = this.getLockfilePath(fileId);
+
+    if (!fs.existsSync(lockfilePath)) {
+      return { locked: false };
+    }
+
+    const lockContent = this.tryReadLockfile(lockfilePath);
+    if (!lockContent || this.isStale(lockContent)) {
+      return { locked: false };
+    }
+
+    return {
+      locked: true,
+      locked_by: lockContent.hostname,
+      locked_since: lockContent.locked_at,
+    };
   }
 }
 

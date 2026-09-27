@@ -2,7 +2,7 @@
 
 import * as path from 'path';
 import * as fs from 'fs';
-import type { Config } from '../config/types.js';
+import type { Config, SheetHeaderConfig } from '../config/types.js';
 
 export interface WorkbookInfo {
   id: string;
@@ -11,6 +11,7 @@ export interface WorkbookInfo {
   path: string;
   modified_at: string;
   size_bytes: number;
+  sheets?: Record<string, SheetHeaderConfig> | undefined;
 }
 
 export class WorkbookRegistry {
@@ -34,6 +35,7 @@ export class WorkbookRegistry {
         path: fullPath,
         modified_at: stats.mtime.toISOString(),
         size_bytes: stats.size,
+        sheets: entry.sheets,
       });
     }
   }

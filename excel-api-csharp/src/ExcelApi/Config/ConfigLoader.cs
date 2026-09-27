@@ -148,11 +148,34 @@ public static class ConfigLoader
 
     public static ServerConfig LoadServerConfig(string? workDir, string? configPath)
     {
+        return LoadSection(workDir, configPath, "server", new ServerConfig());
+    }
+
+    public static RateLimitConfig LoadRateLimitConfig(string? workDir, string? configPath)
+    {
+        return LoadSection(workDir, configPath, "rate_limit", new RateLimitConfig());
+    }
+
+    public static LoggingConfig LoadLoggingConfig(string? workDir, string? configPath)
+    {
+        var loggingConfig = LoadSection(workDir, configPath, "logging", new LoggingConfig());
+        if (loggingConfig.File != null
+            && !string.IsNullOrEmpty(loggingConfig.File.Path)
+            && !Path.IsPathRooted(loggingConfig.File.Path)
+            && !string.IsNullOrEmpty(workDir))
+        {
+            loggingConfig.File.Path = Path.Combine(workDir, loggingConfig.File.Path);
+        }
+        return loggingConfig;
+    }
+
+    private static T LoadSection<T>(string? workDir, string? configPath, string section, T fallback) where T : new()
+    {
         string resolvedPath = ConfigPathResolver.ResolveConfigPath(workDir, configPath, null, false);
 
         if (!File.Exists(resolvedPath))
         {
-            return new ServerConfig();
+            return fallback;
         }
 
         string content = File.ReadAllText(resolvedPath);
@@ -167,13 +190,80 @@ public static class ConfigLoader
             .Build();
 
         var fullConfig = deserializer.Deserialize<Dictionary<string, object>>(content);
-        if (fullConfig != null && fullConfig.ContainsKey("server"))
+        if (fullConfig != null && fullConfig.ContainsKey(section))
         {
-            var serverYaml = serializer.Serialize(fullConfig["server"]);
-            return deserializer.Deserialize<ServerConfig>(serverYaml) ?? new ServerConfig();
+            var sectionYaml = serializer.Serialize(fullConfig[section]);
+            return deserializer.Deserialize<T>(sectionYaml) ?? fallback;
         }
 
-        return new ServerConfig();
+        return fallback;
+    }
+
+    public static AuthConfig LoadAuthConfig(string? workDir, string? configPath)
+    {
+        string resolvedPath = ConfigPathResolver.ResolveConfigPath(workDir, configPath, null, false);
+
+        if (!File.Exists(resolvedPath))
+        {
+            return new AuthConfig();
+        }
+
+        string content = File.ReadAllText(resolvedPath);
+        content = InterpolateVariables(content);
+
+        var deserializer = new DeserializerBuilder()
+            .WithNamingConvention(UnderscoredNamingConvention.Instance)
+            .Build();
+
+        var serializer = new SerializerBuilder()
+            .WithNamingConvention(UnderscoredNamingConvention.Instance)
+            .Build();
+
+        var fullConfig = deserializer.Deserialize<Dictionary<string, object>>(content);
+        if (fullConfig != null && fullConfig.ContainsKey("auth"))
+        {
+            var authYaml = serializer.Serialize(fullConfig["auth"]);
+            return deserializer.Deserialize<AuthConfig>(authYaml) ?? new AuthConfig();
+        }
+
+        return new AuthConfig();
+    }
+
+    public static QueueConfig LoadQueueConfig(string? workDir, string? configPath)
+    {
+        string resolvedPath = ConfigPathResolver.ResolveConfigPath(workDir, configPath, null, false);
+
+        if (!File.Exists(resolvedPath))
+        {
+            return new QueueConfig();
+        }
+
+        string content = File.ReadAllText(resolvedPath);
+        content = InterpolateVariables(content);
+
+        var deserializer = new DeserializerBuilder()
+            .WithNamingConvention(UnderscoredNamingConvention.Instance)
+            .Build();
+
+        var serializer = new SerializerBuilder()
+            .WithNamingConvention(UnderscoredNamingConvention.Instance)
+            .Build();
+
+        var fullConfig = deserializer.Deserialize<Dictionary<string, object>>(content);
+        QueueConfig queueConfig = new QueueConfig();
+        if (fullConfig != null && fullConfig.ContainsKey("queue"))
+        {
+            var queueYaml = serializer.Serialize(fullConfig["queue"]);
+            queueConfig = deserializer.Deserialize<QueueConfig>(queueYaml) ?? new QueueConfig();
+        }
+
+        if (!string.IsNullOrEmpty(queueConfig.LockDir) && !Path.IsPathRooted(queueConfig.LockDir)
+            && !string.IsNullOrEmpty(workDir))
+        {
+            queueConfig.LockDir = Path.Combine(workDir, queueConfig.LockDir);
+        }
+
+        return queueConfig;
     }
 
     private static string InterpolateVariables(string content)

@@ -156,11 +156,11 @@ All implementations follow the same lockfile protocol to enable cross-implementa
 }
 ```
 
-**Lock mechanism.** Advisory file lock using the OS-level `flock(2)` syscall (Linux) or equivalent. Node uses `fs.open` with `flock`, Java uses `FileChannel.lock()`, C# uses `FileStream` with `FileShare.None`. All three use the same kernel facility and are mutually visible.
+**Lock mechanism.** Atomic exclusive create — Node uses `fs.writeFileSync` with the `wx` flag, Java uses `Files.write` with `CREATE_NEW`, C# uses `FileMode.CreateNew`. If the file exists, the lock is held; creation fails atomically. Acquisition polls with a bounded deadline. All three implementations observe the same lockfile, so locks are mutually visible across implementations.
 
-**Lock timeout.** Configurable (default 30 seconds). If the lock cannot be acquired within the timeout, the batch fails and all enqueued operations receive 409 `FILE_LOCKED` with `Retry-After` header.
+**Lock timeout.** Configurable (`queue.lock_timeout_ms`, default 30000 ms). If the lock cannot be acquired within the timeout, the request fails with 409 `FILE_LOCKED`.
 
-**Stale lock detection.** On startup and periodically, the server checks lockfiles against running processes. If the PID in a lockfile does not correspond to a running process on the same hostname, the lockfile is considered stale and removed.
+**Stale lock detection.** During acquisition, an existing lockfile whose `locked_at` age exceeds `lock_timeout_ms` is considered stale: the holder is presumed dead and the lockfile is taken over (deleted and recreated). A lockfile owned by the server's own PID always fails fast.
 
 ## Cache Architecture
 
@@ -277,6 +277,23 @@ The implementation must internally track index shifts as operations are applied 
 
 If a delete refers to a row that was already deleted by a prior operation in the same batch, the entire batch fails atomically.
 
+## Sheet Header Modes
+
+Each workbook entry may declare per-sheet header configuration under `sheets` in the registry. Four modes are supported, identical across all implementations:
+
+- **`single`** (default): column identifiers are read from `identifier_row` (default: row 1). Data starts at `identifier_row + 1`.
+- **`multi`**: identifiers on `identifier_row`, column types on `type_row`, descriptions on `description_row`. Data starts after the last configured header row (`max(identifier_row, type_row, description_row) + 1`).
+- **`legend`**: column identifiers come from `legend_sheet` — a separate sheet whose rows map column letter to column id (`letter,id,type,description` starting at row 1). Data on the target sheet starts at `identifier_row + 1` when configured, else row 1.
+- **`none`**: the sheet has no header. Record data is keyed by column letters (`A`, `B`, …) and data starts at row 1.
+
+Semantics derived from the mode:
+
+- Record indexes remain 1-based across all modes: record `N` occupies row `first_data_row + N - 1`. `first_data_row` is the resolved value described above, not always 2.
+- `GET .../sheets/{name}` reports `mode: "table"` for `single`, `multi`, and `legend`; `mode: "raw"` for `none`. `header_row` reports the resolved `identifier_row`; `first_data_row` reports the resolved first data row.
+- `GET .../columns` reports `source` as `header_row` (single), `multi_row` (multi), or `legend_sheet` (legend). For `none`, `source` is `header_row` with letter identifiers. `multi` additionally populates `type` and `descriptions.default` from the type and description rows.
+- A `legend`-mode sheet without `legend_sheet` configured, or whose legend sheet is missing, fails with `SHEET_NOT_CONFIGURED` (400).
+- Sheets without any configuration behave exactly as `single` with `identifier_row: 1`.
+
 ## Architectural Decisions
 
 | ID   | Decision                  | Choice                                        | Rationale                                                                                |
@@ -286,8 +303,8 @@ If a delete refers to a row that was already deleted by a prior operation in the
 | A-03 | ExcelJS for Node          | ExcelJS 4.x                                   | Lightweight, TypeScript-native, good performance for small to medium files                |
 | A-04 | Apache POI for Java       | Apache POI 5.x                                | Most complete OOXML support, streaming reader for large files, optional formula evaluation |
 | A-05 | ClosedXML for C#          | ClosedXML 0.102+                              | Fluent API, ergonomic row insertion, ReadyToRun for near-native startup                  |
-| A-06 | Advisory file locking     | OS-level flock with lockfile JSON              | Cross-implementation interoperability, stale lock detection, no external dependencies     |
-| A-07 | Write queue with debounce  | Per-workbook queue with timer and size trigger | Minimizes file lock duration, batches operations, reduces disk I/O                       |
+| A-06 | Advisory file locking     | Atomic exclusive lockfile create + JSON payload | Cross-implementation interoperability, stale lock takeover, no external dependencies      |
+| A-07 | Write queue with batching  | Per-workbook serialized write lanes with depth cap | Single lock + open/save per batch; excess depth rejected with 503 SERVICE_BUSY          |
 | A-08 | In-memory cache           | Per-workbook cache with mtime invalidation     | Eliminates disk I/O for reads, detects external changes, configurable polling            |
 | A-09 | Dual addressing modes     | Cell-level and record-level endpoints         | Supports both raw spreadsheet access and tabular CRUD operations                         |
 | A-10 | Configuration split       | config.yaml + access.yaml                     | Separation of structural and sensitive data, different permission requirements            |
@@ -312,13 +329,21 @@ The project repository contains five component directories, each with its own so
 ```
 excel-api-node/
   src/
-    server.ts             # Entry point
+    server.ts             # Entry point (bootstrap only)
+    cli/                  # CLI argument parsing
     config/               # Config and access.yaml loading, validation
-    auth/                 # OAuth2 token endpoint, JWT, static token middleware
-    routes/               # Fastify route handlers
-    services/             # Business logic (workbook registry, sheet metadata)
-    queue/                # Write queue with Promise-chain serialization
-    excel/                # ExcelJS wrapper (read, write, style copy, cache)
+    auth/                 # JWT, static token middleware, ACL checker
+    routes/               # Fastify route handlers, shared request validation
+    workbook/             # Workbook registry (file ID resolution, per-sheet config)
+    excel/                # ExcelJS wrapper (layout resolution, operations, batch)
+    lock/                 # Filesystem write lockfile
+    queue/                # Write queue: per-workbook serialization, debounced batching, capacity cap
+    cache/                # mtime-based workbook cache
+    metrics/              # Prometheus exposition collector
+    ratelimit/            # Fixed-window rate limiter
+    logger/               # Console logger, RotatingFileLogger
+    errors/               # AppError class hierarchy
+    util/                 # Duration parser
   resources/
     openapi.yaml          # Contract copy, loaded at startup
   config/
@@ -336,12 +361,16 @@ excel-api-java/
   src/main/
     java/pl/alyx/api/excel/
       Application.java          # Spring Boot entry point
-      config/                   # Configuration classes, YAML binding
-      auth/                     # OAuth2, JWT filter, static token filter
-      controller/               # REST controllers
-      service/                  # Business logic
-      queue/                    # Write queue with BlockingQueue + ExecutorService
-      excel/                    # Apache POI wrapper
+      config/                   # Configuration classes, YAML binding, TLS/CORS wiring
+      controller/               # REST controllers (+ advice/ exception handler)
+      dto/                      # Request and response models
+      exception/                # Domain exception classes
+      security/                 # JWT, static-token, ACL, and rate-limit filters
+      service/                  # Business logic: ExcelService (Apache POI), SheetLayout, FileLockService, WriteQueueService
+      metrics/                  # Prometheus collector and servlet filter
+      logging/                  # JsonLayout (JSON log format)
+      lifecycle/                # LifecycleManager (--life graceful shutdown)
+      util/                     # DurationParser
     resources/
       openapi.yaml              # Contract copy, on classpath
       application.yaml          # Spring Boot config (port, profiles)
@@ -359,11 +388,13 @@ excel-api-csharp/
   src/ExcelApi/
     Program.cs                 # Entry point, Minimal API setup
     Config/                    # Configuration loading, YAML deserialization
-    Auth/                      # OAuth2, JWT, static token middleware
-    Controllers/               # Endpoint groups (MapGet, MapPost, etc.)
-    Services/                  # Business logic
-    Queue/                     # Channel<T>-based write queue
-    Excel/                     # ClosedXML wrapper
+    Auth/                      # JwtService, AuthService, auth middleware
+    Dto/                       # Request and response models
+    Endpoints/                 # Endpoint groups (MapGet, MapPost, etc.) + shared ErrorMapping
+    Services/                  # Business logic: ExcelService, FileLockService, MetricsCollector, WriteQueueService
+    Excel/                     # ClosedXML wrapper: WorkbookConfig, SheetLayout
+    Logging/                   # JSON console formatter, RotatingFileLogger
+    Util/                      # DurationParser
     Resources/
       openapi.yaml             # Contract copy, embedded resource
     ExcelApi.csproj            # Project file with R2R config
@@ -382,23 +413,12 @@ excel-api-go/
     main.go                    # Entry point, flag parsing
   internal/
     client/                    # HTTP API client
-      client.go                # Connection, auth, base HTTP methods
-      auth.go                  # OAuth2 token acquisition and refresh
-      workbooks.go             # Workbook endpoints
-      sheets.go                # Sheet endpoints
-      records.go               # Record CRUD
-      cells.go                 # Cell and range operations
-      operations.go            # Batch operations
+      client.go                # Connection, auth, endpoints, path/query escaping
+      types.go                 # Request/response structs
     cli/
-      repl.go                  # Interactive REPL loop
-      commands.go              # Command parsing and dispatch
-      completer.go             # Tab completion for sheets, columns
-      context.go               # Session state (current workbook, sheet)
+      repl.go                  # Interactive REPL loop with sub-command dispatch
     format/
-      markdown.go              # Markdown table formatter
-      csv.go                   # CSV formatter with configurable separator
-      json.go                  # JSON pretty-printer
-      table.go                 # Plain text table formatter
+      markdown.go              # Output formatters: Markdown, CSV, plain-text table
     config/
       config.go                # CLI configuration and profiles
       version.go               # Version constant
@@ -417,15 +437,15 @@ excel-api-test/
     sheets.test.ts             # Sheet metadata tests
     rows.test.ts               # Record CRUD tests
     operations.test.ts         # Batch operation tests
-    cells.test.ts              # Cell and range tests
     locking.test.ts            # File locking tests
     concurrency.test.ts        # Concurrent access tests
     openapi-endpoint.test.ts   # OpenAPI spec endpoint test
   fixture/
-    # Excel test fixtures (simple data, styled rows, formulas, large datasets)
+    # Excel test fixtures (simple data, styled rows, formulas, multi-header modes)
+    csv/                       # CSV workbook fixtures
   config/
-    config.yaml                # Test configuration
-    access.yaml                # Test credentials
+    config.test.yaml           # Test configuration
+    access.test.yaml           # Test credentials
   helpers.ts                   # Test helpers (token acquisition, API client)
   setup.ts                     # Jest setup
   jest.config.ts

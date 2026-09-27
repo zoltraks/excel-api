@@ -24,6 +24,15 @@ registry:
     - id: "formulas"
       path: "formulas.xlsx"
       readonly: false
+    - id: "multi-header"
+      path: "multi-header.xlsx"
+      readonly: true
+      sheets:
+        data:
+          mode: "multi"
+          identifier_row: 1
+          type_row: 2
+          description_row: 3
     - id: "readonly-test"
       path: "simple.xlsx"
       readonly: true

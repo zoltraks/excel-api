@@ -1,15 +1,29 @@
+volumes:
+  fixture-data:
+
 services:
+  fixture-seed:
+    image: busybox:1.36
+    volumes:
+      - ./excel-api-test/fixture:/src:ro
+      - fixture-data:/data
+    command: sh -c "rm -rf /data/fixture && cp -r /src /data/fixture"
+
   excel-api:
     build:
       context: ./${IMAGE:-excel-api-node}
     volumes:
-      - ./excel-api-test/fixture:/data/workbooks:ro
+      - fixture-data:/data
       - ./excel-api-test/config/config.test.yaml:/etc/excel-api/config.yaml:ro
       - ./excel-api-test/config/access.test.yaml:/etc/excel-api/access.yaml:ro
       - ./work/data/locks:/data/locks
     environment:
-      - CONFIG_PATH=/etc/excel-api/config.yaml
-      - ACCESS_PATH=/etc/excel-api/access.yaml
+      - WORK=/data
+      - CONFIG=/etc/excel-api/config.yaml
+      - ACCESS=/etc/excel-api/access.yaml
+    depends_on:
+      fixture-seed:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "sh", "-c", "curl -f http://localhost:8443/health || curl -f http://localhost:8443/api/v1/health"]
       interval: 2s
@@ -21,4 +35,4 @@ services:
       excel-api:
         condition: service_healthy
     environment:
-      - API_URL=http://excel-api:8443${API_PATH:-}
+      - API_URL=http://excel-api:8443${API_PATH:-/api/v1}

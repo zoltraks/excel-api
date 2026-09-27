@@ -2,7 +2,7 @@ openapi: "3.1.0"
 info:
   title: "Excel File API"
   description: "HTTP service exposing Excel spreadsheet data as a JSON API"
-  version: "0.0.2"
+  version: "0.0.3"
   contact:
     name: "Filip Golewski"
   license:
@@ -41,6 +41,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: "Rate limit exceeded (error code RATE_LIMITED)"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /openapi.yaml:
     get:
@@ -55,6 +61,20 @@ paths:
             application/yaml:
               schema:
                 type: string
+
+  /openapi.json:
+    get:
+      summary: "OpenAPI specification (JSON)"
+      operationId: "getOpenApiSpecJson"
+      tags: ["Service"]
+      security: []
+      responses:
+        "200":
+          description: "OpenAPI specification with instance metadata"
+          content:
+            application/json:
+              schema:
+                type: object
 
   /health:
     get:
@@ -103,6 +123,12 @@ paths:
                     type: array
                     items:
                       $ref: "#/components/schemas/WorkbookInfo"
+        "429":
+          description: "Rate limit exceeded (error code RATE_LIMITED)"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /workbooks/{fileId}:
     get:
@@ -357,7 +383,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/CellData"
 
-  /workbooks/{fileId}/sheets/{sheetName}/range/{rangeRef}:
+  /workbooks/{fileId}/sheets/{sheetName}/ranges/{rangeRef}:
     get:
       summary: "Read range"
       operationId: "getRange"

@@ -164,4 +164,4 @@ Use the sources below. Source code carries the highest weight.
 
 ## Current Version
 
-The current Excel API version is: **0.0.2**
+The current Excel API version is: **0.0.3**

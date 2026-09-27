@@ -18,11 +18,16 @@ excel-api-node/
       args.ts             # CLI argument parsing
     config/               # Config and access.yaml loading, validation
     auth/                 # JWT, static token middleware
-    routes/               # Fastify route plugins (one file per resource group)
-    services/             # Business logic (one service per resource)
-    errors/               # AppError class hierarchy, centralized error handler
-    queue/                # Write queue with Promise-chain serialization
-    excel/                # ExcelJS wrapper (read, write, style copy, cache)
+    routes/               # Fastify route plugins (one file per resource group), shared zod request validation
+    workbook/             # Workbook registry (file ID resolution, per-sheet config)
+    excel/                # ExcelJS wrapper (layout resolution, operations, batch, style copy)
+    lock/                 # Filesystem write lockfile (atomic create, stale takeover)
+    queue/                # Write queue: per-workbook serialization, debounced batching, capacity cap
+    cache/                # mtime-based workbook cache
+    metrics/              # Prometheus exposition collector
+    ratelimit/            # Fixed-window rate limiter
+    logger/               # Console logger, RotatingFileLogger
+    errors/               # AppError class hierarchy
     util/
       duration.ts         # Canonical duration string parser
   resources/
@@ -44,9 +49,9 @@ excel-api-node/
 - Display formatting (`format=display`) is limited. ExcelJS provides the `numFmt` string but does not apply it. The implementation applies a subset of common formats (numbers, percentages, dates) and falls back to the native value for unrecognized format strings. For consistent string representation, use `format=string` instead.
 - Large file performance. ExcelJS parses the entire file into memory. Files exceeding 100,000 rows may cause high memory usage.
 
-**Queue implementation**: Promise-chain serialization. A single `writeChain: Promise<void>` per workbook. Each write operation appends to the chain: `writeChain = writeChain.then(() => executeBatch(...))`. The event loop guarantees sequential execution without mutexes.
+**Queue implementation**: Per-workbook serialization via a `Promise` chain with debounced batching. Operations enqueue into a pending list per workbook; after `batch_debounce_ms` (or immediately when the batch is full), pending operations execute as one batch inside a single file lock and a single open/save cycle. Pending depth is capped at `batch_max_size` — excess submissions are rejected with `503 SERVICE_BUSY`.
 
-**Completion signal**: Each enqueued operation carries a `resolve` and `reject` function from a deferred `Promise`. The HTTP handler `await`s this promise and returns the result to the client.
+**Completion signal**: Each enqueued operation carries a `resolve` and `reject` function from a deferred `Promise`. The HTTP handler `await`s this promise and returns the per-operation result to the client.
 
 **OpenAPI loading**: `fs.readFileSync(path.join(__dirname, '../resources/openapi.yaml'))` at startup. Parsed with `yaml` package, fields replaced, serialized back to string and cached.
 
@@ -67,17 +72,18 @@ excel-api-java/
   src/main/
     java/pl/alyx/api/excel/
       Application.java          # Spring Boot entry point
-      config/                   # Configuration loaders and YAML binding
-        model/                  # Typed config POJOs (ServerConfig, QueueConfig, etc.)
-        ConfigSupport.java      # Shared: variable interpolation, YAML reading
+      config/                   # Configuration loaders, typed config objects, TLS/CORS wiring
       controller/               # REST controllers
         advice/                 # GlobalExceptionHandler (@RestControllerAdvice)
+      dto/                      # Request and response models
       exception/                # Domain exception classes
-      security/                 # JWT filter, static token filter
-      service/                  # Business logic
-        support/                # Shared helpers: header parsing, value conversion
-      queue/                    # Write queue with BlockingQueue + ExecutorService
-      excel/                    # Apache POI wrapper
+      security/                 # JWT, static-token, ACL, and rate-limit filters
+      service/                  # Business logic: ExcelService (Apache POI), SheetLayout, FileLockService, WriteQueueService
+        support/                # Shared helpers: cell value conversion
+      metrics/                  # Prometheus collector and servlet filter
+      logging/                  # JsonLayout (JSON log format)
+      lifecycle/                # LifecycleManager (--life graceful shutdown)
+      util/                     # DurationParser
     resources/
       openapi.yaml              # Contract copy, on classpath
       application.yaml          # Spring Boot config (port, profiles)
@@ -100,7 +106,7 @@ excel-api-java/
 - Memory footprint. The full `XSSFWorkbook` model for a 50 MB file can consume 1–2 GB of heap. The streaming reader mitigates this for read operations, but write operations require the full model.
 - Startup time. Spring Boot + JVM cold start is 2–5 seconds, the slowest of the three implementations.
 
-**Queue implementation**: `BlockingQueue<WriteOperation>` per workbook, consumed by a single-thread `ExecutorService`. `CompletableFuture<OperationResult>` is the completion signal — the controller `await`s it via `.get()`.
+**Queue implementation**: Per-workbook `synchronized` monitor serialization. `WriteQueueService.submit()` executes each job under the workbook's monitor object, so writes to the same workbook never interleave. Pending depth is tracked per workbook with an `AtomicInteger` and capped at `batch_max_size` — excess submissions throw `ServiceBusyException` (`503 SERVICE_BUSY`). The synchronous monitor is the completion signal: the controller blocks inside `submit()` until the job returns.
 
 **OpenAPI loading**: `getClass().getResourceAsStream("/openapi.yaml")` from classpath. Parsed with SnakeYAML, fields replaced, serialized and cached.
 
@@ -120,16 +126,14 @@ excel-api-java/
 excel-api-csharp/
   src/ExcelApi/
     Program.cs                 # Bootstrap only: DI registration, middleware, endpoint groups, run
-    Config/                    # Configuration loading, YAML deserialization
-      LifecycleResolver.cs     # Centralized CLI > env > config lifecycle resolution
+    Auth/                      # JwtService, AuthService, auth middleware
+    Config/                    # Configuration loading, YAML deserialization (ServerConfig, QueueConfig, ...)
     Dto/                       # Request and response model classes
-    Endpoints/                 # Extension methods registering endpoint groups per resource
-    Excel/                     # ClosedXML wrapper, WorkbookConfig
+    Endpoints/                 # Extension methods registering endpoint groups per resource, shared ErrorMapping
+    Excel/                     # ClosedXML wrapper: WorkbookConfig, SheetLayout
     Logging/                   # JSON console formatter, RotatingFileLogger
-    Middleware/                # File-logging middleware, CORS extensions
-    Services/                  # Business logic (one service per resource)
-    Queue/                     # Channel<T>-based write queue
-    Util/                      # DurationParser and other utilities
+    Services/                  # Business logic: ExcelService, FileLockService, MetricsCollector, WriteQueueService
+    Util/                      # DurationParser
     Resources/
       openapi.yaml             # Contract copy, embedded resource
     ExcelApi.csproj            # Project file with R2R config
@@ -160,7 +164,7 @@ excel-api-csharp/
 - No streaming reader. ClosedXML loads the entire file into memory. For files exceeding 100,000 rows, the Java implementation should be preferred.
 - Formula evaluation covers a subset of Excel functions. Complex or nested formulas may return incorrect values or fall back to cached values.
 
-**Queue implementation**: `Channel<WriteOperation>` with `CreateBounded(capacity)`. A `BackgroundService` per workbook reads from the channel, collects a batch, and executes it. `TaskCompletionSource<OperationResult>` is the completion signal — the Minimal API handler `await`s it.
+**Queue implementation**: Per-workbook `SemaphoreSlim` lane serialization. `WriteQueueService.SubmitAsync()` awaits the lane's gate so writes to the same workbook never interleave. Pending depth is tracked per lane via `Interlocked` and capped at `batch_max_size` — excess submissions throw `ServiceBusyException` (`503 SERVICE_BUSY`). The awaited task inside `SubmitAsync` is the completion signal.
 
 **OpenAPI loading**: Embedded resource loaded via `Assembly.GetManifestResourceStream("BigBytes.ExcelApi.Resources.openapi.yaml")`. Parsed with YamlDotNet, fields replaced, serialized and cached.
 
@@ -168,7 +172,7 @@ excel-api-csharp/
 
 ## Excel API Go (CLI Client)
 
-**Stack**: Go 1.22+, no framework for HTTP (standard `net/http` client), `chzyer/readline` for REPL.
+**Stack**: Go 1.22+, standard library only (`net/http` client, `bufio` REPL). No external dependencies — `go.mod` declares no required modules.
 
 **Development standard**: `docs/standard/go-cli-development.md`.
 
@@ -180,21 +184,12 @@ excel-api-go/
     main.go                    # Orchestration only: flag parsing, dispatch, exit codes
   internal/
     client/                    # HTTP API client
-      client.go                # Connection, auth, base HTTP methods
+      client.go                # Connection, auth, endpoints, path/query escaping
       types.go                 # Request/response structs
-      workbooks.go             # Workbook endpoints
-      sheets.go                # Sheet endpoints
-      records.go               # Record CRUD
-      cells.go                 # Cell and range operations
-      operations.go            # Batch operations
     cli/
-      repl.go                  # Interactive REPL loop
-      commands/                # One file per sub-command
+      repl.go                  # Interactive REPL loop with sub-command dispatch
     format/
-      markdown.go              # Markdown table formatter
-      csv.go                   # CSV formatter with configurable separator
-      json.go                  # JSON pretty-printer
-      table.go                 # Plain text table formatter
+      markdown.go              # Output formatters: Markdown, CSV, plain-text table
     config/
       config.go                # CLI configuration, profiles, path resolution
       version.go               # Version constant
@@ -208,14 +203,9 @@ excel-api-go/
 
 Interactive mode: REPL with prompt, command history, tab completion for workbook IDs, sheet names, and column identifiers. Session context tracks the current server connection, workbook, and sheet, allowing short commands without repeating context.
 
-Batch mode: commands from stdin or a file, output to stdout. Intended for scripting and piping. Exit code 0 on success, 1 on error. Output format controlled by `--format` flag (JSON, CSV, Markdown, table).
+Batch mode: commands from stdin or a file, output to stdout. Intended for scripting and piping. Exit code 0 on success, 1 on error. The `--format` flag selects the server-side cell-value format (`native`, `display`, `string`, `csv`, `markdown`, `table`) and is passed through to the API as the `format` query parameter.
 
-**UTF-8 and newline handling.** The formatter layer handles values containing newlines, tabs, and Unicode characters.
-
-- Markdown: newlines replaced with `<br>` (configurable via `--newline-display` flag).
-- CSV: values containing the separator, qualifier, or newlines are enclosed in the text qualifier. Default separator: `,`. Default qualifier: `"`. Both configurable via `--separator` and `--quote` flags. Compliant with RFC 4180.
-- JSON: standard JSON escaping. No special handling needed.
-- Table: newlines replaced with `↵` for alignment preservation.
+**UTF-8 and newline handling.** Cell values pass through to stdout unchanged; `internal/format` provides simple Markdown/CSV/table formatters for record lists without configurable separators or quoting.
 
 **Authentication persistence.** OAuth2 tokens are cached in memory for the session duration. Token refresh is automatic — the client re-authenticates when a request receives 401 `TOKEN_EXPIRED`.
 

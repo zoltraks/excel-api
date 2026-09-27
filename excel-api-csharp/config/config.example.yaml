@@ -4,6 +4,13 @@ server:
   base_path: "/api/v1"
   tls:
     enabled: false
+    # cert_file: "certs/server.crt"  # PEM certificate, required when enabled
+    # key_file: "certs/server.key"   # PEM private key, required when enabled
+  cors:
+    enabled: true
+    # Cross-origin allowlist; empty list denies all cross-origin requests.
+    # "*" allows any origin but disables credentialed requests.
+    allowed_origins: []
 
 openapi:
   title: "Excel API"
@@ -18,6 +25,11 @@ registry:
     - id: "sample"
       path: "sample.xlsx"
       readonly: false
+
+rate_limit:
+  enabled: true
+  token_per_minute: 20      # POST /auth/token attempts per source IP
+  requests_per_minute: 600  # all other requests per source IP
 
 queue:
   batch_max_size: 50
@@ -40,3 +52,7 @@ auth:
 logging:
   level: "info"
   format: "json"
+  file:
+    enabled: false
+    path: "/var/log/excel-api/excel-api-csharp.log"
+    max_files: 7

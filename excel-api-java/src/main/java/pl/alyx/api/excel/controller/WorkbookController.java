@@ -6,6 +6,8 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import pl.alyx.api.excel.config.WorkbookConfig;
+import pl.alyx.api.excel.exception.ReadonlyWorkbookException;
+import pl.alyx.api.excel.exception.WorkbookNotFoundException;
 import pl.alyx.api.excel.dto.SheetInfo;
 import pl.alyx.api.excel.dto.WorkbookInfo;
 import pl.alyx.api.excel.dto.WorkbookListResponse;
@@ -76,7 +78,7 @@ public class WorkbookController {
             .orElse(null);
 
         if (entry == null) {
-            return ResponseEntity.notFound().build();
+            throw new WorkbookNotFoundException(id);
         }
 
         String registryDir = workbookConfig.getDirectory();
@@ -87,7 +89,7 @@ public class WorkbookController {
             path = Paths.get(entry.getPath());
         }
         if (!Files.exists(path)) {
-            return ResponseEntity.notFound().build();
+            throw new WorkbookNotFoundException(id);
         }
 
         long sizeBytes = Files.size(path);

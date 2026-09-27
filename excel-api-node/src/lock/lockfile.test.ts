@@ -71,7 +71,7 @@ describe('FileLock', () => {
 
       expect(lockContent).toHaveProperty('pid');
       expect(lockContent).toHaveProperty('hostname');
-      expect(lockContent).toHaveProperty('timestamp');
+      expect(lockContent).toHaveProperty('locked_at');
       expect(lockContent).toHaveProperty('implementation');
       expect(lockContent.implementation).toBe('excel-api-node');
       expect(lockContent.pid).toBe(process.pid);

@@ -1,9 +1,16 @@
 package pl.alyx.api.excel.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 public class CellData {
+    private String ref;
+    private String column;
+    private Integer row;
     private Object value;
     private String type;
+    @JsonProperty("number_format")
     private String numberFormat;
+    @JsonProperty("is_formula")
     private boolean isFormula;
     private String formatted;
 
@@ -16,6 +23,30 @@ public class CellData {
         this.numberFormat = numberFormat;
         this.isFormula = isFormula;
         this.formatted = formatted;
+    }
+
+    public String getRef() {
+        return ref;
+    }
+
+    public void setRef(String ref) {
+        this.ref = ref;
+    }
+
+    public String getColumn() {
+        return column;
+    }
+
+    public void setColumn(String column) {
+        this.column = column;
+    }
+
+    public Integer getRow() {
+        return row;
+    }
+
+    public void setRow(Integer row) {
+        this.row = row;
     }
 
     public Object getValue() {

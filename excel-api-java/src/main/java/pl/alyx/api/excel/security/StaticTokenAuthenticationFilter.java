@@ -12,6 +12,8 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import pl.alyx.api.excel.config.AccessConfig;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.List;
 
 /**
@@ -57,7 +59,10 @@ public class StaticTokenAuthenticationFilter extends OncePerRequestFilter {
 
         if (accessConfig.getTokens() != null && accessConfig.getTokens().getStaticTokens() != null) {
             for (AccessConfig.TokensConfig.StaticToken staticToken : accessConfig.getTokens().getStaticTokens()) {
-                if (staticToken.getToken() != null && staticToken.getToken().equals(token)) {
+                if (staticToken.getToken() != null
+                        && MessageDigest.isEqual(
+                                token.getBytes(StandardCharsets.UTF_8),
+                                staticToken.getToken().getBytes(StandardCharsets.UTF_8))) {
                     final List<SimpleGrantedAuthority> authorities = staticToken.getScopes() == null
                             ? List.of()
                             : staticToken.getScopes().stream()

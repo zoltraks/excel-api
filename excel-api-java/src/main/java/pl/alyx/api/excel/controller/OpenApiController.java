@@ -22,7 +22,7 @@ public class OpenApiController {
         content = content.replace("${server.port}", "8443");
         content = content.replace("${server.basePath}", "/api/v1");
         content = content.replace("${implementation}", "excel-api-java");
-        content = content.replace("${version}", "0.0.2");
+        content = content.replace("${version}", "0.0.3");
 
         return ResponseEntity.ok()
             .contentType(MediaType.parseMediaType("application/yaml"))
@@ -39,7 +39,7 @@ public class OpenApiController {
         content = content.replace("${server.port}", "8443");
         content = content.replace("${server.basePath}", "/api/v1");
         content = content.replace("${implementation}", "excel-api-java");
-        content = content.replace("${version}", "0.0.2");
+        content = content.replace("${version}", "0.0.3");
 
         // TODO: Convert YAML to JSON using SnakeYAML
         // For now, return YAML as JSON (not ideal but functional)

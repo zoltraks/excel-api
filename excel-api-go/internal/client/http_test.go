@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 )
 
@@ -147,5 +148,68 @@ func TestDeleteRecord(t *testing.T) {
 	c := NewClient(srv.URL, "", "Token")
 	if err := c.DeleteRecord("wb1", "Sheet1", "1"); err != nil {
 		t.Fatalf("DeleteRecord returned error: %v", err)
+	}
+}
+
+func TestObtainTokenFormEncodesCredentials(t *testing.T) {
+	var gotSecret string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := r.ParseForm(); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		gotSecret = r.PostForm.Get("client_secret")
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"access_token": "ok-token",
+			"token_type":   "Bearer",
+		})
+	}))
+	defer srv.Close()
+
+	if _, err := ObtainToken(srv.URL, "id&x=1", "sec&ret=p%"); err != nil {
+		t.Fatalf("ObtainToken returned error: %v", err)
+	}
+	if gotSecret != "sec&ret=p%" {
+		t.Errorf("Expected secret 'sec&ret=p%%', got %q", gotSecret)
+	}
+}
+
+func TestObtainTokenTimeout(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {} // hang forever — client timeout must fire
+	}))
+	defer srv.Close()
+
+	prev := tokenHTTPClient.Timeout
+	tokenHTTPClient.Timeout = 50 // 50ms for the test
+	defer func() { tokenHTTPClient.Timeout = prev }()
+
+	_, err := ObtainToken(srv.URL, "id", "secret")
+	if err == nil {
+		t.Fatal("Expected timeout error for hanging server")
+	}
+}
+
+func TestPathSegmentsAreEscaped(t *testing.T) {
+	var gotPath string
+	var gotRawQuery string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.EscapedPath()
+		gotRawQuery = r.URL.RawQuery
+		json.NewEncoder(w).Encode(RecordListResponse{})
+	}))
+	defer srv.Close()
+
+	c := NewClient(srv.URL, "", "Token")
+	if _, err := c.ListRecords("wb id", "Sheet 1/Extra", "a b"); err != nil {
+		t.Fatalf("ListRecords returned error: %v", err)
+	}
+	wantPath := "/workbooks/wb%20id/sheets/Sheet%201%2FExtra/records"
+	if gotPath != wantPath {
+		t.Errorf("Expected path %q, got %q", wantPath, gotPath)
+	}
+	if gotRawQuery != (url.Values{"format": []string{"a b"}}).Encode() {
+		t.Errorf("Expected escaped format query, got %q", gotRawQuery)
 	}
 }

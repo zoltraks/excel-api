@@ -2,7 +2,16 @@
 
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
+import { createHash, timingSafeEqual } from 'crypto';
 import type { AccessConfig } from '../config/types.js';
+
+// Constant-time secret comparison. Inputs are hashed first so that secrets of
+// differing lengths still compare in constant time without leaking length.
+function secretsEqual(expected: string, actual: string): boolean {
+  const a = createHash('sha256').update(expected, 'utf8').digest();
+  const b = createHash('sha256').update(actual, 'utf8').digest();
+  return timingSafeEqual(a, b);
+}
 
 export interface TokenPayload {
   sub: string; // subject (user ID or client ID)
@@ -69,7 +78,7 @@ export class OAuth2Handler {
     clientSecret: string
   ): Promise<TokenResponse> {
     const client = this.accessConfig.oauth2.clients.find(
-      (c) => c.client_id === clientId && c.client_secret === clientSecret
+      (c) => c.client_id === clientId && secretsEqual(c.client_secret, clientSecret)
     );
 
     if (!client) {
@@ -136,7 +145,11 @@ export class StaticTokenAuth {
   }
 
   verifyToken(token: string): { name: string; scopes: string[] } | null {
-    const tokenData = this.tokens.get(token);
-    return tokenData || null;
+    for (const [stored, tokenData] of this.tokens) {
+      if (secretsEqual(stored, token)) {
+        return tokenData;
+      }
+    }
+    return null;
   }
 }

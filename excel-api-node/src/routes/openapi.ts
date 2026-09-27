@@ -11,7 +11,7 @@ export function openapiRoutes(config: Config) {
       const openapiDoc = yaml.parse(openapiContent);
 
       openapiDoc.servers[0].url = `${config.server.tls.enabled ? 'https' : 'http'}://${config.server.host}:${config.server.port}${config.server.base_path}`;
-      openapiDoc.info.version = '0.0.2';
+      openapiDoc.info.version = '0.0.3';
       openapiDoc.info.title = 'Excel API (excel-api-node)';
 
       reply.type('application/yaml');
@@ -24,7 +24,7 @@ export function openapiRoutes(config: Config) {
       const openapiDoc = yaml.parse(openapiContent);
 
       openapiDoc.servers[0].url = `${config.server.tls.enabled ? 'https' : 'http'}://${config.server.host}:${config.server.port}${config.server.base_path}`;
-      openapiDoc.info.version = '0.0.2';
+      openapiDoc.info.version = '0.0.3';
       openapiDoc.info.title = 'Excel API (excel-api-node)';
 
       return openapiDoc;

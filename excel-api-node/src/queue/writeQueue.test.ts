@@ -165,4 +165,65 @@ describe('Write Queue', () => {
     expect(calledWith[1].data).toBe('second');
     expect(calledWith[2].data).toBe('third');
   });
+
+  it('should report pending depth', async () => {
+    const queue = initWriteQueue(10, 1000);
+    const executor = vi.fn().mockResolvedValue([{ success: true }]);
+
+    const op: BatchOperation = { type: 'cell', sheetName: 'Sheet1', cellRef: 'A1', data: 'x' };
+
+    expect(queue.getDepth('wb-depth')).toBe(0);
+    queue.enqueue('wb-depth', op, executor);
+    expect(queue.getDepth('wb-depth')).toBe(1);
+    await queue.flush('wb-depth');
+    expect(queue.getDepth('wb-depth')).toBe(0);
+  });
+
+  it('should reject enqueue beyond capacity', async () => {
+    const queue = initWriteQueue(2, 10000);
+    const executor = vi.fn().mockResolvedValue([{ success: true }]);
+
+    const op: BatchOperation = { type: 'cell', sheetName: 'Sheet1', cellRef: 'A1', data: 'x' };
+
+    // One pending slot below max so no immediate drain
+    queue.enqueue('wb-cap', op, executor);
+    await expect(queue.enqueue('wb-cap', op, executor)).resolves.toBeDefined();
+
+    const blocker = initWriteQueue(3, 10000);
+    blocker.enqueue('wb-full', op, executor);
+    blocker.enqueue('wb-full', op, executor);
+    blocker.enqueue('wb-full', op, executor);
+    await expect(blocker.enqueue('wb-full', op, executor)).rejects.toThrow('capacity');
+  });
+
+  it('should reject oversized batch atomically without partial execution', async () => {
+    const queue = initWriteQueue(2, 10000);
+    const executor = vi.fn().mockResolvedValue([{ success: true }]);
+
+    const op: BatchOperation = { type: 'cell', sheetName: 'Sheet1', cellRef: 'A1', data: 'x' };
+
+    await expect(
+      queue.enqueueBatch('wb-batch', [op, op, op], executor)
+    ).rejects.toThrow('capacity');
+    await queue.flush('wb-batch');
+    // Nothing was enqueued, so the executor must not have run for this batch
+    expect(executor.mock.calls.filter(c => c[0].length === 3)).toHaveLength(0);
+  });
+
+  it('should resolve enqueueBatch with per-operation results', async () => {
+    const queue = initWriteQueue(10, 10000);
+    const executor = vi.fn().mockResolvedValue([
+      { success: true, data: 'r1' },
+      { success: false, error: 'bad op' },
+    ]);
+
+    const op1: BatchOperation = { type: 'cell', sheetName: 'Sheet1', cellRef: 'A1', data: 'x' };
+    const op2: BatchOperation = { type: 'cell', sheetName: 'Sheet1', cellRef: 'A2', data: 'y' };
+
+    const results = await queue.enqueueBatch('wb-eb', [op1, op2], executor);
+    expect(results).toHaveLength(2);
+    expect(results[0].success).toBe(true);
+    expect(results[1].success).toBe(false);
+    expect(results[1].error).toBe('bad op');
+  });
 });

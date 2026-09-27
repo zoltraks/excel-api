@@ -40,7 +40,7 @@ export function sheetRoutes(
         }
 
         metrics.observeHistogram('excel_api_sheet_get_duration_ms', Date.now() - startTime);
-        const metadata = await getSheetMetadata(workbook.path, sheet.name);
+        const metadata = await getSheetMetadata(workbook.path, sheet.name, workbook.sheets?.[sheet.name]);
         return metadata;
       }
     );
@@ -62,10 +62,17 @@ export function sheetRoutes(
         }
 
         try {
-          const columns = await getColumnDefinitions(workbook.path, request.params.sheetName);
+          const columns = await getColumnDefinitions(workbook.path, request.params.sheetName, workbook.sheets?.[request.params.sheetName]);
           metrics.observeHistogram('excel_api_columns_get_duration_ms', Date.now() - startTime);
           return columns;
         } catch (error) {
+          if (error instanceof Error && error.message.includes('not configured')) {
+            metrics.incrementCounter('excel_api_errors_total', 1, { error: 'SHEET_NOT_CONFIGURED' });
+            return reply.status(400).send({
+              error: 'SHEET_NOT_CONFIGURED',
+              message: error.message,
+            });
+          }
           if (error instanceof Error && error.message.includes('not found')) {
             metrics.incrementCounter('excel_api_errors_total', 1, { error: 'SHEET_NOT_FOUND' });
             return reply.status(404).send({

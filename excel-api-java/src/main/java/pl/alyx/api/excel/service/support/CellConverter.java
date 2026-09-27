@@ -3,6 +3,7 @@ package pl.alyx.api.excel.service.support;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.DateUtil;
+import org.apache.poi.ss.util.CellReference;
 import pl.alyx.api.excel.dto.CellData;
 
 import java.time.format.DateTimeFormatter;
@@ -21,7 +22,26 @@ public final class CellConverter {
         final String numberFormat = cell.getCellStyle().getDataFormatString();
         final boolean isFormula = cell.getCellType() == CellType.FORMULA;
         final String formatted = "display".equals(format) ? cell.getStringCellValue() : null;
-        return new CellData(value, type, numberFormat, isFormula, formatted);
+        final CellData cellData = new CellData(value, type, numberFormat, isFormula, formatted);
+        cellData.setRef(cell.getAddress().formatAsString());
+        cellData.setColumn(CellReference.convertNumToColString(cell.getColumnIndex()));
+        cellData.setRow(cell.getRowIndex() + 1);
+        return cellData;
+    }
+
+    /**
+     * Creates an empty cell payload for a position that has no materialized cell.
+     * @param rowIndex the zero-based row index
+     * @param columnIndex the zero-based column index
+     * @return the empty cell data
+     */
+    public static CellData emptyCell(final int rowIndex, final int columnIndex) {
+        final CellData cellData = new CellData("", "empty", null, false, null);
+        cellData.setRef(
+                CellReference.convertNumToColString(columnIndex) + (rowIndex + 1));
+        cellData.setColumn(CellReference.convertNumToColString(columnIndex));
+        cellData.setRow(rowIndex + 1);
+        return cellData;
     }
 
     public static Object getCellValue(final Cell cell, final String format) {

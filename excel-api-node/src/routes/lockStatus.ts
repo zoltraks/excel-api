@@ -3,6 +3,7 @@ import type { WorkbookRegistry } from '../workbook/registry.js';
 import type { ACLChecker } from '../auth/acl.js';
 import { createScopeCheckMiddleware } from '../auth/middleware.js';
 import { getFileLock } from '../lock/lockfile.js';
+import { getWriteQueue } from '../queue/writeQueue.js';
 import { metrics } from '../metrics/collector.js';
 
 type AuthMiddleware = (request: FastifyRequest, reply: FastifyReply) => Promise<void>;
@@ -30,8 +31,8 @@ export function lockStatusRoutes(
         }
 
         const fileLock = getFileLock();
-        const isLocked = fileLock.isLocked(request.params.id);
-        const lockStatus = { locked: isLocked, queue_depth: 0 };
+        const lockInfo = fileLock.getLockInfo(request.params.id);
+        const lockStatus = { ...lockInfo, queue_depth: getWriteQueue().getDepth(request.params.id) };
 
         metrics.observeHistogram('excel_api_lock_status_duration_ms', Date.now() - startTime);
         return lockStatus;

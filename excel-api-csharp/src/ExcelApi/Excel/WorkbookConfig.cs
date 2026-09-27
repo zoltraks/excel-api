@@ -19,6 +19,9 @@ public class WorkbookEntry
     public string Path { get; set; } = "";
     public bool Readonly { get; set; }
     public Dictionary<string, SheetHeaderConfig> Sheets { get; set; } = new Dictionary<string, SheetHeaderConfig>();
+
+    public SheetHeaderConfig? GetSheetConfig(string sheetName)
+        => Sheets.TryGetValue(sheetName, out var config) ? config : null;
 }
 
 public class WorkbookProfile
@@ -28,7 +31,7 @@ public class WorkbookProfile
 
 public class SheetHeaderConfig
 {
-    public string Mode { get; set; } = "none"; // "single", "multi", "legend", "none"
+    public string Mode { get; set; } = "single"; // "single", "multi", "legend", "none"
     public int? IdentifierRow { get; set; }
     public int? TypeRow { get; set; }
     public int? DescriptionRow { get; set; }

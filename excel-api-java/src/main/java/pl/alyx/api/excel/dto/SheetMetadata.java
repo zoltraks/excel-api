@@ -1,10 +1,12 @@
 package pl.alyx.api.excel.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 public record SheetMetadata(
     String name,
-    int rowCount,
-    int columnCount,
+    @JsonProperty("row_count") int rowCount,
+    @JsonProperty("column_count") int columnCount,
     String mode,
-    int headerRow,
-    int firstDataRow
+    @JsonProperty("header_row") int headerRow,
+    @JsonProperty("first_data_row") int firstDataRow
 ) {}

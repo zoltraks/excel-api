@@ -13,7 +13,14 @@ const ServerConfigSchema = z.object({
   base_path: z.string(),
   tls: z.object({
     enabled: z.boolean(),
+    cert_file: z.string().optional(),
+    key_file: z.string().optional(),
   }),
+  cors: z
+    .object({
+      allowed_origins: z.array(z.string()).default([]),
+    })
+    .default({ allowed_origins: [] }),
 });
 
 const OpenAPIConfigSchema = z.object({
@@ -83,6 +90,12 @@ const LifecycleConfigSchema = z.object({
   life: z.string().optional(),
 });
 
+const RateLimitConfigSchema = z.object({
+  enabled: z.boolean().default(true),
+  token_per_minute: z.number().int().positive().default(20),
+  requests_per_minute: z.number().int().positive().default(600),
+});
+
 const ConfigSchema = z.object({
   server: ServerConfigSchema,
   openapi: OpenAPIConfigSchema,
@@ -92,6 +105,7 @@ const ConfigSchema = z.object({
   auth: AuthConfigSchema,
   logging: LoggingConfigSchema,
   lifecycle: LifecycleConfigSchema.optional(),
+  rate_limit: RateLimitConfigSchema.default({ enabled: true, token_per_minute: 20, requests_per_minute: 600 }),
   profiles: z.record(z.lazy(() => z.object({
     server: ServerConfigSchema.partial().optional(),
     openapi: OpenAPIConfigSchema.partial().optional(),
@@ -239,6 +253,18 @@ export function loadConfig(options?: {
     // Resolve relative paths
     const resolvedConfig = {
       ...parsedConfig,
+      server: {
+        ...parsedConfig.server,
+        tls: {
+          ...parsedConfig.server.tls,
+          cert_file: parsedConfig.server.tls.cert_file
+            ? resolveRelativePath(parsedConfig.server.tls.cert_file, workDir)
+            : undefined,
+          key_file: parsedConfig.server.tls.key_file
+            ? resolveRelativePath(parsedConfig.server.tls.key_file, workDir)
+            : undefined,
+        },
+      },
       registry: {
         ...parsedConfig.registry,
         directory: resolveRelativePath(parsedConfig.registry.directory, workDir),

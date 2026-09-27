@@ -1,6 +1,14 @@
 # Work directory
 work/
 
+# Compiled binaries — build outputs belong in per-component bin/ dirs
+excel-api-go/excel-api-go
+excel-api-go/bin/
+*.exe
+*.dll
+*.so
+*.dylib
+
 # IDE
 .idea/
 .vscode/

@@ -2,9 +2,11 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type { WorkbookRegistry } from '../workbook/registry.js';
 import type { ACLChecker } from '../auth/acl.js';
 import { createScopeCheckMiddleware } from '../auth/middleware.js';
-import { readCell, readRange, writeCell } from '../excel/operations.js';
-import { getFileLock } from '../lock/lockfile.js';
-import { getCache } from '../cache/mtimeCache.js';
+import { readCell, readRange } from '../excel/operations.js';
+import { createBatchExecutor } from '../excel/batch.js';
+import { getWriteQueue } from '../queue/writeQueue.js';
+import { handleEnqueueError, handleFailedResult } from './writeHelpers.js';
+import { validate, CellWriteSchema } from './validate.js';
 import { metrics } from '../metrics/collector.js';
 
 type AuthMiddleware = (request: FastifyRequest, reply: FastifyReply) => Promise<void>;
@@ -80,34 +82,38 @@ export function cellRoutes(
           return reply.status(422).send({ error: 'READONLY_WORKBOOK', message: 'Workbook is readonly' });
         }
 
-        const fileLock = getFileLock();
-        try {
-          await fileLock.acquire(request.params.id);
-        } catch (error) {
-          metrics.incrementCounter('excel_api_errors_total', 1, { error: 'FILE_LOCKED' });
-          return reply.status(409).send({
-            error: 'FILE_LOCKED',
-            message: error instanceof Error ? error.message : 'File is locked',
-          });
+        const body = validate(reply, CellWriteSchema, request.body);
+        if (!body) {
+          return reply;
         }
 
+        const queue = getWriteQueue();
+        let result;
         try {
-          const cellData = await writeCell(
-            workbook.path,
-            request.params.sheetName,
-            request.params.cellRef,
-            request.body.value
+          result = await queue.enqueue(
+            request.params.id,
+            {
+              type: 'cell',
+              op: 'write',
+              sheetName: request.params.sheetName,
+              cellRef: request.params.cellRef,
+              data: body.value,
+            },
+            createBatchExecutor(request.params.id, workbook.path, workbook.sheets)
           );
-          const cache = getCache();
-          cache.invalidate(workbook.path);
-          metrics.observeHistogram('excel_api_cell_write_duration_ms', Date.now() - startTime);
-          return cellData;
         } catch (error) {
+          if (handleEnqueueError(reply, error)) {
+            return reply;
+          }
           metrics.incrementCounter('excel_api_errors_total', 1, { error: 'INTERNAL_ERROR' });
           throw error;
-        } finally {
-          fileLock.release(request.params.id);
         }
+
+        if (handleFailedResult(reply, result)) {
+          return reply;
+        }
+        metrics.observeHistogram('excel_api_cell_write_duration_ms', Date.now() - startTime);
+        return result.data as object;
       }
     );
 

@@ -2,9 +2,11 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type { WorkbookRegistry } from '../workbook/registry.js';
 import type { ACLChecker } from '../auth/acl.js';
 import { createScopeCheckMiddleware } from '../auth/middleware.js';
-import { readRecords, readRecord, addRecord, updateRecord, deleteRecord } from '../excel/operations.js';
-import { getFileLock } from '../lock/lockfile.js';
-import { getCache } from '../cache/mtimeCache.js';
+import { readRecords, readRecord } from '../excel/operations.js';
+import { createBatchExecutor } from '../excel/batch.js';
+import { getWriteQueue } from '../queue/writeQueue.js';
+import { handleEnqueueError, handleFailedResult } from './writeHelpers.js';
+import { validate, AddRecordSchema, UpdateRecordSchema } from './validate.js';
 import { metrics } from '../metrics/collector.js';
 
 type AuthMiddleware = (request: FastifyRequest, reply: FastifyReply) => Promise<void>;
@@ -34,12 +36,12 @@ export function recordRoutes(
           });
         }
 
-        const offset = request.query.offset ?? 0;
-        const limit = Math.min(request.query.limit ?? 100, 1000);
+        const offset = Number.parseInt(String(request.query.offset ?? '0'), 10) || 0;
+        const limit = Math.min(Number.parseInt(String(request.query.limit ?? '100'), 10) || 100, 1000);
         const format = request.query.format ?? 'native';
 
         try {
-          const records = await readRecords(workbook.path, request.params.sheetName, 1, offset, limit, format);
+          const records = await readRecords(workbook.path, request.params.sheetName, workbook.sheets?.[request.params.sheetName], offset, limit, format);
           metrics.observeHistogram('excel_api_records_list_duration_ms', Date.now() - startTime);
           return records;
         } catch (error) {
@@ -82,10 +84,15 @@ export function recordRoutes(
         const format = request.query.format ?? 'native';
 
         try {
-          const record = await readRecord(workbook.path, request.params.sheetName, request.params.recordIndex, 1, format);
+          const recordIndex = Number.parseInt(String(request.params.recordIndex), 10);
+          const record = await readRecord(workbook.path, request.params.sheetName, recordIndex, workbook.sheets?.[request.params.sheetName], format);
           metrics.observeHistogram('excel_api_record_get_duration_ms', Date.now() - startTime);
           return record;
         } catch (error) {
+          if (error instanceof Error && error.message.includes('not configured')) {
+            metrics.incrementCounter('excel_api_errors_total', 1, { error: 'SHEET_NOT_CONFIGURED' });
+            return reply.status(400).send({ error: 'SHEET_NOT_CONFIGURED', message: error.message });
+          }
           if (error instanceof Error && error.message.includes('not found')) {
             metrics.incrementCounter('excel_api_errors_total', 1, { error: 'SHEET_NOT_FOUND' });
             return reply.status(404).send({ error: 'SHEET_NOT_FOUND', message: error.message });
@@ -124,35 +131,39 @@ export function recordRoutes(
           return reply.status(422).send({ error: 'READONLY_WORKBOOK', message: 'Workbook is readonly' });
         }
 
-        const fileLock = getFileLock();
-        try {
-          await fileLock.acquire(request.params.id);
-        } catch (error) {
-          metrics.incrementCounter('excel_api_errors_total', 1, { error: 'FILE_LOCKED' });
-          return reply.status(409).send({
-            error: 'FILE_LOCKED',
-            message: error instanceof Error ? error.message : 'File is locked',
-          });
+        const body = validate(reply, AddRecordSchema, request.body);
+        if (!body) {
+          return reply;
         }
 
+        const queue = getWriteQueue();
+        let result;
         try {
-          const record = await addRecord(
-            workbook.path,
-            request.params.sheetName,
-            request.body.data,
-            request.body.after_row,
-            request.body.copy_style_from
+          result = await queue.enqueue(
+            request.params.id,
+            {
+              type: 'record',
+              op: 'add',
+              sheetName: request.params.sheetName,
+              data: body.data,
+              afterRow: body.after_row,
+              copyStyleFrom: body.copy_style_from,
+            },
+            createBatchExecutor(request.params.id, workbook.path, workbook.sheets)
           );
-          const cache = getCache();
-          cache.invalidate(workbook.path);
-          metrics.observeHistogram('excel_api_record_add_duration_ms', Date.now() - startTime);
-          reply.status(201).send(record);
         } catch (error) {
+          if (handleEnqueueError(reply, error)) {
+            return reply;
+          }
           metrics.incrementCounter('excel_api_errors_total', 1, { error: 'INTERNAL_ERROR' });
           throw error;
-        } finally {
-          fileLock.release(request.params.id);
         }
+
+        if (handleFailedResult(reply, result)) {
+          return reply;
+        }
+        metrics.observeHistogram('excel_api_record_add_duration_ms', Date.now() - startTime);
+        return reply.status(201).send(result.data);
       }
     );
 
@@ -180,34 +191,38 @@ export function recordRoutes(
           return reply.status(422).send({ error: 'READONLY_WORKBOOK', message: 'Workbook is readonly' });
         }
 
-        const fileLock = getFileLock();
-        try {
-          await fileLock.acquire(request.params.id);
-        } catch (error) {
-          metrics.incrementCounter('excel_api_errors_total', 1, { error: 'FILE_LOCKED' });
-          return reply.status(409).send({
-            error: 'FILE_LOCKED',
-            message: error instanceof Error ? error.message : 'File is locked',
-          });
+        const body = validate(reply, UpdateRecordSchema, request.body);
+        if (!body) {
+          return reply;
         }
 
+        const queue = getWriteQueue();
+        let result;
         try {
-          const record = await updateRecord(
-            workbook.path,
-            request.params.sheetName,
-            request.params.recordIndex,
-            request.body.data
+          result = await queue.enqueue(
+            request.params.id,
+            {
+              type: 'record',
+              op: 'update',
+              sheetName: request.params.sheetName,
+              recordIndex: Number.parseInt(String(request.params.recordIndex), 10),
+              data: body.data,
+            },
+            createBatchExecutor(request.params.id, workbook.path, workbook.sheets)
           );
-          const cache = getCache();
-          cache.invalidate(workbook.path);
-          metrics.observeHistogram('excel_api_record_update_duration_ms', Date.now() - startTime);
-          return record;
         } catch (error) {
+          if (handleEnqueueError(reply, error)) {
+            return reply;
+          }
           metrics.incrementCounter('excel_api_errors_total', 1, { error: 'INTERNAL_ERROR' });
           throw error;
-        } finally {
-          fileLock.release(request.params.id);
         }
+
+        if (handleFailedResult(reply, result)) {
+          return reply;
+        }
+        metrics.observeHistogram('excel_api_record_update_duration_ms', Date.now() - startTime);
+        return result.data as object;
       }
     );
 
@@ -234,29 +249,33 @@ export function recordRoutes(
           return reply.status(422).send({ error: 'READONLY_WORKBOOK', message: 'Workbook is readonly' });
         }
 
-        const fileLock = getFileLock();
+        const queue = getWriteQueue();
+        let result;
         try {
-          await fileLock.acquire(request.params.id);
+          result = await queue.enqueue(
+            request.params.id,
+            {
+              type: 'record',
+              op: 'delete',
+              sheetName: request.params.sheetName,
+              recordIndex: Number.parseInt(String(request.params.recordIndex), 10),
+              data: null,
+            },
+            createBatchExecutor(request.params.id, workbook.path, workbook.sheets)
+          );
         } catch (error) {
-          metrics.incrementCounter('excel_api_errors_total', 1, { error: 'FILE_LOCKED' });
-          return reply.status(409).send({
-            error: 'FILE_LOCKED',
-            message: error instanceof Error ? error.message : 'File is locked',
-          });
-        }
-
-        try {
-          await deleteRecord(workbook.path, request.params.sheetName, request.params.recordIndex);
-          const cache = getCache();
-          cache.invalidate(workbook.path);
-          metrics.observeHistogram('excel_api_record_delete_duration_ms', Date.now() - startTime);
-          reply.status(204).send();
-        } catch (error) {
+          if (handleEnqueueError(reply, error)) {
+            return reply;
+          }
           metrics.incrementCounter('excel_api_errors_total', 1, { error: 'INTERNAL_ERROR' });
           throw error;
-        } finally {
-          fileLock.release(request.params.id);
         }
+
+        if (handleFailedResult(reply, result)) {
+          return reply;
+        }
+        metrics.observeHistogram('excel_api_record_delete_duration_ms', Date.now() - startTime);
+        return reply.status(204).send();
       }
     );
   };

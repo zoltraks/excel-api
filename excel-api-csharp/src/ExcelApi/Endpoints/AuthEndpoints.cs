@@ -1,13 +1,13 @@
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Routing;
+using System.Text.Json;
+using BigBytes.ExcelApi.Auth;
 
 namespace BigBytes.ExcelApi.Endpoints;
 
 public static class AuthEndpoints
 {
-    public static void MapAuthEndpoints(this IEndpointRouteBuilder app)
+    public static void MapAuthEndpoints(this IEndpointRouteBuilder app, AuthService authService)
     {
-        app.MapPost("/auth/token", async (HttpRequest request) =>
+        app.MapPost("/auth/token", async (HttpContext context) =>
         {
             string? grantType = null;
             string? clientId = null;
@@ -15,60 +15,82 @@ public static class AuthEndpoints
             string? username = null;
             string? password = null;
 
-            string? contentType = request.ContentType?.Split(';')[0];
-
-            if (contentType == "application/x-www-form-urlencoded")
+            if (context.Request.HasFormContentType)
             {
-                var formData = await request.ReadFormAsync();
-                grantType = formData["grant_type"];
-                clientId = formData["client_id"];
-                clientSecret = formData["client_secret"];
-                username = formData["username"];
-                password = formData["password"];
+                var form = await context.Request.ReadFormAsync();
+                grantType = form["grant_type"].FirstOrDefault();
+                clientId = form["client_id"].FirstOrDefault();
+                clientSecret = form["client_secret"].FirstOrDefault();
+                username = form["username"].FirstOrDefault();
+                password = form["password"].FirstOrDefault();
             }
-            else
+            else if (context.Request.ContentType?.Contains("application/json") == true)
             {
-                var jsonRequest = await request.ReadFromJsonAsync<Dictionary<string, string>>();
-                if (jsonRequest != null)
+                var json = await JsonSerializer.DeserializeAsync<Dictionary<string, JsonElement>>(context.Request.Body);
+                if (json != null)
                 {
-                    grantType = jsonRequest.GetValueOrDefault("grant_type");
-                    clientId = jsonRequest.GetValueOrDefault("client_id");
-                    clientSecret = jsonRequest.GetValueOrDefault("client_secret");
-                    username = jsonRequest.GetValueOrDefault("username");
-                    password = jsonRequest.GetValueOrDefault("password");
+                    grantType = json.TryGetValue("grant_type", out var gt) ? gt.GetString() : null;
+                    clientId = json.TryGetValue("client_id", out var ci) ? ci.GetString() : null;
+                    clientSecret = json.TryGetValue("client_secret", out var cs) ? cs.GetString() : null;
+                    username = json.TryGetValue("username", out var u) ? u.GetString() : null;
+                    password = json.TryGetValue("password", out var p) ? p.GetString() : null;
                 }
             }
+
+            List<string>? scopes = null;
 
             if (grantType == "client_credentials")
             {
-                if (clientId == "test-client" && clientSecret == "test-secret")
+                if (string.IsNullOrEmpty(clientId) || string.IsNullOrEmpty(clientSecret))
                 {
-                    return Results.Ok(new
+                    return Results.BadRequest(new
                     {
-                        access_token = "dummy-token",
-                        token_type = "Bearer",
-                        expires_in = 3600,
-                        scope = "read write admin"
+                        error = "invalid_request",
+                        error_description = "client_id and client_secret are required"
                     });
                 }
-
-                return Results.StatusCode(401);
+                scopes = authService.ValidateClientCredentials(clientId, clientSecret);
             }
             else if (grantType == "password")
             {
-                return Results.Ok(new
+                if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
                 {
-                    access_token = "dummy-token",
-                    token_type = "Bearer",
-                    expires_in = 3600,
-                    scope = "read write"
+                    return Results.BadRequest(new
+                    {
+                        error = "invalid_request",
+                        error_description = "username and password are required"
+                    });
+                }
+                scopes = authService.ValidatePasswordGrant(username, password);
+            }
+            else
+            {
+                return Results.BadRequest(new
+                {
+                    error = "unsupported_grant_type",
+                    error_description = "Only client_credentials and password grants are supported"
                 });
             }
 
-            return Results.BadRequest(new
+            if (scopes == null)
             {
-                error = "unsupported_grant_type",
-                error_description = "Only client_credentials and password grants are supported"
+                return Results.Json(new
+                {
+                    error = "invalid_client",
+                    error_description = "Invalid credentials"
+                }, statusCode: StatusCodes.Status401Unauthorized);
+            }
+
+            var token = authService.Jwt.GenerateToken(
+                grantType == "password" ? username! : clientId!,
+                scopes);
+
+            return Results.Ok(new
+            {
+                access_token = token,
+                token_type = "Bearer",
+                expires_in = authService.Jwt.ExpiresIn,
+                scope = string.Join(" ", scopes)
             });
         });
     }

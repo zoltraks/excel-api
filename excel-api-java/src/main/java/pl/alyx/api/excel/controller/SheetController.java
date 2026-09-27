@@ -6,6 +6,8 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import pl.alyx.api.excel.config.WorkbookConfig;
+import pl.alyx.api.excel.exception.SheetNotFoundException;
+import pl.alyx.api.excel.exception.WorkbookNotFoundException;
 import pl.alyx.api.excel.dto.SheetInfo;
 import pl.alyx.api.excel.dto.SheetMetadata;
 import pl.alyx.api.excel.service.ExcelService;
@@ -36,7 +38,7 @@ public class SheetController {
             .orElse(null);
 
         if (entry == null) {
-            return ResponseEntity.notFound().build();
+            throw new WorkbookNotFoundException(id);
         }
 
         List<SheetInfo> sheets = excelService.readSheetNames(entry.getPath());
@@ -46,10 +48,11 @@ public class SheetController {
             .orElse(null);
 
         if (sheet == null) {
-            return ResponseEntity.notFound().build();
+            throw new SheetNotFoundException(sheetName);
         }
 
-        SheetMetadata metadata = excelService.getSheetMetadata(entry.getPath(), sheetName);
+        SheetMetadata metadata = excelService.getSheetMetadata(
+                entry.getPath(), sheetName, entry.getSheets().get(sheetName));
         return ResponseEntity.ok(metadata);
     }
 }

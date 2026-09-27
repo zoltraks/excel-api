@@ -6,9 +6,21 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
+
+// tokenHTTPClient is used for token requests; it enforces the same 30s
+// timeout as the main client instead of the unbounded http.DefaultClient.
+var tokenHTTPClient = &http.Client{Timeout: 30 * time.Second}
+
+// esc escapes a user-controlled path segment (workbook id, sheet name, cell
+// or range ref) so values containing '/', '?', '#', or spaces resolve
+// correctly.
+func esc(segment string) string {
+	return url.PathEscape(segment)
+}
 
 // Client communicates with an Excel API server instance.
 type Client struct {
@@ -32,14 +44,17 @@ func NewClient(baseURL, token, authPrefix string) *Client {
 
 // ObtainToken performs an OAuth2 client_credentials flow and returns the Bearer token.
 func ObtainToken(serverURL, clientID, clientSecret string) (string, error) {
-	url := fmt.Sprintf("%s/auth/token", serverURL)
-	data := fmt.Sprintf("grant_type=client_credentials&client_id=%s&client_secret=%s", clientID, clientSecret)
-	req, err := http.NewRequest("POST", url, strings.NewReader(data))
+	tokenURL := fmt.Sprintf("%s/auth/token", serverURL)
+	form := url.Values{}
+	form.Set("grant_type", "client_credentials")
+	form.Set("client_id", clientID)
+	form.Set("client_secret", clientSecret)
+	req, err := http.NewRequest("POST", tokenURL, strings.NewReader(form.Encode()))
 	if err != nil {
 		return "", fmt.Errorf("error creating request: %v", err)
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := tokenHTTPClient.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("error requesting token: %v", err)
 	}
@@ -114,7 +129,7 @@ func (c *Client) ListWorkbooks() (*WorkbookListResponse, error) {
 
 // GetWorkbook returns a single workbook by ID.
 func (c *Client) GetWorkbook(id string) (map[string]interface{}, error) {
-	b, status, err := c.doRequest("GET", "/workbooks/"+id, nil, "")
+	b, status, err := c.doRequest("GET", "/workbooks/"+esc(id), nil, "")
 	if err != nil {
 		return nil, err
 	}
@@ -130,7 +145,7 @@ func (c *Client) GetWorkbook(id string) (map[string]interface{}, error) {
 
 // GetCell returns cell data for a given workbook/sheet/cell reference.
 func (c *Client) GetCell(workbookID, sheetName, cellRef, format string) (map[string]interface{}, error) {
-	path := fmt.Sprintf("/workbooks/%s/sheets/%s/cells/%s?format=%s", workbookID, sheetName, cellRef, format)
+	path := fmt.Sprintf("/workbooks/%s/sheets/%s/cells/%s?format=%s", esc(workbookID), esc(sheetName), esc(cellRef), url.QueryEscape(format))
 	b, status, err := c.doRequest("GET", path, nil, "")
 	if err != nil {
 		return nil, err
@@ -151,7 +166,7 @@ func (c *Client) SetCell(workbookID, sheetName, cellRef string, value interface{
 	if err != nil {
 		return nil, fmt.Errorf("error marshaling payload: %v", err)
 	}
-	path := fmt.Sprintf("/workbooks/%s/sheets/%s/cells/%s", workbookID, sheetName, cellRef)
+	path := fmt.Sprintf("/workbooks/%s/sheets/%s/cells/%s", esc(workbookID), esc(sheetName), esc(cellRef))
 	b, status, err := c.doRequest("PUT", path, strings.NewReader(string(payload)), "application/json")
 	if err != nil {
 		return nil, err
@@ -168,7 +183,7 @@ func (c *Client) SetCell(workbookID, sheetName, cellRef string, value interface{
 
 // GetRange returns a 2D slice of cell data for a range reference.
 func (c *Client) GetRange(workbookID, sheetName, rangeRef, format string) ([][]interface{}, error) {
-	path := fmt.Sprintf("/workbooks/%s/sheets/%s/ranges/%s?format=%s", workbookID, sheetName, rangeRef, format)
+	path := fmt.Sprintf("/workbooks/%s/sheets/%s/ranges/%s?format=%s", esc(workbookID), esc(sheetName), esc(rangeRef), url.QueryEscape(format))
 	b, status, err := c.doRequest("GET", path, nil, "")
 	if err != nil {
 		return nil, err
@@ -185,7 +200,7 @@ func (c *Client) GetRange(workbookID, sheetName, rangeRef, format string) ([][]i
 
 // ListRecords returns the record list response for a sheet.
 func (c *Client) ListRecords(workbookID, sheetName, format string) (*RecordListResponse, error) {
-	path := fmt.Sprintf("/workbooks/%s/sheets/%s/records?format=%s", workbookID, sheetName, format)
+	path := fmt.Sprintf("/workbooks/%s/sheets/%s/records?format=%s", esc(workbookID), esc(sheetName), url.QueryEscape(format))
 	b, status, err := c.doRequest("GET", path, nil, "")
 	if err != nil {
 		return nil, err
@@ -202,7 +217,7 @@ func (c *Client) ListRecords(workbookID, sheetName, format string) (*RecordListR
 
 // GetRecord returns a single record by index.
 func (c *Client) GetRecord(workbookID, sheetName, recordIndex, format string) (map[string]interface{}, error) {
-	path := fmt.Sprintf("/workbooks/%s/sheets/%s/records/%s?format=%s", workbookID, sheetName, recordIndex, format)
+	path := fmt.Sprintf("/workbooks/%s/sheets/%s/records/%s?format=%s", esc(workbookID), esc(sheetName), esc(recordIndex), url.QueryEscape(format))
 	b, status, err := c.doRequest("GET", path, nil, "")
 	if err != nil {
 		return nil, err
@@ -223,7 +238,7 @@ func (c *Client) AddRecord(workbookID, sheetName string, data interface{}) error
 	if err != nil {
 		return fmt.Errorf("error marshaling payload: %v", err)
 	}
-	path := fmt.Sprintf("/workbooks/%s/sheets/%s/records", workbookID, sheetName)
+	path := fmt.Sprintf("/workbooks/%s/sheets/%s/records", esc(workbookID), esc(sheetName))
 	_, status, err := c.doRequest("POST", path, strings.NewReader(string(payload)), "application/json")
 	if err != nil {
 		return err
@@ -240,7 +255,7 @@ func (c *Client) UpdateRecord(workbookID, sheetName, recordIndex string, data in
 	if err != nil {
 		return fmt.Errorf("error marshaling payload: %v", err)
 	}
-	path := fmt.Sprintf("/workbooks/%s/sheets/%s/records/%s", workbookID, sheetName, recordIndex)
+	path := fmt.Sprintf("/workbooks/%s/sheets/%s/records/%s", esc(workbookID), esc(sheetName), esc(recordIndex))
 	_, status, err := c.doRequest("PUT", path, strings.NewReader(string(payload)), "application/json")
 	if err != nil {
 		return err
@@ -253,7 +268,7 @@ func (c *Client) UpdateRecord(workbookID, sheetName, recordIndex string, data in
 
 // DeleteRecord deletes a record by index.
 func (c *Client) DeleteRecord(workbookID, sheetName, recordIndex string) error {
-	path := fmt.Sprintf("/workbooks/%s/sheets/%s/records/%s", workbookID, sheetName, recordIndex)
+	path := fmt.Sprintf("/workbooks/%s/sheets/%s/records/%s", esc(workbookID), esc(sheetName), esc(recordIndex))
 	_, status, err := c.doRequest("DELETE", path, nil, "")
 	if err != nil {
 		return err

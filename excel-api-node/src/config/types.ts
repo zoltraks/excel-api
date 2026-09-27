@@ -6,6 +6,11 @@ export interface ServerConfig {
   base_path: string;
   tls: {
     enabled: boolean;
+    cert_file?: string;
+    key_file?: string;
+  };
+  cors: {
+    allowed_origins: string[];
   };
 }
 
@@ -72,6 +77,12 @@ export interface LifecycleConfig {
   life?: string;
 }
 
+export interface RateLimitConfig {
+  enabled: boolean;
+  token_per_minute: number;
+  requests_per_minute: number;
+}
+
 export interface Config {
   server: ServerConfig;
   openapi: OpenAPIConfig;
@@ -81,6 +92,7 @@ export interface Config {
   auth: AuthConfig;
   logging: LoggingConfig;
   lifecycle?: LifecycleConfig;
+  rate_limit: RateLimitConfig;
   profiles?: Record<string, Partial<Config>>;
 }
 

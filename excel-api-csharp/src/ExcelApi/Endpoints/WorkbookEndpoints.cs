@@ -6,7 +6,7 @@ namespace BigBytes.ExcelApi.Endpoints;
 
 public static class WorkbookEndpoints
 {
-    public static void MapWorkbookEndpoints(this IEndpointRouteBuilder app, WorkbookConfig workbookConfig, ExcelService excelService)
+    public static void MapWorkbookEndpoints(this IEndpointRouteBuilder app, WorkbookConfig workbookConfig, ExcelService excelService, FileLockService fileLockService, WriteQueueService writeQueueService)
     {
         app.MapGet("/workbooks", () =>
         {
@@ -60,10 +60,13 @@ public static class WorkbookEndpoints
                 return Results.NotFound(new { error = "WORKBOOK_NOT_FOUND", message = $"Workbook with ID '{id}' not found" });
             }
 
+            var lockInfo = fileLockService.GetLockInfo(id);
             return Results.Ok(new
             {
-                locked = false,
-                queue_depth = 0
+                locked = lockInfo.Locked,
+                locked_by = lockInfo.LockedBy,
+                locked_since = lockInfo.LockedSince,
+                queue_depth = writeQueueService.GetDepth(id)
             });
         });
     }

@@ -57,3 +57,25 @@ export async function apiPost(
     body: JSON.stringify(body),
   });
 }
+
+export async function apiPut(
+  path: string,
+  body: unknown,
+  headers: Record<string, string> = {},
+): Promise<Response> {
+  return fetch(`${API_URL}${path}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...headers },
+    body: JSON.stringify(body),
+  });
+}
+
+export async function apiDelete(
+  path: string,
+  headers: Record<string, string> = {},
+): Promise<Response> {
+  return fetch(`${API_URL}${path}`, {
+    method: 'DELETE',
+    headers,
+  });
+}

@@ -6,7 +6,7 @@ export async function healthRoutes(server: FastifyInstance): Promise<void> {
     return {
       status: 'ok',
       implementation: 'excel-api-node',
-      version: '0.0.2',
+      version: '0.0.3',
       uptime_seconds: Math.floor(process.uptime()),
       server_time: now.toISOString(),
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,

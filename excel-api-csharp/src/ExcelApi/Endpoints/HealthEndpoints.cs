@@ -1,10 +1,11 @@
+using BigBytes.ExcelApi.Services;
 using Microsoft.AspNetCore.Routing;
 
 namespace BigBytes.ExcelApi.Endpoints;
 
 public static class HealthEndpoints
 {
-    public static void MapHealthEndpoints(this IEndpointRouteBuilder app, DateTime startTime)
+    public static void MapHealthEndpoints(this IEndpointRouteBuilder app, DateTime startTime, MetricsCollector metricsCollector)
     {
         app.MapGet("/health", () =>
         {
@@ -30,27 +31,13 @@ public static class HealthEndpoints
             {
                 status = "ok",
                 implementation = "excel-api-csharp",
-                version = "0.0.2",
+                version = "0.0.3",
                 uptime_seconds = uptimeSeconds,
                 server_time = serverTime,
                 timezone = timezone
             });
         });
 
-        app.MapGet("/metrics", () =>
-        {
-            var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-            var uptimeSeconds = (long)(DateTime.UtcNow - startTime).TotalSeconds;
-
-            return Results.Text($$$"""
-                # HELP excel_api_uptime_seconds Uptime of the Excel API server in seconds
-                # TYPE excel_api_uptime_seconds gauge
-                excel_api_uptime_seconds {uptimeSeconds} {now}
-
-                # HELP excel_api_implementation_info Implementation information
-                # TYPE excel_api_implementation_info gauge
-                excel_api_implementation_info{{implementation="excel-api-csharp"}} 1 {now}
-                """, "text/plain");
-        });
+        app.MapGet("/metrics", () => Results.Text(metricsCollector.ToExposition(), "text/plain"));
     }
 }

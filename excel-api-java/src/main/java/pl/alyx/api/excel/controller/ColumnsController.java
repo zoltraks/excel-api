@@ -6,10 +6,11 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import pl.alyx.api.excel.config.WorkbookConfig;
+import pl.alyx.api.excel.exception.ReadonlyWorkbookException;
+import pl.alyx.api.excel.exception.WorkbookNotFoundException;
 import pl.alyx.api.excel.service.ExcelService;
 
 import java.io.IOException;
-import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -35,13 +36,11 @@ public class ColumnsController {
                 .orElse(null);
 
         if (entry == null) {
-            return ResponseEntity.notFound().build();
+            throw new WorkbookNotFoundException(id);
         }
 
-        List<Map<String, Object>> columns = excelService.getColumnDefinitions(entry.getPath(), sheetName);
-        return ResponseEntity.ok(Map.of(
-                "source", "header_row",
-                "columns", columns
-        ));
+        Map<String, Object> result = excelService.getColumnDefinitions(
+                entry.getPath(), sheetName, entry.getSheets().get(sheetName));
+        return ResponseEntity.ok(result);
     }
 }

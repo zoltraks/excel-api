@@ -9,8 +9,9 @@ services:
       - ./work/data/locks:/data/locks
       - ./work/config:/etc/excel-api:ro
     environment:
-      - CONFIG_PATH=/etc/excel-api/config.yaml
-      - ACCESS_PATH=/etc/excel-api/access.yaml
+      - WORK=/data
+      - CONFIG=/etc/excel-api/config.yaml
+      - ACCESS=/etc/excel-api/access.yaml
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8443/health"]
       interval: 5s

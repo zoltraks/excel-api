@@ -60,8 +60,8 @@ describe('Metrics Collector', () => {
     const output = metrics.toOpenMetrics();
     expect(output).toContain('test_histogram_count 1');
     expect(output).toContain('test_histogram_sum 100');
-    expect(output).toContain('test_histogram_min 100');
-    expect(output).toContain('test_histogram_max 100');
+    expect(output).toContain('test_histogram_bucket{le="100"} 1');
+    expect(output).toContain('test_histogram_bucket{le="+Inf"} 1');
   });
 
   it('should observe multiple histogram values', () => {
@@ -71,29 +71,31 @@ describe('Metrics Collector', () => {
     const output = metrics.toOpenMetrics();
     expect(output).toContain('test_histogram_count 3');
     expect(output).toContain('test_histogram_sum 450');
-    expect(output).toContain('test_histogram_min 100');
-    expect(output).toContain('test_histogram_max 200');
+    expect(output).toContain('test_histogram_bucket{le="250"} 3');
+    expect(output).toContain('test_histogram_bucket{le="50"} 0');
   });
 
-  it('should calculate histogram percentiles', () => {
+  it('should emit cumulative histogram buckets', () => {
     metrics.observeHistogram('test_histogram', 10);
     metrics.observeHistogram('test_histogram', 20);
     metrics.observeHistogram('test_histogram', 30);
     metrics.observeHistogram('test_histogram', 40);
     metrics.observeHistogram('test_histogram', 50);
     const output = metrics.toOpenMetrics();
-    expect(output).toContain('test_histogram_p50');
-    expect(output).toContain('test_histogram_p95');
-    expect(output).toContain('test_histogram_p99');
+    expect(output).toContain('test_histogram_bucket{le="10"} 1');
+    expect(output).toContain('test_histogram_bucket{le="25"} 2');
+    expect(output).toContain('test_histogram_bucket{le="50"} 5');
+    expect(output).toContain('test_histogram_bucket{le="+Inf"} 5');
   });
 
   it('should observe histogram with labels', () => {
     metrics.observeHistogram('test_histogram', 100, { operation: 'read_cell' });
     const output = metrics.toOpenMetrics();
-    expect(output).toContain('test_histogram{operation="read_cell"}_count 1');
+    expect(output).toContain('test_histogram_count{operation="read_cell"} 1');
+    expect(output).toContain('test_histogram_bucket{operation="read_cell",le="100"} 1');
   });
 
-  it('should limit histogram values to 1000 for memory efficiency', () => {
+  it('should count histogram observations without retaining values', () => {
     for (let i = 0; i < 1100; i++) {
       metrics.observeHistogram('test_histogram', i);
     }
@@ -125,7 +127,7 @@ describe('Metrics Collector', () => {
     metrics.observeHistogram('test_histogram', 0);
     const output = metrics.toOpenMetrics();
     expect(output).toContain('test_histogram_count 1');
-    expect(output).toContain('test_histogram_p50 0');
+    expect(output).toContain('test_histogram_bucket{le="5"} 1');
   });
 
   it('should track multiple independent counters', () => {

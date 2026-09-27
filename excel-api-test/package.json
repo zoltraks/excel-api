@@ -1,6 +1,6 @@
 {
   "name": "excel-api-test",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Integration tests for Excel API implementations",
   "private": true,
   "scripts": {

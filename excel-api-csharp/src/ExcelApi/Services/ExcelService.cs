@@ -1,4 +1,5 @@
 using ClosedXML.Excel;
+using BigBytes.ExcelApi.Excel;
 
 namespace BigBytes.ExcelApi.Services;
 
@@ -31,7 +32,7 @@ public class ExcelService
         return ConvertCell(cell, format);
     }
 
-    public CellData[,] ReadRange(string filePath, string sheetName, string rangeRef, string format)
+    public RangeData ReadRange(string filePath, string sheetName, string rangeRef, string format)
     {
         using var workbook = new XLWorkbook(filePath);
         var worksheet = workbook.Worksheet(sheetName);
@@ -42,24 +43,26 @@ public class ExcelService
         }
 
         var range = worksheet.Range(rangeRef);
-        var rowCount = range.RowCount();
-        var colCount = range.ColumnCount();
+        var rows = new List<RangeRow>();
 
-        var data = new CellData[rowCount, colCount];
-
-        for (int r = 1; r <= rowCount; r++)
+        for (int r = 1; r <= range.RowCount(); r++)
         {
-            for (int c = 1; c <= colCount; c++)
+            var cells = new List<CellData>();
+            for (int c = 1; c <= range.ColumnCount(); c++)
             {
-                var cell = range.Cell(r, c);
-                data[r - 1, c - 1] = ConvertCell(cell, format);
+                cells.Add(ConvertCell(range.Cell(r, c), format));
             }
+            rows.Add(new RangeRow
+            {
+                Row = range.Row(r).RowNumber(),
+                Cells = cells
+            });
         }
 
-        return data;
+        return new RangeData { Range = rangeRef, Rows = rows };
     }
 
-    public RecordListResponse ReadRecords(string filePath, string sheetName, int headerRowCount, int offset, int limit, string format)
+    public RecordListResponse ReadRecords(string filePath, string sheetName, SheetHeaderConfig? sheetConfig, int offset, int limit, string format)
     {
         using var workbook = new XLWorkbook(filePath);
         var worksheet = workbook.Worksheet(sheetName);
@@ -69,23 +72,14 @@ public class ExcelService
             throw new ArgumentException($"Sheet '{sheetName}' not found");
         }
 
-        var headerRow = worksheet.Row(headerRowCount);
-        var headers = new List<string>();
+        var layout = SheetLayout.Resolve(sheetConfig);
+        var headers = ResolveColumnIds(workbook, worksheet, layout);
 
-        foreach (var cell in headerRow.Cells())
-        {
-            if (!string.IsNullOrEmpty(cell.GetString()))
-            {
-                headers.Add(cell.GetString());
-            }
-        }
-
-        int firstDataRow = headerRowCount + 1;
         var lastRowUsed = worksheet.LastRowUsed();
         int lastRow = lastRowUsed != null ? lastRowUsed.RowNumber() : 0;
-        int totalDataRows = Math.Max(0, lastRow - headerRowCount);
+        int totalDataRows = Math.Max(0, lastRow - layout.FirstDataRow + 1);
 
-        int startRow = firstDataRow + offset;
+        int startRow = layout.FirstDataRow + offset;
         int endRow = Math.Min(startRow + limit - 1, lastRow);
 
         var items = new List<RecordItem>();
@@ -95,12 +89,12 @@ public class ExcelService
             var row = worksheet.Row(r);
             var data = new Dictionary<string, object>();
 
-            for (int c = 0; c < headers.Count; c++)
+            for (int c = 0; c < headers.Length; c++)
             {
-                var cell = row.Cell(c + 1);
                 var header = headers[c];
                 if (!string.IsNullOrEmpty(header))
                 {
+                    var cell = row.Cell(c + 1);
                     data[header] = GetCellValue(cell, format);
                 }
             }
@@ -120,7 +114,7 @@ public class ExcelService
         };
     }
 
-    public RecordItem ReadRecord(string filePath, string sheetName, int recordIndex, int headerRowCount, string format)
+    public RecordItem ReadRecord(string filePath, string sheetName, int recordIndex, SheetHeaderConfig? sheetConfig, string format)
     {
         using var workbook = new XLWorkbook(filePath);
         var worksheet = workbook.Worksheet(sheetName);
@@ -130,23 +124,15 @@ public class ExcelService
             throw new ArgumentException($"Sheet '{sheetName}' not found");
         }
 
-        var headerRow = worksheet.Row(headerRowCount);
-        var headers = new List<string>();
-
-        foreach (var cell in headerRow.Cells())
-        {
-            if (!string.IsNullOrEmpty(cell.GetString()))
-            {
-                headers.Add(cell.GetString());
-            }
-        }
+        var layout = SheetLayout.Resolve(sheetConfig);
+        var headers = ResolveColumnIds(workbook, worksheet, layout);
 
         // Convert 1-based record index to Excel row number
-        int excelRowNumber = headerRowCount + recordIndex;
+        int excelRowNumber = layout.FirstDataRow + recordIndex - 1;
         var lastRowUsed = worksheet.LastRowUsed();
         int lastRow = lastRowUsed != null ? lastRowUsed.RowNumber() : 0;
 
-        if (excelRowNumber > lastRow)
+        if (recordIndex < 1 || excelRowNumber > lastRow)
         {
             throw new ArgumentException($"Record index {recordIndex} out of range");
         }
@@ -154,12 +140,12 @@ public class ExcelService
         var row = worksheet.Row(excelRowNumber);
         var data = new Dictionary<string, object>();
 
-        for (int c = 0; c < headers.Count; c++)
+        for (int c = 0; c < headers.Length; c++)
         {
-            var cell = row.Cell(c + 1);
             var header = headers[c];
             if (!string.IsNullOrEmpty(header))
             {
+                var cell = row.Cell(c + 1);
                 data[header] = GetCellValue(cell, format);
             }
         }
@@ -173,10 +159,13 @@ public class ExcelService
         var type = GetCellType(cell);
         var numberFormat = cell.Style.NumberFormat.Format;
         var isFormula = cell.HasFormula;
-        var formatted = format == "display" ? cell.GetFormattedString() : "";
+        var formatted = format == "display" ? cell.GetFormattedString() : null;
 
         return new CellData
         {
+            Ref = cell.Address.ToString(),
+            Column = cell.Address.ColumnLetter,
+            Row = cell.Address.RowNumber,
             Value = value,
             Type = type,
             NumberFormat = numberFormat,
@@ -206,7 +195,7 @@ public class ExcelService
             case XLDataType.Boolean:
                 return cell.GetBoolean();
             case XLDataType.TimeSpan:
-                return cell.GetTimeSpan();
+                return cell.GetTimeSpan().ToString();
             case XLDataType.DateTime:
                 var dt = cell.GetDateTime();
                 return format == "string" ? dt.ToString("o") : dt;
@@ -227,13 +216,13 @@ public class ExcelService
             case XLDataType.Text:
                 return "string";
             case XLDataType.Number:
-                return cell.DataType == XLDataType.DateTime ? "date" : "number";
+                return "number";
             case XLDataType.Boolean:
                 return "boolean";
             case XLDataType.DateTime:
                 return "date";
             case XLDataType.TimeSpan:
-                return "timespan";
+                return "string";
             default:
                 return "string";
         }
@@ -241,134 +230,402 @@ public class ExcelService
 
     public CellData WriteCell(string filePath, string sheetName, string cellRef, object? value)
     {
-        var workbook = new XLWorkbook(filePath);
-        var worksheet = workbook.Worksheet(sheetName);
+        using var workbook = new XLWorkbook(filePath);
+        var worksheet = GetWorksheetOrThrow(workbook, sheetName);
 
-        if (worksheet == null)
-        {
-            workbook.Dispose();
-            throw new ArgumentException($"Sheet '{sheetName}' not found");
-        }
-
-        var cell = worksheet.Cell(cellRef);
-        SetCellValue(cell, value);
+        var cellData = ApplyWriteCell(worksheet, cellRef, value);
 
         workbook.Save();
-        workbook.Dispose();
 
+        return cellData;
+    }
+
+    private static IXLWorksheet GetWorksheetOrThrow(XLWorkbook workbook, string sheetName)
+    {
+        var worksheet = workbook.Worksheet(sheetName);
+        if (worksheet == null)
+        {
+            throw new ArgumentException($"Sheet '{sheetName}' not found");
+        }
+        return worksheet;
+    }
+
+    /// <summary>
+    /// Resolves column ids: identifier row for single/multi, legend sheet for
+    /// legend mode, column letters for none mode. Returns a column-indexed
+    /// array (index 0 = column A) with nulls for unmapped columns.
+    /// </summary>
+    private string?[] ResolveColumnIds(XLWorkbook workbook, IXLWorksheet worksheet, SheetLayout layout)
+    {
+        if (layout.Mode == SheetLayout.ModeNone)
+        {
+            int columnCount = worksheet.LastColumnUsed()?.ColumnNumber() ?? 0;
+            var letterIds = new string?[columnCount];
+            for (int c = 0; c < columnCount; c++)
+            {
+                letterIds[c] = XLHelper.GetColumnLetterFromNumber(c + 1);
+            }
+            return letterIds;
+        }
+
+        if (layout.Mode == SheetLayout.ModeLegend)
+        {
+            if (string.IsNullOrEmpty(layout.LegendSheet))
+            {
+                throw new ArgumentException(
+                    $"Sheet '{worksheet.Name}' is in legend mode but legend_sheet is not configured");
+            }
+            if (!workbook.TryGetWorksheet(layout.LegendSheet, out var legend) || legend == null)
+            {
+                throw new ArgumentException($"Legend sheet '{layout.LegendSheet}' is not configured");
+            }
+            var byColumn = new Dictionary<int, string>();
+            int maxCol = 0;
+            foreach (var row in legend.RowsUsed())
+            {
+                var letter = row.Cell(1).GetString();
+                var id = row.Cell(2).GetString();
+                if (string.IsNullOrEmpty(letter))
+                {
+                    continue;
+                }
+                int colIndex = XLHelper.GetColumnNumberFromLetter(letter);
+                if (colIndex > 0 && !string.IsNullOrEmpty(id))
+                {
+                    byColumn[colIndex] = id;
+                    maxCol = Math.Max(maxCol, colIndex);
+                }
+            }
+            var ids = new string?[maxCol];
+            foreach (var kv in byColumn)
+            {
+                ids[kv.Key - 1] = kv.Value;
+            }
+            return ids;
+        }
+
+        var headerRow = worksheet.Row(layout.IdentifierRow);
+        int lastCol = headerRow.LastCellUsed()?.Address.ColumnNumber ?? 0;
+        var rowIds = new string?[lastCol];
+        foreach (var cell in headerRow.Cells())
+        {
+            var text = cell.GetString();
+            if (!string.IsNullOrEmpty(text))
+            {
+                rowIds[cell.Address.ColumnNumber - 1] = text;
+            }
+        }
+        return rowIds;
+    }
+
+    private CellData ApplyWriteCell(IXLWorksheet worksheet, string cellRef, object? value)
+    {
+        var cell = worksheet.Cell(cellRef);
+        SetCellValue(cell, value);
         return ConvertCell(cell, "native");
     }
 
-    public RecordItem AddRecord(string filePath, string sheetName, Dictionary<string, object> data, int? afterRow, int? copyStyleFrom)
+    private CellData ApplyClearCell(IXLWorksheet worksheet, string cellRef)
     {
-        var workbook = new XLWorkbook(filePath);
-        var worksheet = workbook.Worksheet(sheetName);
+        var cell = worksheet.Cell(cellRef);
+        cell.Clear();
+        return ConvertCell(cell, "native");
+    }
 
-        if (worksheet == null)
+    private RecordItem ApplyAddRecord(
+        IXLWorksheet worksheet,
+        Dictionary<string, object> data,
+        SheetLayout layout,
+        string?[] headers,
+        int? afterRow,
+        int? copyStyleFrom)
+    {
+        if (afterRow.HasValue && afterRow.Value < 0)
         {
-            workbook.Dispose();
-            throw new ArgumentException($"Sheet '{sheetName}' not found");
+            throw new ArgumentException($"Record index {afterRow.Value} out of range");
         }
-
-        var headerRow = worksheet.Row(1);
-        var headers = new List<string>();
-
-        foreach (var cell in headerRow.Cells())
+        int newRowNumber = afterRow.HasValue
+            ? layout.FirstDataRow + afterRow.Value
+            : worksheet.LastRowUsed()?.RowNumber() + 1 ?? layout.FirstDataRow;
+        if (afterRow.HasValue && worksheet.LastRowUsed() != null && newRowNumber <= worksheet.LastRowUsed().RowNumber())
         {
-            if (!string.IsNullOrEmpty(cell.GetString()))
-            {
-                headers.Add(cell.GetString());
-            }
+            worksheet.Row(newRowNumber - 1).InsertRowsBelow(1);
         }
-
-        int newRowNumber = afterRow.HasValue ? afterRow.Value + 1 : worksheet.LastRowUsed()?.RowNumber() + 1 ?? 2;
         var newRow = worksheet.Row(newRowNumber);
 
         if (copyStyleFrom.HasValue)
         {
-            var styleRow = worksheet.Row(copyStyleFrom.Value);
+            var styleRow = worksheet.Row(layout.FirstDataRow + copyStyleFrom.Value - 1);
             foreach (var cell in styleRow.Cells())
             {
                 newRow.Cell(cell.Address.ColumnNumber).Style = cell.Style;
             }
         }
 
-        for (int i = 0; i < headers.Count; i++)
+        for (int i = 0; i < headers.Length; i++)
         {
             var header = headers[i];
-            if (data.ContainsKey(header))
+            if (!string.IsNullOrEmpty(header) && data.ContainsKey(header))
             {
                 var cell = newRow.Cell(i + 1);
                 SetCellValue(cell, data[header]);
             }
         }
 
-        workbook.Save();
-        workbook.Dispose();
-
-        return new RecordItem { Index = newRowNumber, Data = data };
+        return new RecordItem { Index = newRowNumber - layout.FirstDataRow + 1, Data = data };
     }
 
-    public RecordItem UpdateRecord(string filePath, string sheetName, int recordIndex, Dictionary<string, object> data)
+    private RecordItem ApplyUpdateRecord(IXLWorksheet worksheet, int recordIndex, Dictionary<string, object> data, SheetLayout layout, string?[] headers)
     {
-        var workbook = new XLWorkbook(filePath);
-        var worksheet = workbook.Worksheet(sheetName);
-
-        if (worksheet == null)
+        int excelRowNumber = layout.FirstDataRow + recordIndex - 1;
+        if (recordIndex < 1 || worksheet.LastRowUsed() == null || excelRowNumber > worksheet.LastRowUsed().RowNumber())
         {
-            workbook.Dispose();
-            throw new ArgumentException($"Sheet '{sheetName}' not found");
+            throw new ArgumentException($"Record index {recordIndex} out of range");
         }
-
-        var headerRow = worksheet.Row(1);
-        var headers = new List<string>();
-
-        foreach (var cell in headerRow.Cells())
-        {
-            if (!string.IsNullOrEmpty(cell.GetString()))
-            {
-                headers.Add(cell.GetString());
-            }
-        }
-
-        int excelRowNumber = recordIndex + 1;
         var row = worksheet.Row(excelRowNumber);
 
-        for (int i = 0; i < headers.Count; i++)
+        for (int i = 0; i < headers.Length; i++)
         {
             var header = headers[i];
-            if (data.ContainsKey(header))
+            if (!string.IsNullOrEmpty(header) && data.ContainsKey(header))
             {
                 var cell = row.Cell(i + 1);
                 SetCellValue(cell, data[header]);
             }
         }
 
-        workbook.Save();
-        workbook.Dispose();
-
         return new RecordItem { Index = recordIndex, Data = data };
     }
 
-    public void DeleteRecord(string filePath, string sheetName, int recordIndex)
+    private void ApplyDeleteRecord(IXLWorksheet worksheet, int recordIndex, SheetLayout layout)
     {
-        var workbook = new XLWorkbook(filePath);
-        var worksheet = workbook.Worksheet(sheetName);
-
-        if (worksheet == null)
+        int excelRowNumber = layout.FirstDataRow + recordIndex - 1;
+        if (recordIndex < 1 || worksheet.LastRowUsed() == null || excelRowNumber > worksheet.LastRowUsed().RowNumber())
         {
-            workbook.Dispose();
-            throw new ArgumentException($"Sheet '{sheetName}' not found");
+            throw new ArgumentException($"Record index {recordIndex} out of range");
         }
-
-        int excelRowNumber = recordIndex + 1;
         worksheet.Row(excelRowNumber).Delete();
-
-        workbook.Save();
-        workbook.Dispose();
     }
 
-    public SheetMetadata GetSheetMetadata(string filePath, string sheetName)
+    public RecordItem AddRecord(string filePath, string sheetName, Dictionary<string, object> data, SheetHeaderConfig? sheetConfig, int? afterRow, int? copyStyleFrom)
+    {
+        using var workbook = new XLWorkbook(filePath);
+        var worksheet = GetWorksheetOrThrow(workbook, sheetName);
+
+        var layout = SheetLayout.Resolve(sheetConfig);
+        var record = ApplyAddRecord(worksheet, data, layout, ResolveColumnIds(workbook, worksheet, layout), afterRow, copyStyleFrom);
+
+        workbook.Save();
+
+        return record;
+    }
+
+    public RecordItem UpdateRecord(string filePath, string sheetName, int recordIndex, Dictionary<string, object> data, SheetHeaderConfig? sheetConfig)
+    {
+        using var workbook = new XLWorkbook(filePath);
+        var worksheet = GetWorksheetOrThrow(workbook, sheetName);
+
+        var layout = SheetLayout.Resolve(sheetConfig);
+        var record = ApplyUpdateRecord(worksheet, recordIndex, data, layout, ResolveColumnIds(workbook, worksheet, layout));
+
+        workbook.Save();
+
+        return record;
+    }
+
+    public void DeleteRecord(string filePath, string sheetName, int recordIndex, SheetHeaderConfig? sheetConfig)
+    {
+        using var workbook = new XLWorkbook(filePath);
+        var worksheet = GetWorksheetOrThrow(workbook, sheetName);
+
+        var layout = SheetLayout.Resolve(sheetConfig);
+        ApplyDeleteRecord(worksheet, recordIndex, layout);
+
+        workbook.Save();
+    }
+
+    /// <summary>
+    /// Applies a batch of cell operations (op: update|clear, ref, value)
+    /// within a single workbook open/save cycle.
+    /// </summary>
+    public List<Dictionary<string, object>> BatchCellOperations(
+        string filePath,
+        string sheetName,
+        List<Dictionary<string, object?>> operations)
+    {
+        using var workbook = new XLWorkbook(filePath);
+        var worksheet = GetWorksheetOrThrow(workbook, sheetName);
+        var results = new List<Dictionary<string, object>>();
+
+        foreach (var operation in operations)
+        {
+            var entry = new Dictionary<string, object>();
+            var op = operation.TryGetValue("op", out var opValue) ? opValue?.ToString() ?? "update" : "update";
+            entry["op"] = op;
+            try
+            {
+                var cellRef = operation.TryGetValue("ref", out var refValue)
+                    ? refValue?.ToString() ?? ""
+                    : "";
+                if (op == "clear")
+                {
+                    ApplyClearCell(worksheet, cellRef);
+                }
+                else if (op == "update")
+                {
+                    operation.TryGetValue("value", out var value);
+                    ApplyWriteCell(
+                        worksheet,
+                        cellRef,
+                        value is System.Text.Json.JsonElement je ? UnwrapJsonValue(je) : value);
+                }
+                else
+                {
+                    throw new ArgumentException($"Unsupported cell operation '{op}'");
+                }
+                entry["status"] = "ok";
+            }
+            catch (Exception ex)
+            {
+                entry["status"] = "error";
+                entry["error"] = ex.Message;
+            }
+            results.Add(entry);
+        }
+
+        if (results.Any(r => r["status"] as string == "ok"))
+        {
+            workbook.Save();
+        }
+
+        return results;
+    }
+
+    /// <summary>
+    /// Applies a batch of record operations (op: add|update|delete,
+    /// row_index, data, copy_style_from) within a single open/save cycle.
+    /// </summary>
+    public List<Dictionary<string, object>> BatchRecordOperations(
+        string filePath,
+        string sheetName,
+        List<Dictionary<string, object?>> operations,
+        SheetHeaderConfig? sheetConfig)
+    {
+        using var workbook = new XLWorkbook(filePath);
+        var worksheet = GetWorksheetOrThrow(workbook, sheetName);
+        var layout = SheetLayout.Resolve(sheetConfig);
+        var headers = ResolveColumnIds(workbook, worksheet, layout);
+        var results = new List<Dictionary<string, object>>();
+
+        foreach (var operation in operations)
+        {
+            var entry = new Dictionary<string, object>();
+            var op = operation.TryGetValue("op", out var opValue) ? opValue?.ToString() ?? "" : "";
+            entry["op"] = op;
+            try
+            {
+                int? rowIndex = ToNullableInt(operation.TryGetValue("row_index", out var ri) ? ri : null);
+                int? copyStyleFrom = ToNullableInt(operation.TryGetValue("copy_style_from", out var csf) ? csf : null);
+                var data = ToDataMap(operation.TryGetValue("data", out var dataValue) ? dataValue : null);
+
+                switch (op)
+                {
+                    case "add":
+                        entry["index"] = ApplyAddRecord(worksheet, data, layout, headers, rowIndex, copyStyleFrom).Index;
+                        break;
+                    case "update":
+                        if (!rowIndex.HasValue)
+                        {
+                            throw new ArgumentException("update operation requires row_index");
+                        }
+                        ApplyUpdateRecord(worksheet, rowIndex.Value, data, layout, headers);
+                        entry["index"] = rowIndex.Value;
+                        break;
+                    case "delete":
+                        if (!rowIndex.HasValue)
+                        {
+                            throw new ArgumentException("delete operation requires row_index");
+                        }
+                        ApplyDeleteRecord(worksheet, rowIndex.Value, layout);
+                        entry["index"] = rowIndex.Value;
+                        break;
+                    default:
+                        throw new ArgumentException($"Unsupported record operation '{op}'");
+                }
+                entry["status"] = "ok";
+            }
+            catch (Exception ex)
+            {
+                entry["status"] = "error";
+                entry["error"] = ex.Message;
+            }
+            results.Add(entry);
+        }
+
+        if (results.Any(r => r["status"] as string == "ok"))
+        {
+            workbook.Save();
+        }
+
+        return results;
+    }
+
+    private static int? ToNullableInt(object? value)
+    {
+        return value switch
+        {
+            null => null,
+            int i => i,
+            long l => (int)l,
+            double d => (int)d,
+            System.Text.Json.JsonElement je when je.ValueKind == System.Text.Json.JsonValueKind.Number => je.GetInt32(),
+            _ => null
+        };
+    }
+
+    private static Dictionary<string, object> ToDataMap(object? value)
+    {
+        var data = new Dictionary<string, object>();
+        switch (value)
+        {
+            case System.Text.Json.JsonElement je when je.ValueKind == System.Text.Json.JsonValueKind.Object:
+                foreach (var property in je.EnumerateObject())
+                {
+                    var unwrapped = UnwrapJsonValue(property.Value);
+                    if (unwrapped != null)
+                    {
+                        data[property.Name] = unwrapped;
+                    }
+                }
+                break;
+            case Dictionary<string, object?> dict:
+                foreach (var kv in dict)
+                {
+                    if (kv.Value != null)
+                    {
+                        data[kv.Key] = kv.Value;
+                    }
+                }
+                break;
+        }
+        return data;
+    }
+
+    internal static object? UnwrapJsonValue(System.Text.Json.JsonElement element)
+    {
+        return element.ValueKind switch
+        {
+            System.Text.Json.JsonValueKind.String => element.GetString(),
+            System.Text.Json.JsonValueKind.Number => element.TryGetInt32(out var i) ? i : element.GetDouble(),
+            System.Text.Json.JsonValueKind.True => true,
+            System.Text.Json.JsonValueKind.False => false,
+            System.Text.Json.JsonValueKind.Null => null,
+            System.Text.Json.JsonValueKind.Undefined => null,
+            _ => element.ToString()
+        };
+    }
+
+    public SheetMetadata GetSheetMetadata(string filePath, string sheetName, SheetHeaderConfig? sheetConfig)
     {
         using var workbook = new XLWorkbook(filePath);
         var worksheet = workbook.Worksheet(sheetName);
@@ -380,19 +637,20 @@ public class ExcelService
 
         int rowCount = worksheet.LastRowUsed()?.RowNumber() ?? 0;
         int columnCount = worksheet.LastColumnUsed()?.ColumnNumber() ?? 0;
+        var layout = SheetLayout.Resolve(sheetConfig);
 
         return new SheetMetadata
         {
             Name = sheetName,
             RowCount = rowCount,
             ColumnCount = columnCount,
-            Mode = "raw",
-            HeaderRow = 1,
-            FirstDataRow = 2
+            Mode = layout.Mode == SheetLayout.ModeNone ? "raw" : "table",
+            HeaderRow = layout.IdentifierRow,
+            FirstDataRow = layout.FirstDataRow
         };
     }
 
-    public ColumnDefinitionsResponse GetColumnDefinitions(string filePath, string sheetName)
+    public ColumnDefinitionsResponse GetColumnDefinitions(string filePath, string sheetName, SheetHeaderConfig? sheetConfig)
     {
         using var workbook = new XLWorkbook(filePath);
         var worksheet = workbook.Worksheet(sheetName);
@@ -402,27 +660,49 @@ public class ExcelService
             throw new ArgumentException($"Sheet '{sheetName}' not found");
         }
 
-        var headerRow = worksheet.Row(1);
+        var layout = SheetLayout.Resolve(sheetConfig);
+        var ids = ResolveColumnIds(workbook, worksheet, layout);
         var columns = new List<ColumnDefinition>();
 
-        foreach (var cell in headerRow.Cells())
+        for (int c = 0; c < ids.Length; c++)
         {
-            if (!string.IsNullOrEmpty(cell.GetString()))
+            var id = ids[c];
+            if (string.IsNullOrEmpty(id))
             {
-                columns.Add(new ColumnDefinition
-                {
-                    Index = cell.Address.ColumnNumber,
-                    Letter = cell.Address.ColumnLetter,
-                    Id = cell.GetString(),
-                    Type = "string",
-                    NumberFormat = cell.Style.NumberFormat.Format
-                });
+                continue;
             }
+            var column = new ColumnDefinition
+            {
+                Index = c + 1,
+                Letter = XLHelper.GetColumnLetterFromNumber(c + 1),
+                Id = id,
+                Type = "string",
+                NumberFormat = null
+            };
+            if (layout.TypeRow > 0)
+            {
+                var typeText = worksheet.Row(layout.TypeRow).Cell(c + 1).GetString();
+                if (!string.IsNullOrEmpty(typeText))
+                {
+                    column.Type = typeText;
+                }
+            }
+            if (layout.DescriptionRow > 0)
+            {
+                var description = worksheet.Row(layout.DescriptionRow).Cell(c + 1).GetString();
+                if (!string.IsNullOrEmpty(description))
+                {
+                    column.Descriptions = new Dictionary<string, string> { ["default"] = description };
+                }
+            }
+            columns.Add(column);
         }
 
         return new ColumnDefinitionsResponse
         {
-            Source = "header_row",
+            Source = layout.Mode == SheetLayout.ModeLegend ? "legend_sheet"
+                : layout.Mode == SheetLayout.ModeMulti ? "multi_row"
+                : "header_row",
             Columns = columns
         };
     }
@@ -462,11 +742,26 @@ public class ExcelService
 
 public class CellData
 {
+    public string Ref { get; set; } = "";
+    public string Column { get; set; } = "";
+    public int Row { get; set; }
     public object Value { get; set; } = "";
     public string Type { get; set; } = "";
-    public string NumberFormat { get; set; } = "";
+    public string? NumberFormat { get; set; }
     public bool IsFormula { get; set; }
-    public string Formatted { get; set; } = "";
+    public string? Formatted { get; set; }
+}
+
+public class RangeData
+{
+    public string Range { get; set; } = "";
+    public List<RangeRow> Rows { get; set; } = new List<RangeRow>();
+}
+
+public class RangeRow
+{
+    public int Row { get; set; }
+    public List<CellData> Cells { get; set; } = new List<CellData>();
 }
 
 public class RecordItem
@@ -500,7 +795,8 @@ public class ColumnDefinition
     public string Letter { get; set; } = "";
     public string Id { get; set; } = "";
     public string Type { get; set; } = "";
-    public string NumberFormat { get; set; } = "";
+    public string? NumberFormat { get; set; }
+    public Dictionary<string, string>? Descriptions { get; set; }
 }
 
 public class ColumnDefinitionsResponse

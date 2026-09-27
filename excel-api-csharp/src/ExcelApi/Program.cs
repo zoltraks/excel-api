@@ -3,18 +3,58 @@
 using System;
 using System.IO;
 using System.Threading;
+using BigBytes.ExcelApi.Auth;
 using BigBytes.ExcelApi.Config;
 using BigBytes.ExcelApi.Endpoints;
 using BigBytes.ExcelApi.Excel;
 using BigBytes.ExcelApi.Logging;
 using BigBytes.ExcelApi.Services;
 using BigBytes.ExcelApi.Util;
+using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Logging.Console;
 
 // Parse command-line arguments
 var configArgs = ParseConfigArgs(args);
 
+var workDir = configArgs.WorkDir ?? Environment.GetEnvironmentVariable("WORK");
+var configPath = configArgs.ConfigPath ?? Environment.GetEnvironmentVariable("CONFIG");
+var accessPath = configArgs.AccessPath ?? Environment.GetEnvironmentVariable("ACCESS");
+var serverConfig = ConfigLoader.LoadServerConfig(workDir, configPath);
+var rateLimitConfig = ConfigLoader.LoadRateLimitConfig(workDir, configPath);
+
 var builder = WebApplication.CreateBuilder(args);
+
+// Configure Kestrel listener (TLS when server.tls.enabled)
+var tlsConfig = serverConfig.Tls;
+System.Security.Cryptography.X509Certificates.X509Certificate2? serverCertificate = null;
+if (tlsConfig?.Enabled == true)
+{
+    if (string.IsNullOrEmpty(tlsConfig.CertFile) || string.IsNullOrEmpty(tlsConfig.KeyFile))
+    {
+        throw new InvalidOperationException(
+            "TLS is enabled but server.tls.cert_file and/or server.tls.key_file are not configured");
+    }
+    serverCertificate = System.Security.Cryptography.X509Certificates.X509Certificate2.CreateFromPemFile(
+        ResolveWorkPath(tlsConfig.CertFile, workDir),
+        ResolveWorkPath(tlsConfig.KeyFile, workDir));
+}
+
+var listenAddress = string.IsNullOrEmpty(serverConfig.Host) || serverConfig.Host == "0.0.0.0"
+    ? System.Net.IPAddress.Any
+    : System.Net.IPAddress.Parse(serverConfig.Host);
+
+builder.WebHost.ConfigureKestrel(kestrel =>
+{
+    kestrel.Listen(listenAddress, serverConfig.Port, listen =>
+    {
+        if (serverCertificate != null)
+        {
+            listen.UseHttps(serverCertificate);
+        }
+    });
+});
 
 // Configure logging to use JSON format
 builder.Logging.ClearProviders();
@@ -24,37 +64,94 @@ builder.Logging.AddConsole(options =>
 });
 builder.Services.AddSingleton<ConsoleFormatter, JsonConsoleFormatter>();
 
+// Contract uses snake_case JSON field names
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.SnakeCaseLower;
+});
+
 // Add CORS services
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
     {
-        policy.AllowAnyOrigin();
+        var corsConfig = serverConfig.Cors;
+        if (corsConfig is not { Enabled: true } || corsConfig.AllowedOrigins.Count == 0)
+        {
+            return;
+        }
+        if (corsConfig.AllowedOrigins.Contains("*"))
+        {
+            policy.AllowAnyOrigin();
+        }
+        else
+        {
+            policy.WithOrigins(corsConfig.AllowedOrigins.ToArray()).AllowCredentials();
+        }
         policy.AllowAnyMethod();
         policy.AllowAnyHeader();
     });
 });
 
-var app = builder.Build();
-
-// Initialize file logger
-var fileLogEnabled = Environment.GetEnvironmentVariable("LOGGING_FILE_ENABLED") == "true";
-var fileLogPath = Environment.GetEnvironmentVariable("LOGGING_FILE_PATH") ?? "/var/log/excel-api/excel-api-csharp.log";
-var fileLogMaxFiles = int.TryParse(Environment.GetEnvironmentVariable("LOGGING_FILE_MAX_FILES"), out var maxFiles) ? maxFiles : 7;
-
-RotatingFileLogger? fileLogger = null;
-if (fileLogEnabled)
+// Add rate limiting: strict per-IP window on /auth/token, generous global window
+if (rateLimitConfig.Enabled)
 {
-    fileLogger = new RotatingFileLogger(fileLogPath, fileLogMaxFiles);
+    builder.Services.AddRateLimiter(options =>
+    {
+        options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+        options.OnRejected = async (context, _) =>
+        {
+            context.HttpContext.Response.ContentType = "application/json";
+            await context.HttpContext.Response.WriteAsJsonAsync(new
+            {
+                error = "RATE_LIMITED",
+                message = "Rate limit exceeded"
+            });
+        };
+        options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
+        {
+            var key = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+            var isTokenRequest = HttpMethods.IsPost(context.Request.Method)
+                && context.Request.Path.Value?.EndsWith("/auth/token") == true;
+            var permitLimit = isTokenRequest ? rateLimitConfig.TokenPerMinute : rateLimitConfig.RequestsPerMinute;
+            return RateLimitPartition.GetFixedWindowLimiter(
+                key + (isTokenRequest ? ":token" : ":global"),
+                _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = permitLimit,
+                    Window = TimeSpan.FromMinutes(1),
+                    QueueLimit = 0,
+                });
+        });
+    });
 }
 
-// Add CORS
-app.UseCors(options =>
+var app = builder.Build();
+
+// Initialize file logger from logging.file config (env override for path only)
+var loggingConfig = ConfigLoader.LoadLoggingConfig(workDir, configPath);
+RotatingFileLogger? fileLogger = null;
+if (loggingConfig.File?.Enabled == true && !string.IsNullOrEmpty(loggingConfig.File.Path))
 {
-    options.AllowAnyOrigin();
-    options.AllowAnyMethod();
-    options.AllowAnyHeader();
+    fileLogger = new RotatingFileLogger(loggingConfig.File.Path, loggingConfig.File.MaxFiles);
+}
+
+// Baseline security headers on every response
+app.Use(async (context, next) =>
+{
+    context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+    context.Response.Headers["X-Frame-Options"] = "DENY";
+    context.Response.Headers["Referrer-Policy"] = "no-referrer";
+    await next();
 });
+
+// Add CORS
+app.UseCors();
+
+if (rateLimitConfig.Enabled)
+{
+    app.UseRateLimiter();
+}
 
 // Add file logging middleware
 if (fileLogger != null)
@@ -83,28 +180,53 @@ var startTime = DateTime.UtcNow;
 var excelService = new ExcelService();
 
 // Load configuration
-var workDir = configArgs.WorkDir ?? Environment.GetEnvironmentVariable("WORK");
-var configPath = configArgs.ConfigPath ?? Environment.GetEnvironmentVariable("CONFIG");
-
 if (configArgs.Life != null)
 {
     Environment.SetEnvironmentVariable("LIFE", configArgs.Life);
 }
 
 var workbookConfig = ConfigLoader.LoadConfig<WorkbookConfig>(workDir, configPath, false);
-var serverConfig = ConfigLoader.LoadServerConfig(workDir, configPath);
+var accessConfig = ConfigLoader.LoadConfig<AccessConfig>(workDir, accessPath, true);
+var queueConfig = ConfigLoader.LoadQueueConfig(workDir, configPath);
+var fileLockService = new FileLockService(queueConfig.LockDir, queueConfig.LockTimeoutMs);
+var writeQueueService = new WriteQueueService(queueConfig.BatchMaxSize);
+var metricsCollector = new MetricsCollector();
+var authConfig = ConfigLoader.LoadAuthConfig(workDir, configPath);
 var basePath = serverConfig.BasePath.TrimEnd('/');
 
+var jwtService = new JwtService(accessConfig.Jwt.Secret, authConfig.Jwt.Issuer, authConfig.Jwt.ExpirationMinutes);
+var authService = new AuthService(accessConfig, jwtService);
+app.Use(async (context, next) =>
+{
+    var sw = System.Diagnostics.Stopwatch.StartNew();
+    try
+    {
+        await next();
+    }
+    finally
+    {
+        sw.Stop();
+        metricsCollector.RecordRequest(context.Request.Method, context.Response.StatusCode, sw.Elapsed.TotalMilliseconds);
+    }
+});
+
+app.UseMiddleware<AuthMiddleware>(authService, basePath);
+
 // Register endpoint groups
-app.MapHealthEndpoints(startTime);
+app.MapHealthEndpoints(startTime, metricsCollector);
 app.MapOpenApiEndpoints();
-app.MapAuthEndpoints();
+
+var authGroup = string.IsNullOrEmpty(basePath) ? app.MapGroup("") : app.MapGroup(basePath);
+authGroup.MapAuthEndpoints(authService);
 
 var apiGroup = string.IsNullOrEmpty(basePath) ? app.MapGroup("") : app.MapGroup(basePath);
-apiGroup.MapWorkbookEndpoints(workbookConfig, excelService);
+apiGroup.MapHealthEndpoints(startTime, metricsCollector);
+apiGroup.MapOpenApiEndpoints();
+apiGroup.MapWorkbookEndpoints(workbookConfig, excelService, fileLockService, writeQueueService);
 apiGroup.MapSheetEndpoints(workbookConfig, excelService);
-apiGroup.MapCellEndpoints(workbookConfig, excelService);
-apiGroup.MapRecordEndpoints(workbookConfig, excelService);
+apiGroup.MapCellEndpoints(workbookConfig, excelService, fileLockService, writeQueueService);
+apiGroup.MapRecordEndpoints(workbookConfig, excelService, fileLockService, writeQueueService);
+apiGroup.MapOperationsEndpoints(workbookConfig, excelService, fileLockService, writeQueueService);
 
 // Set up lifecycle limit if configured
 if (workbookConfig.Lifecycle?.Life != null)
@@ -128,7 +250,16 @@ if (workbookConfig.Lifecycle?.Life != null)
     }
 }
 
-app.Run("http://0.0.0.0:8443");
+app.Run();
+
+string ResolveWorkPath(string path, string? baseDir)
+{
+    if (Path.IsPathRooted(path))
+    {
+        return path;
+    }
+    return Path.Combine(baseDir ?? Directory.GetCurrentDirectory(), path);
+}
 
 ConfigArgs ParseConfigArgs(string[] args)
 {

@@ -194,6 +194,16 @@ When asked to make a code change, always update `docs/ARCHITECTURE.md` or `docs/
 
 After editing `docs/contract/openapi.yaml`, run `shell/sync-openapi.sh` to propagate the updated contract to all implementation directories. Verify the diff in each copy before committing.
 
+**AI-Provenance Convention**
+
+Code contributed with AI assistance must carry commit trailers so provenance
+is auditable: `Generated-with: <tool>` (or the tool's standard trailer) and
+`Co-Authored-By: <contributor>` where applicable. AI-generated code receives
+the same review scrutiny as human-authored code — the review evidence (test
+run, lint output, manual verification notes) is retained in the change
+request's verification notes under `docs/change/<version>/`. See
+`docs/COPYRIGHTS.md` for the originality requirements this supports.
+
 ## Testing
 
 - **Must read TESTING.md before performing any testing**. This document contains critical requirements for test environment setup.

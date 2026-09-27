@@ -73,6 +73,17 @@ public class ConfigLoader {
             }
         }
 
+        // Resolve lock directory relative to work directory
+        if (config.containsKey("queue") && config.get("queue") instanceof Map) {
+            Map<String, Object> queue = (Map<String, Object>) config.get("queue");
+            if (queue.get("lock_dir") instanceof String) {
+                String lockDir = (String) queue.get("lock_dir");
+                if (!Paths.get(lockDir).isAbsolute() && workDir != null && !workDir.isEmpty()) {
+                    queue.put("lock_dir", Paths.get(workDir, lockDir).toString());
+                }
+            }
+        }
+
         // Populate WorkbookConfig from the config map
         workbookConfig.loadFromConfigMap(config);
 

@@ -2,10 +2,17 @@ package pl.alyx.api.excel.controller;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import static pl.alyx.api.excel.controller.RequestGuards.requireData;
+import static pl.alyx.api.excel.controller.RequestGuards.asInteger;
 import pl.alyx.api.excel.config.WorkbookConfig;
+import pl.alyx.api.excel.exception.ReadonlyWorkbookException;
+import pl.alyx.api.excel.exception.ValidationException;
+import pl.alyx.api.excel.exception.WorkbookNotFoundException;
 import pl.alyx.api.excel.dto.RecordItem;
 import pl.alyx.api.excel.dto.RecordListResponse;
 import pl.alyx.api.excel.service.ExcelService;
+import pl.alyx.api.excel.service.FileLockService;
+import pl.alyx.api.excel.service.WriteQueueService;
 
 import java.io.IOException;
 import java.util.Map;
@@ -17,17 +24,21 @@ public class RecordController {
     private static final int STATUS_CREATED = 201;
     private final ExcelService excelService;
     private final WorkbookConfig workbookConfig;
+    private final FileLockService fileLockService;
+    private final WriteQueueService writeQueueService;
 
-    public RecordController(ExcelService excelService, WorkbookConfig workbookConfig) {
+    public RecordController(ExcelService excelService, WorkbookConfig workbookConfig,
+            FileLockService fileLockService, WriteQueueService writeQueueService) {
         this.excelService = excelService;
         this.workbookConfig = workbookConfig;
+        this.fileLockService = fileLockService;
+        this.writeQueueService = writeQueueService;
     }
 
     @GetMapping
     public ResponseEntity<RecordListResponse> getRecords(
             @PathVariable String id,
             @PathVariable String sheetName,
-            @RequestParam(defaultValue = "1") int headerRowCount,
             @RequestParam(defaultValue = "0") int offset,
             @RequestParam(defaultValue = "100") int limit,
             @RequestParam(defaultValue = "native") String format) throws IOException {
@@ -38,13 +49,13 @@ public class RecordController {
             .orElse(null);
 
         if (entry == null) {
-            return ResponseEntity.notFound().build();
+            throw new WorkbookNotFoundException(id);
         }
 
         RecordListResponse response = excelService.readRecords(
             entry.getPath(),
             sheetName,
-            headerRowCount,
+            entry.getSheets().get(sheetName),
             offset,
             limit,
             format
@@ -57,7 +68,6 @@ public class RecordController {
             @PathVariable String id,
             @PathVariable String sheetName,
             @PathVariable int recordIndex,
-            @RequestParam(defaultValue = "1") int headerRowCount,
             @RequestParam(defaultValue = "native") String format) throws IOException {
 
         WorkbookConfig.WorkbookEntry entry = workbookConfig.getWorkbooks().stream()
@@ -66,14 +76,14 @@ public class RecordController {
             .orElse(null);
 
         if (entry == null) {
-            return ResponseEntity.notFound().build();
+            throw new WorkbookNotFoundException(id);
         }
 
         RecordItem record = excelService.readRecord(
             entry.getPath(),
             sheetName,
             recordIndex,
-            headerRowCount,
+            entry.getSheets().get(sheetName),
             format
         );
         return ResponseEntity.ok(record);
@@ -91,20 +101,26 @@ public class RecordController {
                 .orElse(null);
 
         if (entry == null) {
-            return ResponseEntity.notFound().build();
+            throw new WorkbookNotFoundException(id);
         }
 
         if (entry.isReadonly()) {
-            return ResponseEntity.unprocessableEntity().build();
+            throw new ReadonlyWorkbookException();
         }
 
-        @SuppressWarnings("unchecked")
-        Map<String, Object> data = (Map<String, Object>) request.get("data");
-        Integer afterRow = (Integer) request.get("after_row");
-        Integer copyStyleFrom = (Integer) request.get("copy_style_from");
+        Map<String, Object> data = requireData(request);
+        Integer afterRow = asInteger(request.get("after_row"));
+        Integer copyStyleFrom = asInteger(request.get("copy_style_from"));
 
-        RecordItem record = excelService.addRecord(entry.getPath(), sheetName, data, afterRow, copyStyleFrom);
-        return ResponseEntity.status(STATUS_CREATED).body(record);
+        return writeQueueService.submit(id, () -> {
+            fileLockService.acquire(id);
+            try {
+                RecordItem record = excelService.addRecord(entry.getPath(), sheetName, data, entry.getSheets().get(sheetName), afterRow, copyStyleFrom);
+                return ResponseEntity.status(STATUS_CREATED).body(record);
+            } finally {
+                fileLockService.release(id);
+            }
+        });
     }
 
     @PutMapping("/{recordIndex}")
@@ -120,18 +136,24 @@ public class RecordController {
                 .orElse(null);
 
         if (entry == null) {
-            return ResponseEntity.notFound().build();
+            throw new WorkbookNotFoundException(id);
         }
 
         if (entry.isReadonly()) {
-            return ResponseEntity.unprocessableEntity().build();
+            throw new ReadonlyWorkbookException();
         }
 
-        @SuppressWarnings("unchecked")
-        Map<String, Object> data = (Map<String, Object>) request.get("data");
+        Map<String, Object> data = requireData(request);
 
-        RecordItem record = excelService.updateRecord(entry.getPath(), sheetName, recordIndex, data);
-        return ResponseEntity.ok(record);
+        return writeQueueService.submit(id, () -> {
+            fileLockService.acquire(id);
+            try {
+                RecordItem record = excelService.updateRecord(entry.getPath(), sheetName, recordIndex, data, entry.getSheets().get(sheetName));
+                return ResponseEntity.ok(record);
+            } finally {
+                fileLockService.release(id);
+            }
+        });
     }
 
     @DeleteMapping("/{recordIndex}")
@@ -146,14 +168,21 @@ public class RecordController {
                 .orElse(null);
 
         if (entry == null) {
-            return ResponseEntity.notFound().build();
+            throw new WorkbookNotFoundException(id);
         }
 
         if (entry.isReadonly()) {
-            return ResponseEntity.unprocessableEntity().build();
+            throw new ReadonlyWorkbookException();
         }
 
-        excelService.deleteRecord(entry.getPath(), sheetName, recordIndex);
-        return ResponseEntity.noContent().build();
+        return writeQueueService.submit(id, () -> {
+            fileLockService.acquire(id);
+            try {
+                excelService.deleteRecord(entry.getPath(), sheetName, recordIndex, entry.getSheets().get(sheetName));
+            } finally {
+                fileLockService.release(id);
+            }
+            return ResponseEntity.noContent().build();
+        });
     }
 }

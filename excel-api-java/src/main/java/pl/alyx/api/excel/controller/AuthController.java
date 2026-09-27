@@ -1,6 +1,7 @@
 package pl.alyx.api.excel.controller;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.bcrypt.BCrypt;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -9,6 +10,8 @@ import org.springframework.web.bind.annotation.RestController;
 import pl.alyx.api.excel.config.AccessConfig;
 import pl.alyx.api.excel.security.JwtUtil;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.List;
 import java.util.Map;
 
@@ -139,11 +142,18 @@ public class AuthController {
     }
 
     private boolean validateOAuth2Client(String clientId, String clientSecret) {
-        if (accessConfig.getOauth2() == null || accessConfig.getOauth2().getClients() == null) {
+        if (clientId == null || clientSecret == null
+                || accessConfig.getOauth2() == null || accessConfig.getOauth2().getClients() == null) {
             return false;
         }
         return accessConfig.getOauth2().getClients().stream()
-                .anyMatch(c -> c.getClientId().equals(clientId) && c.getClientSecret().equals(clientSecret));
+                .anyMatch(c -> clientId.equals(c.getClientId())
+                        && c.getClientSecret() != null
+                        && MessageDigest.isEqual(
+                                clientSecret.getBytes(StandardCharsets.UTF_8),
+                                c.getClientSecret().getBytes(StandardCharsets.UTF_8))
+                        && (c.getGrantTypes() == null
+                                || c.getGrantTypes().contains("client_credentials")));
     }
 
     private List<String> getScopesForClient(String clientId) {
@@ -158,11 +168,21 @@ public class AuthController {
     }
 
     private boolean validateUser(String username, String password) {
-        if (accessConfig.getOauth2() == null || accessConfig.getOauth2().getUsers() == null) {
+        if (username == null || password == null
+                || accessConfig.getOauth2() == null || accessConfig.getOauth2().getUsers() == null) {
             return false;
         }
         return accessConfig.getOauth2().getUsers().stream()
-                .anyMatch(u -> u.getUsername().equals(username) && u.getPasswordHash().equals(password));
+                .filter(u -> username.equals(u.getUsername()))
+                .findFirst()
+                .map(u -> {
+                    try {
+                        return BCrypt.checkpw(password, u.getPasswordHash());
+                    } catch (IllegalArgumentException e) {
+                        return false;
+                    }
+                })
+                .orElse(false);
     }
 
     private List<String> getScopesForUser(String username) {

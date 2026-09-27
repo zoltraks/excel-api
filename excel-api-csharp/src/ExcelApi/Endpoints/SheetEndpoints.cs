@@ -16,9 +16,16 @@ public static class SheetEndpoints
                 return Results.NotFound(new { error = "WORKBOOK_NOT_FOUND", message = $"Workbook with ID '{id}' not found" });
             }
 
-            var metadata = excelService.GetSheetMetadata(entry.Path, sheetName);
+            try
+            {
+                var metadata = excelService.GetSheetMetadata(entry.Path, sheetName, entry.GetSheetConfig(sheetName));
 
-            return Results.Ok(metadata);
+                return Results.Ok(metadata);
+            }
+            catch (ArgumentException ex)
+            {
+                return ErrorMapping.FromException(ex);
+            }
         });
 
         app.MapGet("/workbooks/{id}/sheets/{sheetName}/columns", (string id, string sheetName) =>
@@ -29,9 +36,16 @@ public static class SheetEndpoints
                 return Results.NotFound(new { error = "WORKBOOK_NOT_FOUND", message = $"Workbook with ID '{id}' not found" });
             }
 
-            var columns = excelService.GetColumnDefinitions(entry.Path, sheetName);
+            try
+            {
+                var columns = excelService.GetColumnDefinitions(entry.Path, sheetName, entry.GetSheetConfig(sheetName));
 
-            return Results.Ok(columns);
+                return Results.Ok(columns);
+            }
+            catch (ArgumentException ex)
+            {
+                return ErrorMapping.FromException(ex);
+            }
         });
     }
 }

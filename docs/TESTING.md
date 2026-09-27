@@ -21,6 +21,9 @@ When running implementations for testing, use `--work ../work` to point to the r
 
 This is the canonical procedure for confirming a change is correct.
 
+No hosted CI/CD pipeline is configured for this repository — this is a deliberate, owner-approved decision.
+The manual verification loop below is the required quality gate for every change and must run before any release.
+
 Run it for every affected component after every source, configuration, or test change.
 Repeat the loop until every step passes with zero errors and zero warnings.
 A source, configuration, or test change made after a clean run invalidates the result - the loop must run again.
@@ -139,6 +142,8 @@ Pre-built Excel files in `excel-api-test/fixture/`:
 | `simple.xlsx`    | Single sheet, one header row, 10 data rows, no formulas   |
 | `styled.xlsx`    | Rows with fonts, colors, borders, number formats           |
 | `formulas.xlsx`  | Cells with formulas and cached values                      |
+| `multi-header.xlsx` | Shared multi-mode fixture: `none`, `single`, `multi`, `legend` header-mode sheets |
+| `csv/orders/`    | CSV workbook fixture                                       |
 
 ## Test Configuration
 
@@ -172,6 +177,7 @@ Coverage target: ≥ 80% for all implementations.
 | Variable                    | Default                    |
 | --------------------------- | -------------------------- |
 | `API_URL`                   | `http://excel-api:8443`    |
+| `API_PATH`                  | `/api/v1`                  |
 | `EXCEL_API_TEST_CLIENT_ID`  | `test-client`              |
 | `EXCEL_API_TEST_SECRET`     | `test-secret`              |
 | `EXCEL_API_TEST_USERNAME`   | `testuser`                 |

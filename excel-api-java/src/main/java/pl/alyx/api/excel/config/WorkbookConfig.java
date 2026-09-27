@@ -9,8 +9,16 @@ import java.util.Map;
 
 @Component
 public class WorkbookConfig {
+    private static final long DEFAULT_LOCK_TIMEOUT_MS = 10000L;
+    private static final int DEFAULT_BATCH_MAX_SIZE = 50;
+    private static final long DEFAULT_BATCH_DEBOUNCE_MS = 100L;
+
     private String directory;
     private List<WorkbookEntry> workbooks = new ArrayList<>();
+    private String lockDir;
+    private long lockTimeoutMs = DEFAULT_LOCK_TIMEOUT_MS;
+    private int batchMaxSize = DEFAULT_BATCH_MAX_SIZE;
+    private long batchDebounceMs = DEFAULT_BATCH_DEBOUNCE_MS;
 
     public String getDirectory() {
         return directory;
@@ -18,6 +26,38 @@ public class WorkbookConfig {
 
     public void setDirectory(String directory) {
         this.directory = directory;
+    }
+
+    public String getLockDir() {
+        return lockDir;
+    }
+
+    public void setLockDir(String lockDir) {
+        this.lockDir = lockDir;
+    }
+
+    public long getLockTimeoutMs() {
+        return lockTimeoutMs;
+    }
+
+    public void setLockTimeoutMs(long lockTimeoutMs) {
+        this.lockTimeoutMs = lockTimeoutMs;
+    }
+
+    public int getBatchMaxSize() {
+        return batchMaxSize;
+    }
+
+    public void setBatchMaxSize(int batchMaxSize) {
+        this.batchMaxSize = batchMaxSize;
+    }
+
+    public long getBatchDebounceMs() {
+        return batchDebounceMs;
+    }
+
+    public void setBatchDebounceMs(long batchDebounceMs) {
+        this.batchDebounceMs = batchDebounceMs;
     }
 
     public List<WorkbookEntry> getWorkbooks() {
@@ -77,6 +117,22 @@ public class WorkbookConfig {
                     }
                     this.workbooks.add(entry);
                 }
+            }
+        }
+
+        if (config.containsKey("queue") && config.get("queue") instanceof Map) {
+            Map<String, Object> queue = (Map<String, Object>) config.get("queue");
+            if (queue.get("lock_dir") instanceof String) {
+                this.lockDir = (String) queue.get("lock_dir");
+            }
+            if (queue.get("lock_timeout_ms") instanceof Number) {
+                this.lockTimeoutMs = ((Number) queue.get("lock_timeout_ms")).longValue();
+            }
+            if (queue.get("batch_max_size") instanceof Number) {
+                this.batchMaxSize = ((Number) queue.get("batch_max_size")).intValue();
+            }
+            if (queue.get("batch_debounce_ms") instanceof Number) {
+                this.batchDebounceMs = ((Number) queue.get("batch_debounce_ms")).longValue();
             }
         }
     }
