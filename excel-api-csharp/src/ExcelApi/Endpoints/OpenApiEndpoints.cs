@@ -30,7 +30,7 @@ public static class OpenApiEndpoints
             content = content.Replace("${server.port}", "8443");
             content = content.Replace("${server.basePath}", "/api/v1");
             content = content.Replace("${implementation}", "excel-api-csharp");
-            content = content.Replace("${version}", "0.0.1");
+            content = content.Replace("${version}", "0.0.2");
 
             return Results.Text(content, "application/yaml");
         });

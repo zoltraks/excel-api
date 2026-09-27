@@ -36,7 +36,7 @@ Examples:
 - **Implementation details**: `docs/SPECIFICATION.md`.
 - **OpenAPI specification**: `docs/contract/openapi.yaml`.
 - **Copyright and licensing**: `docs/COPYRIGHTS.md`.
-- **Workflow**: `docs/WORKFLOW.md`.
+- **Workflow**: `docs/WORKFLOW.md`. It owns the change cycle covering `docs/change/<version>/`, `docs/plan/<version>/`, `docs/refactoring/<version>/`, `docs/report/`, and `docs/archive/`.
 - **Refactoring process**: `docs/REFACTORING.md`.
 - **Testing strategy**: `docs/TESTING.md`.
 - **Deployment**: `docs/DEPLOYMENT.md`.
@@ -82,17 +82,25 @@ These rules apply to every change made in this project. Follow them in order —
 - Identify all components, modules, and documentation files affected.
 - All implementations must be consistent with the requested change.
 
+**Write the change request**
+
+- Every change requires a change request document before any other work starts.
+- Create it in `docs/change/<version>/` where `<version>` is the current project version from `docs/VERSIONING.md`.
+- Name it in kebab-case after the change (e.g., `range-endpoint-fix.md`).
+- Describe what should change and why, not how to implement it. Follow the change request outline in `docs/WORKFLOW.md`.
+
+**Write the implementation plan**
+
+- Create the plan in `docs/plan/<version>/`, named after the change request with an `-implementation` suffix.
+- Follow the implementation plan outline in `docs/WORKFLOW.md`.
+- Reference the change request, the relevant standards in `docs/standard/`, and the documentation files to update first.
+- Present the plan and ask for review before proceeding. Do not start coding until the plan is confirmed.
+
 **Update documentation first**
 
 - Before writing any code, update the relevant project documentation.
 - Choose the proper document file that is part of the project documentation (`PROJECT.md`, `ARCHITECTURE.md`, `SPECIFICATION.md`), API specification, example files.
 - If the change introduces new concepts, endpoints, or behaviors, document them before implementing.
-
-**Create an implementation plan**
-
-- For each affected component, produce a short implementation plan: what will change, which files are touched, what new files are needed.
-- Present the plan and ask for review before proceeding.
-- Do not start coding until the plan is approved.
 
 **Implement**
 
@@ -102,18 +110,15 @@ These rules apply to every change made in this project. Follow them in order —
 
 **Verify**
 
-After implementation, run the full verification loop:
-
-```
-build → lint → test → fix errors and warnings → repeat
-```
-
-- Repeat until every component builds cleanly without any errors and warnings.
+- Run the full verification loop defined in `docs/TESTING.md` for every affected component: typecheck, lint, unit test, static analysis, production build.
+- Run the security checks configured in `docs/TESTING.md` as the security gate.
+- Repeat until every component passes with zero errors and zero warnings.
 - The solution must be production ready and match project requirements and documentation.
+- Any source, configuration, or test change after a clean run requires another run.
 
 **Repeat until the work is done**
 
-- If the change spans multiple components, repeat steps 3–5 for each one.
+- If the change spans multiple components, repeat the documentation, implementation, and verification steps for each one.
 - Do not consider the task complete until all components pass and documentation is consistent with the final implementation.
 
 ## Memorization Convention
@@ -215,6 +220,11 @@ After editing `docs/contract/openapi.yaml`, run `shell/sync-openapi.sh` to propa
 
 - **Strict Rule Adherence**: Follow the rules all the time unless specifically told to do otherwise.
 - **Archive Access**: Do not read any document from `docs/archive` unless specifically instructed. The archive directory contains historical documents and is not part of the active documentation set.
+- **Change Requests**: Change request documents are stored in `docs/change/<version>/`. Do not read them automatically. Read them only when the user requests implementation of a specific change request, or a version bump or changelog update is requested (changelog analysis exception).
+- **Implementation Plans**: Implementation plans are stored in `docs/plan/<version>/`. Do not read them automatically. Read them only when the user explicitly requests it, or a version bump or changelog update is requested (changelog analysis exception).
+- **Refactoring Documents**: Do not read any document from `docs/refactoring/` unless specifically instructed by the user.
+- **New Session Rule**: If the model changes or a new session starts, re-read `README.md`, this file, and the active Sources of Truth before doing any work. Do not assume prior context.
+- **Audit Reports**: Audit reports are stored in `docs/report/audit/<version>/` where `<version>` is the audited project version. Do not read audit reports automatically. They are produced artifacts, not active documentation. Read them only when the user explicitly requests an audit-report review, comparison, or other direct use.
 - **OpenAPI Synchronization**: Only modify `docs/contract/openapi.yaml`. The copies in `excel-api-node/resources/openapi.yaml`, `excel-api-java/src/main/resources/openapi.yaml`, and `excel-api-csharp/src/ExcelApi/Resources/openapi.yaml` must be synced by running `bash shell/sync-openapi.sh`, not manually edited.
 - **Copyright Compliance**: `docs/COPYRIGHTS.md` contains mandatory copyright and licensing rules that must be obeyed. All code must be original, AI-generated code must be verified for originality, and dependency licensing must be compatible (MIT, Apache 2.0, BSD, ISC, Boost only; GPL not allowed).
 - **No Legacy Checking**: Unless specifically told to do so, do not implement additional support for previous behavior or create legacy checking for deprecated configuration keys or features.

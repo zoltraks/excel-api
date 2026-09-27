@@ -20,7 +20,7 @@ All paths below are relative to the `excel-api-csharp/` directory unless stated 
 * **ASP.NET Minimal API**: HTTP framework. No MVC controllers pattern — use `MapGet`, `MapPost`, etc.
 * **ClosedXML 0.102+**: Excel file operations. Read-modify-write with style preservation.
 * **ReadyToRun (R2R)**: Pre-compilation for fast startup. Not full Native AOT (see SPECIFICATION.md for rationale).
-* **xUnit**: Testing framework with Moq for mocking.
+* **MSTest**: Testing framework.
 * **dotnet format**: Code style enforcement via `.editorconfig`.
 * **Docker**: Multi-stage builds. Final image based on `mcr.microsoft.com/dotnet/runtime-deps:8.0-alpine` (self-contained).
 
@@ -297,11 +297,11 @@ Common commands:
 
 ## Testing
 
-**Framework**: xUnit with Moq.
+**Framework**: MSTest.
 
 **Requirements**: Unit test coverage ≥ 80%.
 
-**Test Style**: Use `[Fact]` for single assertions, `[Theory]` with `[InlineData]` for parameterized tests. Use `IAsyncLifetime` for async setup/teardown.
+**Test Style**: Use `[TestMethod]` for single assertions, `[DataTestMethod]` with `[DataRow]` for parameterized tests. Use `TestInitialize`/`TestCleanup` attributes for setup and teardown.
 
 ```csharp
 public class WriteQueueTests

@@ -13,8 +13,6 @@ import (
 	"github.com/excel-api/excel-api-go/internal/config"
 )
 
-var version = "0.0.1"
-
 func die(msg string, args ...interface{}) {
 	fmt.Fprintf(os.Stderr, msg+"\n", args...)
 	os.Exit(1)
@@ -90,7 +88,7 @@ func main() {
 
 	switch {
 	case *ver:
-		fmt.Printf("Excel API Go CLI v%s\n", version)
+		fmt.Printf("Excel API Go CLI v%s\n", config.Version)
 	case *complete:
 		cli.GenerateCompletion()
 	case *repl:

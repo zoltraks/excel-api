@@ -17,6 +17,76 @@ Run every implementation from its own directory.
 The `work` directory is at the repository root, outside implementation directories.
 When running implementations for testing, use `--work ../work` to point to the repository root work directory.
 
+## Verification Loop
+
+This is the canonical procedure for confirming a change is correct.
+
+Run it for every affected component after every source, configuration, or test change.
+Repeat the loop until every step passes with zero errors and zero warnings.
+A source, configuration, or test change made after a clean run invalidates the result - the loop must run again.
+Work is complete only when the loop is clean for every component the change touched.
+
+**Typecheck**
+
+- Node: `npm run type-check`
+- Java: `mvn compile`
+- C#: `dotnet build`
+- Go: `go build ./...`
+- Test suite: `npx tsc --noEmit`
+
+**Lint**
+
+- Node: `npm run lint` and `npm run format`
+- Java: `mvn checkstyle:check`
+- C#: `dotnet format --verify-no-changes`
+- Go: `gofmt -l .` (must print nothing) and `go vet ./...`
+- Test suite: no linter configured - typecheck only
+
+**Test**
+
+- Node: `npm test -- --run`
+- Java: `mvn test`
+- C#: `dotnet test`
+- Go: `go test ./...`
+- Integration: `IMAGE=<implementation> docker compose -f docker-compose.test.yaml up --abort-on-container-exit`
+
+**Static Analysis**
+
+- Node: strict `tsc --noEmit` and ESLint findings count as static analysis - both must be clean
+- Java: checkstyle findings - must be clean; extend with SpotBugs if the plugin is later configured
+- C#: built-in SDK analyzers run during `dotnet build` - warnings must be zero
+- Go: `go vet ./...`; additionally `golangci-lint run` when it is installed
+
+**Production Build**
+
+- Node: `npm run build` (emits `dist/`)
+- Java: `mvn package` (emits `target/*.jar`)
+- C#: `dotnet publish -c Release`
+- Go: `CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o bin/excel-api-go ./cmd/excel-api-go`
+- Container artifact, when the change is release-bound: `docker build -t excel-api-<implementation> ./excel-api-<implementation>/`
+
+**Fix**
+
+Address every error and warning, then repeat the loop until clean.
+
+## Security Checks
+
+Security checks are a required gate, not optional.
+Run them when the change touches authentication, authorization, file handling, dependencies, or network-facing code, and whenever the user requests them.
+Resolve findings or obtain explicit owner approval with a recorded rationale before completion.
+
+**Dependency analysis**
+
+- Node and test suite: `npm audit`
+- Java: `mvn org.owasp:dependency-check-maven:check` (on demand, no plugin pin configured)
+- C#: `dotnet list package --vulnerable`
+- Go: `govulncheck ./...` when the tool is installed
+
+**Static security analysis**
+
+No dedicated SAST tool is configured.
+Review the changed code manually: input validation at API boundaries, path handling on workbook and lock paths, secret handling in `access.yaml`, and license compatibility of any new dependency against `docs/COPYRIGHTS.md`.
+
 ## Integration Tests
 
 The `excel-api-test/` directory contains black-box integration tests written in TypeScript with Jest.
@@ -69,7 +139,6 @@ Pre-built Excel files in `excel-api-test/fixture/`:
 | `simple.xlsx`    | Single sheet, one header row, 10 data rows, no formulas   |
 | `styled.xlsx`    | Rows with fonts, colors, borders, number formats           |
 | `formulas.xlsx`  | Cells with formulas and cached values                      |
-| `large.xlsx`     | Single sheet with 10,000+ rows for performance testing     |
 
 ## Test Configuration
 
@@ -94,7 +163,7 @@ Test-specific configuration files in `excel-api-test/config/`:
 ## Unit Tests
 
 Each implementation maintains its own unit test suite within its project directory.
-Unit tests are written in the implementation's native testing framework: Jest (Node), JUnit (Java), xUnit (C#).
+Unit tests are written in the implementation's native testing framework: Vitest (Node), JUnit (Java), MSTest (C#), Go test (Go).
 
 Coverage target: ≥ 80% for all implementations.
 

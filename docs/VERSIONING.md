@@ -44,18 +44,30 @@ Each implementation has its own version storage:
 ### Node.js Implementation (`excel-api-node/`)
 
 1. `package.json` — `"version": "X.Y.Z"`
+2. `package-lock.json` — `"version": "X.Y.Z"` (top-level and `packages.""` entry)
+3. `src/routes/health.ts` — hardcoded `version` field in the health response
+4. `src/routes/openapi.ts` — hardcoded `info.version` override for the served specification
 
 ### Java Implementation (`excel-api-java/`)
 
 1. `pom.xml` — `<version>X.Y.Z</version>`
+2. `src/main/java/pl/alyx/api/excel/controller/HealthController.java` — `VERSION` constant
+3. `src/main/java/pl/alyx/api/excel/controller/OpenApiController.java` — `${version}` placeholder replacement value
 
 ### C# Implementation (`excel-api-csharp/`)
 
 1. `ExcelApi.csproj` — `<Version>X.Y.Z</Version>`
+2. `src/ExcelApi/Endpoints/HealthEndpoints.cs` — hardcoded `version` field in the health response
+3. `src/ExcelApi/Endpoints/OpenApiEndpoints.cs` — `${version}` placeholder replacement value
 
 ### Go CLI (`excel-api-go/`)
 
-- `internal/config/version.go` — Version constant
+- `internal/config/version.go` — Version constant (the single source; `cmd/excel-api-go/main.go` reads it)
+
+### Test Suite (`excel-api-test/`)
+
+1. `package.json` — `"version": "X.Y.Z"`
+2. `package-lock.json` — `"version": "X.Y.Z"` (top-level and `packages.""` entry)
 
 ## Version Bump Procedure
 
@@ -67,6 +79,28 @@ When bumping the version for any component:
 4. Rebuild the component so generated files are refreshed.
 5. Add a new entry to `CHANGELOG.md` at the repository root (see below).
 6. Update the **Current Version** section at the bottom of this file.
+
+## Versioning Strategy
+
+Work is carried out on the last released version.
+The version in the version files points to the last release.
+It changes only after the work is completed, designated for production, and the version is bumped.
+
+The `<version>` segment in `docs/change/<version>/`, `docs/plan/<version>/`, and `docs/refactoring/<version>/` uses the last released version.
+Documents in that directory describe work released as the next version.
+For example, a change request in `docs/change/0.0.2/` is worked on the released version 0.0.2 and its changes are described in the section of version 0.0.3.
+Bumping the version does not move existing documents and does not create a new version directory by itself.
+
+## ASE Directory Archiving
+
+When asked to archive documents for a specific version, move the entire version directory while preserving structure and contents.
+
+- Change requests for version `0.0.2`: move `docs/change/0.0.2/` to `docs/archive/change/0.0.2/`
+- Implementation plans for version `0.0.2`: move `docs/plan/0.0.2/` to `docs/archive/plan/0.0.2/`
+- Refactoring documents for version `0.0.2`: move `docs/refactoring/0.0.2/` to `docs/archive/refactoring/0.0.2/`
+- Reports: move individual report files from `docs/report/` to `docs/archive/report/`
+
+The `archive/` directory mirrors the structure of the active ASE directories.
 
 ## CHANGELOG.md Conventions
 
@@ -96,6 +130,26 @@ One-sentence summary of the release scope and theme.
 - Do not include sub-headings (e.g. `### Added`, `### Fixed`) inside a version section.
 - Write in past tense.
 - **Change Description**: When describing changes, check the actual changes made between the previous (last) version and the current version being bumped. The CHANGELOG entry must accurately describe the specific changes that occurred between these versions.
+
+### Change Sources
+
+Use the sources below. Source code carries the highest weight.
+
+| Rank | Source                           | Role                            | Method                              |
+| ---- | -------------------------------- | ------------------------------- | ----------------------------------- |
+| 1    | Source code                      | Defines what changed            | `git diff <previous-release>..HEAD` |
+| 2    | Commit messages and descriptions | Explain what and why            | `git log <previous-release>..HEAD`  |
+| 3    | Implementation plans             | Show what was intended          | Read `docs/plan/<version>/`         |
+| 4    | Change requests                  | Show what was requested and why | Read `docs/change/<version>/`       |
+
+
+
+- Write an entry only when the source code confirms the change.
+- Commit messages, plans, and change requests explain a change - they do not prove it was implemented.
+- When sources disagree, the source code decides.
+- Do not list items found only in a plan or change request - report them to the user as not implemented.
+- Use the tag of the previous release as the reference. If no tags exist, use the commit that last changed the version files.
+- Reading `docs/change/<version>/` and `docs/plan/<version>/` for changelog analysis is the permitted exception to the restricted-directory rules in `docs/GUIDELINES.md`.
 
 ## Examples
 

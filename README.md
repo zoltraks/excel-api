@@ -16,19 +16,9 @@ The project provides three interchangeable server implementations sharing a sing
 
 ## Documentation
 
-| Document                                         | Purpose                                         |
-| ---------------------------------------------- | ------------------------------------------- |
-| `docs/PROJECT.md`                                | Project description and requirements            |
-| `docs/ARCHITECTURE.md`                           | Shared architecture, API contract, data model   |
-| `docs/SPECIFICATION.md`                          | Implementation details per component            |
-| `docs/GUIDELINES.md`                             | Repository rules and development workflow       |
-| `docs/TESTING.md`                                | Testing strategy and instructions               |
-| `docs/DEPLOYMENT.md`                             | Deployment instructions and Docker usage        |
-| `docs/contract/openapi.yaml`                     | Authoritative OpenAPI 3.1 specification         |
-| `docs/standard/ts-node-development.md`           | TypeScript/Node.js coding standard              |
-| `docs/standard/java-spring-maven-development.md` | Java/Spring/Maven coding standard               |
-| `docs/standard/csharp-aspnet-development.md`     | C#/ASP.NET coding standard                      |
-| `docs/standard/go-cli-development.md`            | Go CLI coding standard                          |
+- AI agents must follow [`docs/GUIDELINES.md`](docs/GUIDELINES.md) as the index of project rules and active documentation.
+- People may browse the [docs directory](docs/) for project documentation.
+- Every change requires a change request in `docs/change/<version>/` and an implementation plan in `docs/plan/<version>/` before coding - see the development workflow in [`docs/GUIDELINES.md`](docs/GUIDELINES.md).
 
 ## Quick Start
 
