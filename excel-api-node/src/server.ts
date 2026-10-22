@@ -11,7 +11,7 @@ import { initFileLock } from './lock/lockfile.js';
 import { initWriteQueue } from './queue/writeQueue.js';
 import { initCache } from './cache/mtimeCache.js';
 import cors from '@fastify/cors';
-import { initLogger, getLogger, LogLevel } from './logger/index.js';
+import { initLogger, getLogger, LogLevel } from './logger/jsonLogger.js';
 import { createFileLogger, buildRequestLogRecord } from './logger/rotatingFileLogger.js';
 import { parseDuration } from './util/duration.js';
 import { parseArgs } from './cli/args.js';

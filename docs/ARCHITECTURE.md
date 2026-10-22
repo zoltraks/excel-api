@@ -342,7 +342,6 @@ excel-api-node/
     metrics/              # Prometheus exposition collector
     ratelimit/            # Fixed-window rate limiter
     logger/               # Console logger, RotatingFileLogger
-    errors/               # AppError class hierarchy
     util/                 # Duration parser
   resources/
     openapi.yaml          # Contract copy, loaded at startup

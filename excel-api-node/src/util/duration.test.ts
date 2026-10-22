@@ -25,5 +25,8 @@ describe('parseDuration', () => {
     expect(() => parseDuration('abc')).toThrow('Invalid duration format');
     expect(() => parseDuration('60')).toThrow('Invalid duration format');
     expect(() => parseDuration('')).toThrow('Invalid duration format');
+    expect(() => parseDuration('s')).toThrow('Invalid duration format');
+    expect(() => parseDuration('13x')).toThrow('Invalid duration format');
+    expect(() => parseDuration('3d')).toThrow('Invalid duration format');
   });
 });

@@ -33,7 +33,7 @@ All paths below are relative to the `excel-api-node/` directory unless stated ot
 * **TypeScript 5.x** (strict mode): Required for all source files. No JavaScript source files in `src/`.
 * **Fastify**: HTTP framework. Preferred over Express for performance and schema validation.
 * **ExcelJS 4.x**: Excel file operations. Read-modify-write with style preservation.
-* **Jest**: Unit and integration testing framework. Use `ts-jest` for TypeScript support.
+* **Vitest**: Unit testing framework. Tests colocate beside sources as `*.test.ts`.
 * **ESLint** with `@typescript-eslint`: Linting enforced via project config.
 * **Prettier**: Code formatting. Single source of truth for style.
 * **Docker**: Containerization with multi-stage builds. Final image based on `node:22-alpine`.
@@ -47,12 +47,19 @@ Dependencies are added only when the need is concrete and the alternative is sig
 ```text
 src/
   server.ts           # Entry point
+  auth/               # JWT, static token middleware, ACL checker
+  cli/                # Command-line argument parsing
   config/             # Config and access.yaml loading, validation (zod schemas)
-  auth/               # OAuth2 token endpoint, JWT, static token middleware
-  routes/             # Fastify route handlers (workbooks, sheets, records, cells)
-  services/           # Business logic (workbook registry, sheet metadata, formatting)
-  queue/              # Write queue with Promise-chain serialization per workbook
-  excel/              # ExcelJS wrapper (read, write, style copy, cache, locking)
+  routes/             # Fastify route plugins (one file per resource group), shared request validation
+  workbook/           # Workbook registry (file ID resolution, per-sheet config)
+  excel/              # ExcelJS wrapper (layout resolution, operations, batch, style copy)
+  lock/               # Filesystem write lockfile
+  queue/              # Write queue: per-workbook serialization, debounced batching, capacity cap
+  cache/              # mtime-based workbook cache
+  metrics/            # Prometheus exposition collector
+  ratelimit/          # Fixed-window rate limiter
+  logger/             # JSON console logger, rotating file logger
+  util/               # Duration parser
 
 resources/
   openapi.yaml        # Contract copy, loaded at startup
@@ -60,23 +67,17 @@ resources/
 config/
   config.example.yaml # Example configuration
   access.example.yaml # Example sensitive configuration
-
-test/
-  unit/               # Unit tests mirroring src/ structure
-  integration/        # Local integration tests with mocked Excel files
-  fixture/            # Test data files
 ```
 
 Each directory under `src/` contains a single module or functional area.
-Module boundaries are enforced: cross-module imports go through `index.ts` barrel exports.
+Cross-module imports reference files directly by relative path with the `.js` extension.
 No circular dependencies between modules.
+Unit tests colocate beside the source they cover - there is no separate `test/` tree.
 
 **File Naming Conventions**
 
-* **`PascalCase.ts`**: Classes defined as the primary export — `ConfigLoader.ts`, `ExcelService.ts`
-* **`camelCase.ts`**: Modules, utilities — `authMiddleware.ts`, `lockManager.ts`
-* **`index.ts`**: Barrel export file for each module directory
-* **`camelCase.test.ts`**: Test files mirror source path
+* **`camelCase.ts`**: Source files — modules, classes, utilities — `authMiddleware.ts`, `mtimeCache.ts`
+* **`camelCase.test.ts`**: Test files named after the source file they cover
 
 **Version Control Exclusions**
 
@@ -148,8 +149,8 @@ import { ConfigLoader } from '../config/ConfigLoader';
 
 **Module Structure**
 
-Each module directory exposes its public API through an `index.ts` barrel.
-Internal implementation files are not imported directly from outside the module.
+Module files are named after their concern and imported directly.
+No `index.ts` barrels - a file that happens to be a component's main file still takes a concern name.
 
 **Classes**
 

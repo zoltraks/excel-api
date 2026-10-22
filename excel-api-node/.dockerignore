@@ -1,0 +1,22 @@
+# Dependencies and build output
+node_modules/
+dist/
+coverage/
+
+# VCS and OS metadata
+.git/
+.DS_Store
+
+# Local configuration and secrets
+config/
+.env
+.env.*
+
+# Logs and scratch
+*.log
+logs/
+work/
+
+# Tests (not needed in the image build)
+**/*.test.ts
+vitest.config.ts

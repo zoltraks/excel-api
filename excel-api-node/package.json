@@ -3,7 +3,10 @@
   "version": "0.0.3",
   "description": "Excel API \u2014 Node.js/TypeScript implementation",
   "type": "module",
-  "main": "dist/server.js",
+  "private": true,
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "build": "tsc",
     "start": "node dist/server.js",

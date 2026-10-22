@@ -27,7 +27,6 @@ excel-api-node/
     metrics/              # Prometheus exposition collector
     ratelimit/            # Fixed-window rate limiter
     logger/               # Console logger, RotatingFileLogger
-    errors/               # AppError class hierarchy
     util/
       duration.ts         # Canonical duration string parser
   resources/
