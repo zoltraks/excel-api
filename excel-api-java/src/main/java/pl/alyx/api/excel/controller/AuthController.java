@@ -7,8 +7,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import pl.alyx.api.excel.config.AccessConfig;
-import pl.alyx.api.excel.security.JwtUtil;
+import pl.alyx.api.excel.configuration.AccessConfiguration;
+import pl.alyx.api.excel.utility.JwtUtil;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -24,11 +24,11 @@ public class AuthController {
     private static final int STATUS_UNAUTHORIZED = 401;
     private static final int STATUS_BAD_REQUEST = 400;
     private final JwtUtil jwtUtil;
-    private final AccessConfig accessConfig;
+    private final AccessConfiguration accessConfiguration;
 
-    public AuthController(JwtUtil jwtUtil, AccessConfig accessConfig) {
+    public AuthController(JwtUtil jwtUtil, AccessConfiguration accessConfiguration) {
         this.jwtUtil = jwtUtil;
-        this.accessConfig = accessConfig;
+        this.accessConfiguration = accessConfiguration;
     }
 
     @PostMapping("/token")
@@ -143,10 +143,10 @@ public class AuthController {
 
     private boolean validateOAuth2Client(String clientId, String clientSecret) {
         if (clientId == null || clientSecret == null
-                || accessConfig.getOauth2() == null || accessConfig.getOauth2().getClients() == null) {
+                || accessConfiguration.getOauth2() == null || accessConfiguration.getOauth2().getClients() == null) {
             return false;
         }
-        return accessConfig.getOauth2().getClients().stream()
+        return accessConfiguration.getOauth2().getClients().stream()
                 .anyMatch(c -> clientId.equals(c.getClientId())
                         && c.getClientSecret() != null
                         && MessageDigest.isEqual(
@@ -157,10 +157,10 @@ public class AuthController {
     }
 
     private List<String> getScopesForClient(String clientId) {
-        if (accessConfig.getOauth2() == null || accessConfig.getOauth2().getClients() == null) {
+        if (accessConfiguration.getOauth2() == null || accessConfiguration.getOauth2().getClients() == null) {
             return List.of();
         }
-        return accessConfig.getOauth2().getClients().stream()
+        return accessConfiguration.getOauth2().getClients().stream()
                 .filter(c -> c.getClientId().equals(clientId))
                 .findFirst()
                 .map(c -> c.getScopes())
@@ -169,10 +169,10 @@ public class AuthController {
 
     private boolean validateUser(String username, String password) {
         if (username == null || password == null
-                || accessConfig.getOauth2() == null || accessConfig.getOauth2().getUsers() == null) {
+                || accessConfiguration.getOauth2() == null || accessConfiguration.getOauth2().getUsers() == null) {
             return false;
         }
-        return accessConfig.getOauth2().getUsers().stream()
+        return accessConfiguration.getOauth2().getUsers().stream()
                 .filter(u -> username.equals(u.getUsername()))
                 .findFirst()
                 .map(u -> {
@@ -186,10 +186,10 @@ public class AuthController {
     }
 
     private List<String> getScopesForUser(String username) {
-        if (accessConfig.getOauth2() == null || accessConfig.getOauth2().getUsers() == null) {
+        if (accessConfiguration.getOauth2() == null || accessConfiguration.getOauth2().getUsers() == null) {
             return List.of();
         }
-        return accessConfig.getOauth2().getUsers().stream()
+        return accessConfiguration.getOauth2().getUsers().stream()
                 .filter(u -> u.getUsername().equals(username))
                 .findFirst()
                 .map(u -> u.getScopes())

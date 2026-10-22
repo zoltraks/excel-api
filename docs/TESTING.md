@@ -29,6 +29,9 @@ Repeat the loop until every step passes with zero errors and zero warnings.
 A source, configuration, or test change made after a clean run invalidates the result - the loop must run again.
 Work is complete only when the loop is clean for every component the change touched.
 
+The Java commands assume `JAVA_HOME` resolves to JDK 21 or newer — the build fails
+early and clearly when an older or absent runtime is picked up.
+
 **Typecheck**
 
 - Node: `npm run type-check`

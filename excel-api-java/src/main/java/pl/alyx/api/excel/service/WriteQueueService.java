@@ -1,7 +1,7 @@
 package pl.alyx.api.excel.service;
 
 import org.springframework.stereotype.Service;
-import pl.alyx.api.excel.config.WorkbookConfig;
+import pl.alyx.api.excel.configuration.WorkbookConfiguration;
 import pl.alyx.api.excel.exception.ServiceBusyException;
 
 import java.io.IOException;
@@ -35,8 +35,8 @@ public class WriteQueueService {
     private final Map<String, Object> monitors = new ConcurrentHashMap<>();
     private final Map<String, AtomicInteger> depths = new ConcurrentHashMap<>();
 
-    public WriteQueueService(final WorkbookConfig workbookConfig) {
-        this.batchMaxSize = workbookConfig.getBatchMaxSize();
+    public WriteQueueService(final WorkbookConfiguration workbookConfiguration) {
+        this.batchMaxSize = workbookConfiguration.getBatchMaxSize();
     }
 
     /**

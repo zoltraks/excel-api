@@ -7,7 +7,7 @@ Java/Spring Boot implementation of the Excel API using Apache POI. This implemen
 - **Spring Boot Framework**: Built on Spring Boot 3.x with Java 21 for modern Java features
 - **Apache POI Integration**: Uses Apache POI for Excel file operations
 - **Spring Security**: Comprehensive security with JWT and OAuth2 support
-- **Configuration Properties**: Externalized configuration via YAML and properties files
+- **Configuration Properties**: Externalized configuration via YAML files
 - **Metrics**: OpenMetrics-compatible metrics endpoint
 - **Health Checks**: Spring Boot Actuator health endpoint
 - **Format Support**: Multiple output formats (native, display, string)

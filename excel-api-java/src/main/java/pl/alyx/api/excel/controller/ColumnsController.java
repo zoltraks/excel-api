@@ -5,10 +5,10 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import pl.alyx.api.excel.config.WorkbookConfig;
+import pl.alyx.api.excel.configuration.WorkbookConfiguration;
 import pl.alyx.api.excel.exception.ReadonlyWorkbookException;
 import pl.alyx.api.excel.exception.WorkbookNotFoundException;
-import pl.alyx.api.excel.service.ExcelService;
+import pl.alyx.api.excel.service.ExcelFileService;
 
 import java.io.IOException;
 import java.util.Map;
@@ -17,12 +17,12 @@ import java.util.Map;
 @RequestMapping("/workbooks/{id}/sheets/{sheetName}")
 public class ColumnsController {
 
-    private final ExcelService excelService;
-    private final WorkbookConfig workbookConfig;
+    private final ExcelFileService excelService;
+    private final WorkbookConfiguration workbookConfiguration;
 
-    public ColumnsController(ExcelService excelService, WorkbookConfig workbookConfig) {
+    public ColumnsController(ExcelFileService excelService, WorkbookConfiguration workbookConfiguration) {
         this.excelService = excelService;
-        this.workbookConfig = workbookConfig;
+        this.workbookConfiguration = workbookConfiguration;
     }
 
     @GetMapping("/columns")
@@ -30,7 +30,7 @@ public class ColumnsController {
             @PathVariable String id,
             @PathVariable String sheetName) throws IOException {
 
-        WorkbookConfig.WorkbookEntry entry = workbookConfig.getWorkbooks().stream()
+        WorkbookConfiguration.WorkbookEntry entry = workbookConfiguration.getWorkbooks().stream()
                 .filter(w -> w.getId().equals(id))
                 .findFirst()
                 .orElse(null);

@@ -5,7 +5,7 @@
 
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder class="ch.qos.logback.core.encoder.LayoutWrappingEncoder">
-            <layout class="pl.alyx.api.excel.logging.JsonLayout">
+            <layout class="pl.alyx.api.excel.utility.JsonLogLayout">
                 <timestampPattern>yyyy-MM-dd HH:mm:ss.SSS</timestampPattern>
             </layout>
         </encoder>

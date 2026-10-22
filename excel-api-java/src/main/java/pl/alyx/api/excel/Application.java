@@ -9,33 +9,33 @@ import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 public class Application {
 
     public static void main(String[] args) {
-        ConfigArgs configArgs = parseArgs(args);
+        ConfigurationArgs configurationArgs = parseArgs(args);
 
-        // Set system properties for config resolution
-        if (configArgs.workDir != null) {
-            System.setProperty("excel.api.work.dir", configArgs.workDir);
+        // Set system properties for configuration resolution
+        if (configurationArgs.workDir != null) {
+            System.setProperty("excel.api.work.dir", configurationArgs.workDir);
         }
-        if (configArgs.configPath != null) {
-            System.setProperty("excel.api.config.path", configArgs.configPath);
+        if (configurationArgs.configurationPath != null) {
+            System.setProperty("excel.api.config.path", configurationArgs.configurationPath);
         }
-        if (configArgs.accessPath != null) {
-            System.setProperty("excel.api.access.path", configArgs.accessPath);
+        if (configurationArgs.accessPath != null) {
+            System.setProperty("excel.api.access.path", configurationArgs.accessPath);
         }
-        if (configArgs.life != null) {
-            System.setProperty("excel.api.life", configArgs.life);
+        if (configurationArgs.life != null) {
+            System.setProperty("excel.api.life", configurationArgs.life);
         }
 
         SpringApplication.run(Application.class, args);
     }
 
-    private static ConfigArgs parseArgs(String[] args) {
-        ConfigArgs result = new ConfigArgs();
+    private static ConfigurationArgs parseArgs(String[] args) {
+        ConfigurationArgs result = new ConfigurationArgs();
         for (int i = 0; i < args.length; i++) {
             if ("--work".equals(args[i]) && i + 1 < args.length) {
                 result.workDir = args[i + 1];
                 i++;
             } else if ("--config".equals(args[i]) && i + 1 < args.length) {
-                result.configPath = args[i + 1];
+                result.configurationPath = args[i + 1];
                 i++;
             } else if ("--access".equals(args[i]) && i + 1 < args.length) {
                 result.accessPath = args[i + 1];
@@ -48,9 +48,9 @@ public class Application {
         return result;
     }
 
-    private static class ConfigArgs {
+    private static class ConfigurationArgs {
         String workDir;
-        String configPath;
+        String configurationPath;
         String accessPath;
         String life;
     }

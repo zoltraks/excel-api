@@ -5,13 +5,13 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import pl.alyx.api.excel.config.WorkbookConfig;
+import pl.alyx.api.excel.configuration.WorkbookConfiguration;
 import pl.alyx.api.excel.exception.ReadonlyWorkbookException;
 import pl.alyx.api.excel.exception.WorkbookNotFoundException;
 import pl.alyx.api.excel.dto.SheetInfo;
 import pl.alyx.api.excel.dto.WorkbookInfo;
 import pl.alyx.api.excel.dto.WorkbookListResponse;
-import pl.alyx.api.excel.service.ExcelService;
+import pl.alyx.api.excel.service.ExcelFileService;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -27,20 +27,20 @@ public class WorkbookController {
 
     private static final DateTimeFormatter ISO_FORMATTER = DateTimeFormatter.ISO_INSTANT;
 
-    private final ExcelService excelService;
-    private final WorkbookConfig workbookConfig;
+    private final ExcelFileService excelService;
+    private final WorkbookConfiguration workbookConfiguration;
 
-    public WorkbookController(ExcelService excelService, WorkbookConfig workbookConfig) {
+    public WorkbookController(ExcelFileService excelService, WorkbookConfiguration workbookConfiguration) {
         this.excelService = excelService;
-        this.workbookConfig = workbookConfig;
+        this.workbookConfiguration = workbookConfiguration;
     }
 
     @GetMapping
     public WorkbookListResponse listWorkbooks() throws IOException {
         List<WorkbookInfo> workbooks = new ArrayList<>();
-        String registryDir = workbookConfig.getDirectory();
+        String registryDir = workbookConfiguration.getDirectory();
 
-        for (WorkbookConfig.WorkbookEntry entry : workbookConfig.getWorkbooks()) {
+        for (WorkbookConfiguration.WorkbookEntry entry : workbookConfiguration.getWorkbooks()) {
             java.nio.file.Path path;
             if (registryDir != null && !registryDir.isEmpty()) {
                 path = Paths.get(registryDir, entry.getPath());
@@ -72,7 +72,7 @@ public class WorkbookController {
 
     @GetMapping("/{id}")
     public ResponseEntity<WorkbookInfo> getWorkbook(@PathVariable String id) throws IOException {
-        WorkbookConfig.WorkbookEntry entry = workbookConfig.getWorkbooks().stream()
+        WorkbookConfiguration.WorkbookEntry entry = workbookConfiguration.getWorkbooks().stream()
             .filter(w -> w.getId().equals(id))
             .findFirst()
             .orElse(null);
@@ -81,7 +81,7 @@ public class WorkbookController {
             throw new WorkbookNotFoundException(id);
         }
 
-        String registryDir = workbookConfig.getDirectory();
+        String registryDir = workbookConfiguration.getDirectory();
         java.nio.file.Path path;
         if (registryDir != null && !registryDir.isEmpty()) {
             path = Paths.get(registryDir, entry.getPath());

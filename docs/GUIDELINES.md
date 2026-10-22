@@ -115,6 +115,7 @@ These rules apply to every change made in this project. Follow them in order —
 - Repeat until every component passes with zero errors and zero warnings.
 - The solution must be production ready and match project requirements and documentation.
 - Any source, configuration, or test change after a clean run requires another run.
+- A change set is proposed for commit only when the verification loop is clean on its final diff — a clean run earlier in the work does not count.
 
 **Repeat until the work is done**
 

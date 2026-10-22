@@ -72,16 +72,16 @@ excel-api-java/
   src/main/
     java/pl/alyx/api/excel/
       Application.java          # Spring Boot entry point
-      config/                   # Settings models and file loaders (config.yaml, access.yaml)
+      configuration/            # All *Configuration classes: settings models, file loaders, and @Configuration wiring
       controller/               # REST controllers
       dto/                      # Request and response models
-      exception/                # Domain exception classes and GlobalExceptionHandler (@RestControllerAdvice)
-      security/                 # Web and security wiring (SecurityFilterChain, CORS, TLS), JwtUtil
-        filter/                 # JWT, static-token, ACL, and rate-limit servlet filters
-      service/                  # Business logic: ExcelService (Apache POI), SheetLayout, CellConverter, FileLockService, WriteQueueService
-      metrics/                  # Prometheus collector and servlet filter
-      logging/                  # JsonLayout (JSON log format)
-      lifecycle/                # LifecycleManager (--life graceful shutdown), DurationParser
+      exception/                # Domain exception classes (*Exception)
+      filter/                   # JWT, static-token, ACL, and rate-limit servlet filters
+      handler/                  # GlobalExceptionHandler (@RestControllerAdvice)
+      lifecycle/                # LifecycleManager (--life graceful shutdown)
+      observability/            # MetricsCollector and MetricsFilter (Prometheus)
+      service/                  # Business logic: ExcelFileService (Apache POI), FileLockService, WriteQueueService
+      utility/                  # Shared helpers: RequestGuards, CellConverter, SheetLayout, DurationParser, ConfigurationEnvironmentSupport, ConfigurationPathResolver, JsonLogLayout (logback-referenced), JwtUtil
     resources/
       openapi.yaml              # Contract copy, on classpath
       application.yaml          # Spring Boot config (port, profiles)

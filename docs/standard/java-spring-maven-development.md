@@ -31,10 +31,10 @@ Dependencies are added only when the need is concrete and the alternative is sig
 src/main/
   java/pl/alyx/api/excel/
     Application.java              # Spring Boot entry point (@SpringBootApplication)
-    config/
-      AppConfig.java              # Configuration POJO bound to config.yaml
-      AccessConfig.java           # Sensitive config POJO bound to access.yaml
-      ConfigLoader.java           # YAML loading and validation
+    configuration/
+      AppConfiguration.java       # Configuration POJO bound to config.yaml
+      AccessConfiguration.java    # Sensitive configuration POJO bound to access.yaml
+      ConfigurationLoader.java    # YAML loading and validation
     auth/
       AuthFilter.java             # Servlet filter: JWT and static token validation
       TokenEndpoint.java          # POST /auth/token (OAuth2 grants)
@@ -72,6 +72,21 @@ config/
 One `.java` file per public class. Split files when a class exceeds ~300 lines.
 No circular dependencies between packages.
 
+**Package Roles**
+
+* Packages slice by architectural role and member type — each package holds one kind of artifact.
+* `configuration/` holds every `*Configuration` class — settings models, file loaders, and `@Configuration` wiring alike.
+* Servlet filters (`OncePerRequestFilter`) live in the top-level `filter/` package — `security/` does not nest its filters.
+* `@RestControllerAdvice` exception mapping lives in `handler/`; `exception/` holds `*Exception` types only.
+* Stateless helper classes and `*Util` types live in `utility/` — the named home for them — regardless of how many classes use them.
+* Files in a package share a common suffix and similar word count where practical — a soft rule, not hard: `service/` is all `*Service`, so `ExcelFileService` (not `ExcelService`) beside `FileLockService` and `WriteQueueService`.
+* `observability/` (not `metrics/`) holds the Prometheus collector and filter — name packages for the concern, not the mechanism.
+* Spell out `Configuration` — package `configuration`, classes `*Configuration`, variables and methods `configuration`/`loadConfiguration()`. Abbreviations `Config`, `config`, and `cfg` are not used in identifiers (file names such as `config.yaml` and the `--config`/`CONFIG` contract surface are unchanged).
+* `package-info.java` is optional and not recommended — add one only where a package needs its own Javadoc or a package-level annotation.
+* `src/main/resources` ships runtime resources only — examples and local overrides stay in the root `config/` directory.
+* `application.*` keeps one format — `.properties` silently wins over `.yaml` on conflicting keys.
+* Never inject a raw `Map<String, Object>` — Spring resolves a `Map<K, V>` injection point as all beans of type `V` keyed by name, which delivers beans instead of configuration and tangles the dependency graph. Wrap the configuration map in a dedicated type (see `configuration/AppConfiguration`).
+
 ## Naming Conventions
 
 **Code Conventions**
@@ -80,7 +95,7 @@ Follow standard Java conventions.
 
 * **Classes**: `PascalCase` — `WorkbookService`, `WriteQueue`, `ExcelReader`.
 * **Interfaces**: `PascalCase` — `ExcelOperations`, `LockProvider`.
-* **Methods**: `camelCase` — `loadConfig()`, `enqueueWrite()`, `acquireLock()`.
+* **Methods**: `camelCase` — `loadConfiguration()`, `enqueueWrite()`, `acquireLock()`.
 * **Variables**: `camelCase` — `currentBatch`, `lockTimeout`, `workbookCache`.
 * **Constants**: `UPPER_SNAKE_CASE` — `DEFAULT_BATCH_SIZE`, `MAX_QUEUE_DEPTH`.
 * **Packages**: all lowercase — `pl.alyx.api.excel.config`, `pl.alyx.api.excel.queue`.
@@ -144,11 +159,11 @@ Use constructor injection exclusively. No field injection. No setter injection.
 ```java
 @Service
 public class WorkbookService {
-    private final AppConfig config;
+    private final AppConfiguration configuration;
     private final CacheService cache;
 
-    public WorkbookService(AppConfig config, CacheService cache) {
-        this.config = config;
+    public WorkbookService(AppConfiguration configuration, CacheService cache) {
+        this.configuration = configuration;
         this.cache = cache;
     }
 }

@@ -5,7 +5,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import pl.alyx.api.excel.config.WorkbookConfig;
+import pl.alyx.api.excel.configuration.WorkbookConfiguration;
 import pl.alyx.api.excel.exception.WorkbookNotFoundException;
 import pl.alyx.api.excel.service.FileLockService;
 import pl.alyx.api.excel.service.WriteQueueService;
@@ -16,20 +16,20 @@ import java.util.Map;
 @RequestMapping("/workbooks/{id}")
 public class LockStatusController {
 
-    private final WorkbookConfig workbookConfig;
+    private final WorkbookConfiguration workbookConfiguration;
     private final FileLockService fileLockService;
     private final WriteQueueService writeQueueService;
 
-    public LockStatusController(WorkbookConfig workbookConfig, FileLockService fileLockService,
+    public LockStatusController(WorkbookConfiguration workbookConfiguration, FileLockService fileLockService,
             WriteQueueService writeQueueService) {
-        this.workbookConfig = workbookConfig;
+        this.workbookConfiguration = workbookConfiguration;
         this.fileLockService = fileLockService;
         this.writeQueueService = writeQueueService;
     }
 
     @GetMapping("/lock-status")
     public ResponseEntity<Map<String, Object>> getLockStatus(@PathVariable String id) {
-        WorkbookConfig.WorkbookEntry entry = workbookConfig.getWorkbooks().stream()
+        WorkbookConfiguration.WorkbookEntry entry = workbookConfiguration.getWorkbooks().stream()
                 .filter(w -> w.getId().equals(id))
                 .findFirst()
                 .orElse(null);

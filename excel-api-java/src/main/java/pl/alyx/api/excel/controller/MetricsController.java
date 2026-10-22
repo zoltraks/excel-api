@@ -3,7 +3,7 @@ package pl.alyx.api.excel.controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import pl.alyx.api.excel.metrics.MetricsCollector;
+import pl.alyx.api.excel.observability.MetricsCollector;
 
 @RestController
 @RequestMapping

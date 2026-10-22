@@ -3,7 +3,7 @@ package pl.alyx.api.excel.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
-import pl.alyx.api.excel.config.WorkbookConfig;
+import pl.alyx.api.excel.configuration.WorkbookConfiguration;
 import pl.alyx.api.excel.exception.FileLockedException;
 
 import java.io.IOException;
@@ -36,12 +36,12 @@ public class FileLockService {
     private final long pid;
     private final String hostname;
 
-    public FileLockService(final WorkbookConfig workbookConfig) {
-        String configuredDir = workbookConfig.getLockDir();
+    public FileLockService(final WorkbookConfiguration workbookConfiguration) {
+        String configuredDir = workbookConfiguration.getLockDir();
         this.lockDir = configuredDir == null || configuredDir.isEmpty()
                 ? Paths.get("locks")
                 : Paths.get(configuredDir);
-        this.lockTimeoutMs = workbookConfig.getLockTimeoutMs();
+        this.lockTimeoutMs = workbookConfiguration.getLockTimeoutMs();
         this.pid = ProcessHandle.current().pid();
         this.hostname = resolveHostname();
         try {

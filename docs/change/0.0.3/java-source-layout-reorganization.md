@@ -36,3 +36,15 @@ Behavioral requirements:
 - New tests for the uncovered `controller/`, `dto/`, `exception/`, and `metrics/` packages.
 - Rewriting `JsonLogFormatTest`, which is flagged in the proposal as a coverage gap.
 - The ArchUnit `PackageStructureTest` enforcement check, which is proposed separately.
+
+## Verification Notes
+
+- `mvn clean compile`: BUILD SUCCESS.
+- `mvn checkstyle:check`: 0 violations.
+- `mvn test`: 62/62 pass.
+- `mvn package`: `target/excel-api-0.0.3.jar` repackaged; the JAR contains only
+  `application.yaml`, `logback-spring.xml`, and `openapi.yaml` in `BOOT-INF/classes` —
+  the example properties file no longer ships.
+- A latent bean-cycle defect surfaced only when the packaged JAR was first booted;
+  it is pre-existing (reproduced on the pre-move tree) and fixed separately in
+  `docs/change/0.0.3/java-runtime-startup-fix.md`.
