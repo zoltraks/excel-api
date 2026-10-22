@@ -31,47 +31,73 @@ Dependencies are added only when the need is concrete and the alternative is sig
 ```text
 src/ExcelApi/
   Program.cs                    # Entry point, Minimal API setup, DI registration
-  Config/
-    AppConfig.cs                # Configuration POCO bound to config.yaml
-    AccessConfig.cs             # Sensitive config POCO bound to access.yaml
-    ConfigLoader.cs             # YAML loading and validation
-  Auth/
+  Options/
+    DurationParser.cs           # Duration string parsing for config option values
+    ServerOptions.cs            # Server binding options bound to config.yaml
+    AccessOptions.cs            # Sensitive options bound to access.yaml
+    WorkbookOptions.cs          # Workbook registry and sheet-header options
+    QueueOptions.cs             # Write-queue options
+    RateLimitOptions.cs         # Rate-limiting options
+    LoggingOptions.cs           # File logging options
+    AuthOptions.cs              # Authentication options
+    OptionsLoader.cs            # YAML loading and validation
+    OptionsPathResolver.cs      # ${VAR} expansion and path resolution
+  Security/
     AuthMiddleware.cs           # JWT and static token validation middleware
-    TokenEndpoint.cs            # POST /auth/token (OAuth2 grants)
+    AuthService.cs              # Credential and token verification
     JwtService.cs               # JWT signing and verification
-  Controllers/
+  Contracts/
+    AddRecordRequest.cs         # Record creation contract
+    UpdateRecordRequest.cs      # Record update contract
+    WriteCellRequest.cs         # Cell write contract
+    BatchRequests.cs            # Batch operation contracts
+  Endpoints/
     WorkbookEndpoints.cs        # Workbook and sheet route groups
+    SheetEndpoints.cs           # Sheet metadata route groups
     RecordEndpoints.cs          # Record CRUD route groups
     CellEndpoints.cs            # Cell and range route groups
-    OperationEndpoints.cs       # Batch operation route groups
-    HealthEndpoints.cs          # Health and OpenAPI route groups
+    OperationsEndpoints.cs      # Batch operation route groups
+    AuthEndpoints.cs            # Token route groups
+    HealthEndpoints.cs          # Health route groups
+    OpenApiEndpoints.cs         # OpenAPI route groups
+    ErrorMapping.cs             # Exception-to-HTTP mapping
+  Metrics/
+    MetricsCollector.cs         # Request and operation metrics
+  Logging/
+    JsonConsoleFormatter.cs     # JSON console output
+    JsonLogger.cs               # JSON logger provider
+    RotatingFileLogger.cs       # Rotating file sink
   Services/
-    WorkbookService.cs          # Workbook registry, metadata
-    SheetService.cs             # Sheet and column metadata
-    RecordService.cs            # Record-level operations
-    CellService.cs              # Cell-level operations
-    CacheService.cs             # In-memory cache with mtime polling
-  Queue/
-    WriteQueue.cs               # Channel<T>-based queue per workbook
-    WriteOperation.cs           # Operation record with TaskCompletionSource
-    QueueHostedService.cs       # BackgroundService consuming from channels
-  Excel/
-    ExcelReader.cs              # ClosedXML read operations
-    ExcelWriter.cs              # ClosedXML write operations, style copy
-    LockManager.cs              # Lockfile protocol implementation
+    ExcelService.cs             # ClosedXML read-modify-write operations
+    FileLockService.cs          # Lockfile protocol implementation
+    WriteQueueService.cs        # Per-workbook write queue and batching
+    SheetLayout.cs              # Header-mode resolution
   Resources/
     openapi.yaml                # Contract copy, embedded resource
   ExcelApi.csproj               # Project file with R2R config
 
+tests/ExcelApi.Tests/
+  Options/                      # Tests mirroring Options/
+  Services/                     # Tests mirroring Services/
+  Logging/                      # Tests mirroring Logging/
+  GlobalUsings.cs               # Shared test usings
+  ExcelApi.Tests.csproj         # ProjectReference to ../../src/ExcelApi
+
 config/
   config.example.yaml           # Example configuration
   access.example.yaml           # Example sensitive configuration
+  appsettings.example.json      # Example ASP.NET settings (appsettings.json is not used)
 
 ExcelApi.sln
 ```
 
+The project folder root holds only `Program.cs` and `ExcelApi.csproj` - every other type lives in a role folder. A helper used by a single consumer goes into that consumer's domain folder, never loose at the root.
+
 **Namespace**: `BigBytes.ExcelApi`. All classes live under this root namespace.
-Sub-namespaces mirror the directory structure: `BigBytes.ExcelApi.Config`, `BigBytes.ExcelApi.Queue`, etc.
+Sub-namespaces mirror the directory structure (IDE0130): `BigBytes.ExcelApi.Options`, `BigBytes.ExcelApi.Services`, etc.
+Test namespaces mirror the source tree under the test assembly: `ExcelApi.Tests.Options`.
+
+**Folder naming**: plural category names where the folder groups one kind of thing (`Options`, `Services`, `Contracts`, `Endpoints`), singular mass nouns for cross-cutting concerns (`Security`, `Logging`, `Metrics`). Bound settings classes carry the `Options` suffix; wiring lives in `*Loader`/registration types. This implementation follows .NET naming even where the other implementations differ - parity across implementations lives in behavior (config keys, endpoint groups, error codes, log fields), not in file or folder names.
 
 One `.cs` file per public type. Split files when a class exceeds ~300 lines.
 No circular dependencies between namespace groups.
@@ -121,14 +147,11 @@ public record WriteOperation(
 Use C# 12 primary constructors for DI-injected services.
 
 ```csharp
-public class WorkbookService(AppConfig config, ICacheService cache)
+public class ExcelService(WorkbookOptions options)
 {
-    public WorkbookInfo GetWorkbook(string fileId)
+    public List<string> ReadSheetNames(string filePath)
     {
-        var entry = config.Workbooks.Registry
-            .FirstOrDefault(w => w.Id == fileId)
-            ?? throw new WorkbookNotFoundException(fileId);
-        return cache.GetWorkbookInfo(entry);
+        // ...
     }
 }
 ```
@@ -153,34 +176,19 @@ public class LockTimeoutException(string fileId)
 Enable nullable reference types project-wide (`<Nullable>enable</Nullable>`).
 Use `?` suffix for nullable types. Use `??` and `?.` operators. Never use `!` (null-forgiving) without a `// REASON:` comment.
 
-**Channel\<T\> Queue Pattern**
+**Per-Workbook Lane Pattern**
+
+`WriteQueueService` serializes writes per workbook with a `SemaphoreSlim` gate per lane, so writes to the same workbook never interleave while different workbooks run in parallel. Pending depth is tracked per lane and capped at `batch_max_size`; excess submissions throw `ServiceBusyException` (`503 SERVICE_BUSY`).
 
 ```csharp
-public class WriteQueue
+public class WriteQueueService
 {
-    private readonly Channel<WriteOperation> _channel =
-        Channel.CreateBounded<WriteOperation>(1000);
+    private readonly ConcurrentDictionary<string, Lane> _lanes = new();
 
-    public async Task<OperationResult> EnqueueAsync(
-        WriteOperation op, CancellationToken ct)
+    private sealed class Lane
     {
-        await _channel.Writer.WriteAsync(op, ct);
-        return await op.Completion.Task;
-    }
-
-    public async Task ProcessAsync(CancellationToken ct)
-    {
-        var batch = new List<WriteOperation>();
-
-        while (await _channel.Reader.WaitToReadAsync(ct))
-        {
-            batch.Clear();
-            while (_channel.Reader.TryRead(out var op))
-                batch.Add(op);
-
-            if (batch.Count == 0) continue;
-            await ExecuteBatch(batch);
-        }
+        public readonly SemaphoreSlim Gate = new SemaphoreSlim(1, 1);
+        public int Pending;
     }
 }
 ```
@@ -196,7 +204,7 @@ public class WriteQueue
 
 ## Configuration Loading
 
-Configuration is loaded at startup using a custom `ConfigLoader` that reads YAML via YamlDotNet and binds to `AppConfig` / `AccessConfig` POCOs.
+Configuration is loaded at startup using a custom `OptionsLoader` that reads YAML via YamlDotNet and binds to `*Options` POCOs (`ServerOptions`, `AccessOptions`, `WorkbookOptions`, and the rest under `Options/`).
 
 ASP.NET's built-in `appsettings.json` is not used for application configuration. The application uses `config.yaml` and `access.yaml` exclusively.
 
@@ -215,11 +223,11 @@ Use `Microsoft.Extensions.Logging` (`ILogger<T>`). Structured JSON output via a 
 All log messages are in English. Do not log sensitive data.
 
 ```csharp
-public class WorkbookService(ILogger<WorkbookService> logger, AppConfig config)
+public class ExcelService(ILogger<ExcelService> logger, WorkbookOptions options)
 {
-    public void LoadWorkbook(string fileId)
+    public void LoadWorkbook(string filePath)
     {
-        logger.LogInformation("Loading workbook: {FileId}", fileId);
+        logger.LogInformation("Loading workbook: {FilePath}", filePath);
     }
 }
 ```
@@ -230,12 +238,11 @@ public class WorkbookService(ILogger<WorkbookService> logger, AppConfig config)
 
 `Program.cs` registers services and middleware in order:
 
-- Load and validate `config.yaml` and `access.yaml`.
-- Register services in DI container.
-- Configure authentication middleware.
-- Map route groups (workbooks, records, cells, operations, health).
-- Start `QueueHostedService` (one per workbook).
-- Pre-load workbook cache.
+- Load and validate `config.yaml` and `access.yaml` through `OptionsLoader`.
+- Configure the Kestrel listener (TLS when `server.tls.enabled`), JSON logging, CORS, and rate limiting.
+- Construct the service instances (`ExcelService`, `FileLockService`, `WriteQueueService`, `AuthService`, `JwtService`, `MetricsCollector`) and register JSON formatting.
+- Attach `AuthMiddleware` and map route groups per resource (`Map*Endpoints` extension methods receiving their dependencies explicitly).
+- Run the application.
 
 **Graceful Shutdown**
 
@@ -304,19 +311,20 @@ Common commands:
 **Test Style**: Use `[TestMethod]` for single assertions, `[DataTestMethod]` with `[DataRow]` for parameterized tests. Use `TestInitialize`/`TestCleanup` attributes for setup and teardown.
 
 ```csharp
-public class WriteQueueTests
+[TestClass]
+public class WriteQueueServiceTests
 {
-    [Fact]
-    public async Task EnqueueAsync_BatchesOperationsWithinDebounceWindow()
+    [TestMethod]
+    public async Task SubmitAsync_SerializesWritesPerWorkbook()
     {
         // Arrange, Act, Assert
     }
 
-    [Theory]
-    [InlineData(0)]
-    [InlineData(50)]
-    [InlineData(1000)]
-    public async Task EnqueueAsync_RespectsMaxBatchSize(int batchSize)
+    [DataTestMethod]
+    [DataRow(0)]
+    [DataRow(50)]
+    [DataRow(1000)]
+    public async Task SubmitAsync_RespectsMaxBatchSize(int batchSize)
     {
         // ...
     }

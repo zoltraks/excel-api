@@ -1,4 +1,4 @@
-using BigBytes.ExcelApi.Excel;
+using BigBytes.ExcelApi.Options;
 using BigBytes.ExcelApi.Services;
 using Microsoft.AspNetCore.Routing;
 
@@ -6,7 +6,7 @@ namespace BigBytes.ExcelApi.Endpoints;
 
 public static class WorkbookEndpoints
 {
-    public static void MapWorkbookEndpoints(this IEndpointRouteBuilder app, WorkbookConfig workbookConfig, ExcelService excelService, FileLockService fileLockService, WriteQueueService writeQueueService)
+    public static void MapWorkbookEndpoints(this IEndpointRouteBuilder app, WorkbookOptions workbookConfig, ExcelService excelService, FileLockService fileLockService, WriteQueueService writeQueueService)
     {
         app.MapGet("/workbooks", () =>
         {

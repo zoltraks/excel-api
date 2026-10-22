@@ -1,5 +1,5 @@
 using System.Text.Json;
-using BigBytes.ExcelApi.Auth;
+using BigBytes.ExcelApi.Security;
 
 namespace BigBytes.ExcelApi.Endpoints;
 

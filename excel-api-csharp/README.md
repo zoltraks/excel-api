@@ -108,7 +108,7 @@ IMAGE=excel-api-csharp docker compose up
 ### Unit Tests
 
 ```bash
-cd src/ExcelApi.Test
+cd tests/ExcelApi.Tests
 dotnet test
 ```
 

@@ -217,6 +217,7 @@ requirements this supports.
 - Preserve existing style and conventions.
 - Prefer minimal, safe changes.
 - Keep components decoupled. Each implementation must be independently buildable and deployable.
+- Stack-idiomatic layout: each implementation follows its ecosystem's source-layout and naming conventions (Java singular packages, C# plural role folders with `Options`/`Contracts`/`Security`). Parity across implementations lives in behavior and contract vocabulary (config keys, endpoint groups, error codes, log fields), not in file or folder names.
 
 ## File Maintenance
 

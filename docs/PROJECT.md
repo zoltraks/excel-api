@@ -533,7 +533,7 @@ Each implementation uses its language-standard testing framework with project-sp
 
 **C#** (`excel-api-csharp/`)
 - Framework: MSTest
-- Test location: `src/ExcelApi.Test/` (test project alongside main project in src directory)
+- Test location: `tests/ExcelApi.Tests/` (mirrored test project, separate from `src/`)
 - Command: `dotnet test ExcelApi.sln`
 - Coverage target: ≥ 80%
 - Test project references main project via ProjectReference in solution

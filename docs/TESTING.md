@@ -52,7 +52,7 @@ early and clearly when an older or absent runtime is picked up.
 
 - Node: `npm test -- --run`
 - Java: `mvn test`
-- C#: `dotnet test`
+- C#: `dotnet test` — the test host needs the target-framework runtime; when only a newer SDK/runtime is installed, prefix `DOTNET_ROLL_FORWARD=LatestMajor`
 - Go: `go test ./...`
 - Integration: `IMAGE=<implementation> docker compose -f docker-compose.test.yaml up --abort-on-container-exit`
 

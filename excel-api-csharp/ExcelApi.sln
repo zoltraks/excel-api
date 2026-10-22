@@ -4,7 +4,7 @@ VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExcelApi", "src\ExcelApi\ExcelApi.csproj", "{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExcelApi.Test", "src\ExcelApi.Test\ExcelApi.Test.csproj", "{1851D0FF-B9F2-4A0F-91E8-8376387326ED}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExcelApi.Tests", "tests\ExcelApi.Tests\ExcelApi.Tests.csproj", "{1851D0FF-B9F2-4A0F-91E8-8376387326ED}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

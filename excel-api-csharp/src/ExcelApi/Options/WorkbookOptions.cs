@@ -1,0 +1,40 @@
+namespace BigBytes.ExcelApi.Options;
+
+public class WorkbookOptions
+{
+    public string Directory { get; set; } = "";
+    public List<WorkbookEntry> Workbooks { get; set; } = new List<WorkbookEntry>();
+    public Dictionary<string, WorkbookProfile> Profiles { get; set; } = new Dictionary<string, WorkbookProfile>();
+    public LifecycleConfig? Lifecycle { get; set; }
+}
+
+public class LifecycleConfig
+{
+    public string? Life { get; set; }
+}
+
+public class WorkbookEntry
+{
+    public string Id { get; set; } = "";
+    public string Path { get; set; } = "";
+    public bool Readonly { get; set; }
+    public Dictionary<string, SheetHeaderConfig> Sheets { get; set; } = new Dictionary<string, SheetHeaderConfig>();
+
+    public SheetHeaderConfig? GetSheetConfig(string sheetName)
+        => Sheets.TryGetValue(sheetName, out var config) ? config : null;
+}
+
+public class WorkbookProfile
+{
+    public List<WorkbookEntry> Entries { get; set; } = new List<WorkbookEntry>();
+}
+
+public class SheetHeaderConfig
+{
+    public string Mode { get; set; } = "single"; // "single", "multi", "legend", "none"
+    public int? IdentifierRow { get; set; }
+    public int? TypeRow { get; set; }
+    public int? DescriptionRow { get; set; }
+    public string LegendSheet { get; set; } = "";
+}
+

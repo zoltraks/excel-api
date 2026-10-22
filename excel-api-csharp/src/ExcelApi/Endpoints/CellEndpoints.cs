@@ -1,13 +1,14 @@
-using BigBytes.ExcelApi.Dto;
-using BigBytes.ExcelApi.Excel;
+using BigBytes.ExcelApi.Contracts;
+using BigBytes.ExcelApi.Options;
 using BigBytes.ExcelApi.Services;
 using Microsoft.AspNetCore.Routing;
+using System.Text.Json;
 
 namespace BigBytes.ExcelApi.Endpoints;
 
 public static class CellEndpoints
 {
-    public static void MapCellEndpoints(this IEndpointRouteBuilder app, WorkbookConfig workbookConfig, ExcelService excelService, FileLockService fileLockService, WriteQueueService writeQueueService)
+    public static void MapCellEndpoints(this IEndpointRouteBuilder app, WorkbookOptions workbookConfig, ExcelService excelService, FileLockService fileLockService, WriteQueueService writeQueueService)
     {
         app.MapGet("/workbooks/{id}/sheets/{sheetName}/cells/{cellRef}", (string id, string sheetName, string cellRef, string format = "native") =>
         {

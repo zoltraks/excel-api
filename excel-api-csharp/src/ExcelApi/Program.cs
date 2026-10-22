@@ -3,13 +3,12 @@
 using System;
 using System.IO;
 using System.Threading;
-using BigBytes.ExcelApi.Auth;
-using BigBytes.ExcelApi.Config;
+using BigBytes.ExcelApi.Security;
+using BigBytes.ExcelApi.Options;
 using BigBytes.ExcelApi.Endpoints;
-using BigBytes.ExcelApi.Excel;
 using BigBytes.ExcelApi.Logging;
+using BigBytes.ExcelApi.Metrics;
 using BigBytes.ExcelApi.Services;
-using BigBytes.ExcelApi.Util;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.RateLimiting;
@@ -21,8 +20,8 @@ var configArgs = ParseConfigArgs(args);
 var workDir = configArgs.WorkDir ?? Environment.GetEnvironmentVariable("WORK");
 var configPath = configArgs.ConfigPath ?? Environment.GetEnvironmentVariable("CONFIG");
 var accessPath = configArgs.AccessPath ?? Environment.GetEnvironmentVariable("ACCESS");
-var serverConfig = ConfigLoader.LoadServerConfig(workDir, configPath);
-var rateLimitConfig = ConfigLoader.LoadRateLimitConfig(workDir, configPath);
+var serverConfig = OptionsLoader.LoadServerConfig(workDir, configPath);
+var rateLimitConfig = OptionsLoader.LoadRateLimitConfig(workDir, configPath);
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -129,7 +128,7 @@ if (rateLimitConfig.Enabled)
 var app = builder.Build();
 
 // Initialize file logger from logging.file config (env override for path only)
-var loggingConfig = ConfigLoader.LoadLoggingConfig(workDir, configPath);
+var loggingConfig = OptionsLoader.LoadLoggingConfig(workDir, configPath);
 RotatingFileLogger? fileLogger = null;
 if (loggingConfig.File?.Enabled == true && !string.IsNullOrEmpty(loggingConfig.File.Path))
 {
@@ -185,13 +184,13 @@ if (configArgs.Life != null)
     Environment.SetEnvironmentVariable("LIFE", configArgs.Life);
 }
 
-var workbookConfig = ConfigLoader.LoadConfig<WorkbookConfig>(workDir, configPath, false);
-var accessConfig = ConfigLoader.LoadConfig<AccessConfig>(workDir, accessPath, true);
-var queueConfig = ConfigLoader.LoadQueueConfig(workDir, configPath);
+var workbookConfig = OptionsLoader.LoadConfig<WorkbookOptions>(workDir, configPath, false);
+var accessConfig = OptionsLoader.LoadConfig<AccessOptions>(workDir, accessPath, true);
+var queueConfig = OptionsLoader.LoadQueueConfig(workDir, configPath);
 var fileLockService = new FileLockService(queueConfig.LockDir, queueConfig.LockTimeoutMs);
 var writeQueueService = new WriteQueueService(queueConfig.BatchMaxSize);
 var metricsCollector = new MetricsCollector();
-var authConfig = ConfigLoader.LoadAuthConfig(workDir, configPath);
+var authConfig = OptionsLoader.LoadAuthConfig(workDir, configPath);
 var basePath = serverConfig.BasePath.TrimEnd('/');
 
 var jwtService = new JwtService(accessConfig.Jwt.Secret, authConfig.Jwt.Issuer, authConfig.Jwt.ExpirationMinutes);

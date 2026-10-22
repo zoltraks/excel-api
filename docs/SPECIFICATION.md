@@ -126,20 +126,21 @@ excel-api-java/
 excel-api-csharp/
   src/ExcelApi/
     Program.cs                 # Bootstrap only: DI registration, middleware, endpoint groups, run
-    Auth/                      # JwtService, AuthService, auth middleware
-    Config/                    # Configuration loading, YAML deserialization (ServerConfig, QueueConfig, ...)
-    Dto/                       # Request and response model classes
+    Options/                   # Bound settings (*Options), OptionsLoader, OptionsPathResolver, DurationParser
+    Security/                  # JwtService, AuthService, auth middleware
+    Contracts/                 # Request and response model classes
     Endpoints/                 # Extension methods registering endpoint groups per resource, shared ErrorMapping
-    Excel/                     # ClosedXML wrapper: WorkbookConfig, SheetLayout
+    Metrics/                   # MetricsCollector
     Logging/                   # JSON console formatter, RotatingFileLogger
-    Services/                  # Business logic: ExcelService, FileLockService, MetricsCollector, WriteQueueService
-    Util/                      # DurationParser
+    Services/                  # Business logic: ExcelService, FileLockService, WriteQueueService, SheetLayout
     Resources/
       openapi.yaml             # Contract copy, embedded resource
     ExcelApi.csproj            # Project file with R2R config
+  tests/ExcelApi.Tests/        # MSTest project mirroring the src folder structure
   config/
     config.example.yaml        # Example configuration
     access.example.yaml        # Example sensitive configuration
+    appsettings.example.json   # Example ASP.NET settings (kept out of publishable content globs)
   ExcelApi.sln
   Dockerfile
   README.md

@@ -1,3 +1,4 @@
+using BigBytes.ExcelApi.Metrics;
 using BigBytes.ExcelApi.Services;
 using Microsoft.AspNetCore.Routing;
 

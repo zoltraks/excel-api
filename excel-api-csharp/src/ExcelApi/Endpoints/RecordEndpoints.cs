@@ -1,5 +1,5 @@
-using BigBytes.ExcelApi.Dto;
-using BigBytes.ExcelApi.Excel;
+using BigBytes.ExcelApi.Contracts;
+using BigBytes.ExcelApi.Options;
 using BigBytes.ExcelApi.Services;
 using Microsoft.AspNetCore.Routing;
 
@@ -7,7 +7,7 @@ namespace BigBytes.ExcelApi.Endpoints;
 
 public static class RecordEndpoints
 {
-    public static void MapRecordEndpoints(this IEndpointRouteBuilder app, WorkbookConfig workbookConfig, ExcelService excelService, FileLockService fileLockService, WriteQueueService writeQueueService)
+    public static void MapRecordEndpoints(this IEndpointRouteBuilder app, WorkbookOptions workbookConfig, ExcelService excelService, FileLockService fileLockService, WriteQueueService writeQueueService)
     {
         app.MapGet("/workbooks/{id}/sheets/{sheetName}/records", (string id, string sheetName, int offset = 0, int limit = 100, string format = "native") =>
         {

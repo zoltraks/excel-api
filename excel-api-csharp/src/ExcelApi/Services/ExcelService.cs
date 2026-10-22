@@ -1,5 +1,5 @@
+using BigBytes.ExcelApi.Options;
 using ClosedXML.Excel;
-using BigBytes.ExcelApi.Excel;
 
 namespace BigBytes.ExcelApi.Services;
 
@@ -163,7 +163,7 @@ public class ExcelService
 
         return new CellData
         {
-            Ref = cell.Address.ToString(),
+            Ref = cell.Address.ToString() ?? "",
             Column = cell.Address.ColumnLetter,
             Row = cell.Address.RowNumber,
             Value = value,
