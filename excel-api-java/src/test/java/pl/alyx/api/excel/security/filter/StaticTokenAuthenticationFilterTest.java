@@ -1,4 +1,4 @@
-package pl.alyx.api.excel.security;
+package pl.alyx.api.excel.security.filter;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.http.HttpServletRequest;

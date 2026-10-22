@@ -1,4 +1,4 @@
-package pl.alyx.api.excel.config;
+package pl.alyx.api.excel.security;
 
 import org.springframework.boot.web.server.Ssl;
 import org.springframework.boot.web.server.WebServerFactoryCustomizer;

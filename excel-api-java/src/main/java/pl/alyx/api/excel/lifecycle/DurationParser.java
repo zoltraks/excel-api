@@ -1,4 +1,4 @@
-package pl.alyx.api.excel.util;
+package pl.alyx.api.excel.lifecycle;
 
 import java.time.Duration;
 import java.util.regex.Matcher;

@@ -1,4 +1,4 @@
-package pl.alyx.api.excel.util;
+package pl.alyx.api.excel.lifecycle;
 
 import org.junit.jupiter.api.Test;
 import java.time.Duration;

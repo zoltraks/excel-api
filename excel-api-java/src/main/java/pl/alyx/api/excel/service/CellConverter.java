@@ -1,4 +1,4 @@
-package pl.alyx.api.excel.service.support;
+package pl.alyx.api.excel.service;
 
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellType;

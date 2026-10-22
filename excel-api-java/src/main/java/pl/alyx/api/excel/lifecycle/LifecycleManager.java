@@ -7,7 +7,6 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationListener;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;
-import pl.alyx.api.excel.util.DurationParser;
 
 import java.time.Duration;
 import java.util.concurrent.Executors;

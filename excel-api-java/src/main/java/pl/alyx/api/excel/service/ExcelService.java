@@ -17,7 +17,6 @@ import pl.alyx.api.excel.exception.SheetNotConfiguredException;
 import pl.alyx.api.excel.exception.SheetNotFoundException;
 import pl.alyx.api.excel.exception.ValidationException;
 
-import pl.alyx.api.excel.service.support.CellConverter;
 
 import java.io.FileInputStream;
 import java.io.FileOutputStream;

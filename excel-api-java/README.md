@@ -33,7 +33,7 @@ mvn clean install
 mvn spring-boot:run
 ```
 
-The server will start on `http://localhost:8443/api/v1` (configurable via application.properties).
+The server will start on `http://localhost:8443/api/v1` (configurable via `src/main/resources/application.yaml`).
 
 ### Production Mode
 

@@ -54,7 +54,7 @@ public class MetricsCollector {
                     "excel_api_http_request_duration_ms_bucket{%sle=\"+Inf\"} %d%n",
                     labels.isEmpty() ? "" : labels + ",", histogram.count.get()));
             sb.append(String.format(
-                    "excel_api_http_request_duration_ms_sum%s %.3f%n", labels, histogram.sum.get()));
+                    "excel_api_http_request_duration_ms_sum%s %.3f%n", labels, histogram.sum.sum()));
             sb.append(String.format(
                     "excel_api_http_request_duration_ms_count%s %d%n", labels, histogram.count.get()));
         });

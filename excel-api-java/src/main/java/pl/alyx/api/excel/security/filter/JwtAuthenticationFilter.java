@@ -1,4 +1,4 @@
-package pl.alyx.api.excel.security;
+package pl.alyx.api.excel.security.filter;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -9,6 +9,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+import pl.alyx.api.excel.security.JwtUtil;
 
 import java.io.IOException;
 import java.util.List;

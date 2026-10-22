@@ -115,7 +115,14 @@ public class RecordController {
         return writeQueueService.submit(id, () -> {
             fileLockService.acquire(id);
             try {
-                RecordItem record = excelService.addRecord(entry.getPath(), sheetName, data, entry.getSheets().get(sheetName), afterRow, copyStyleFrom);
+                RecordItem record = excelService.addRecord(
+                    entry.getPath(),
+                    sheetName,
+                    data,
+                    entry.getSheets().get(sheetName),
+                    afterRow,
+                    copyStyleFrom
+                );
                 return ResponseEntity.status(STATUS_CREATED).body(record);
             } finally {
                 fileLockService.release(id);
@@ -148,7 +155,13 @@ public class RecordController {
         return writeQueueService.submit(id, () -> {
             fileLockService.acquire(id);
             try {
-                RecordItem record = excelService.updateRecord(entry.getPath(), sheetName, recordIndex, data, entry.getSheets().get(sheetName));
+                RecordItem record = excelService.updateRecord(
+                    entry.getPath(),
+                    sheetName,
+                    recordIndex,
+                    data,
+                    entry.getSheets().get(sheetName)
+                );
                 return ResponseEntity.ok(record);
             } finally {
                 fileLockService.release(id);

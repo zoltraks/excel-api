@@ -1,4 +1,4 @@
-package pl.alyx.api.excel.security;
+package pl.alyx.api.excel.security.filter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;
@@ -26,6 +26,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private static final int STATUS_TOO_MANY_REQUESTS = 429;
     private static final long WINDOW_MS = 60_000L;
     private static final String TOKEN_PATH_SUFFIX = "/auth/token";
+    private static final int DEFAULT_REQUESTS_PER_MINUTE = 600;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final Map<String, Window> tokenBuckets = new ConcurrentHashMap<>();
@@ -43,7 +44,8 @@ public class RateLimitFilter extends OncePerRequestFilter {
                 : Map.of();
         this.enabled = !Boolean.FALSE.equals(rateLimit.get("enabled"));
         this.tokenPerMinute = intValue(rateLimit.get("token_per_minute"), 20);
-        this.requestsPerMinute = intValue(rateLimit.get("requests_per_minute"), 600);
+        this.requestsPerMinute = intValue(
+                rateLimit.get("requests_per_minute"), DEFAULT_REQUESTS_PER_MINUTE);
     }
 
     private static int intValue(final Object value, final int fallback) {

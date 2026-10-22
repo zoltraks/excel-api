@@ -1,10 +1,9 @@
-package pl.alyx.api.excel.controller.advice;
+package pl.alyx.api.excel.exception;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-import pl.alyx.api.excel.exception.ApiException;
 
 import java.util.Map;
 

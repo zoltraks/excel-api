@@ -1,4 +1,4 @@
-package pl.alyx.api.excel.config;
+package pl.alyx.api.excel.security;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

@@ -1,4 +1,4 @@
-package pl.alyx.api.excel.config;
+package pl.alyx.api.excel.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletResponse;
@@ -11,10 +11,10 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import pl.alyx.api.excel.metrics.MetricsFilter;
-import pl.alyx.api.excel.security.AclAuthorizationFilter;
-import pl.alyx.api.excel.security.JwtAuthenticationFilter;
-import pl.alyx.api.excel.security.RateLimitFilter;
-import pl.alyx.api.excel.security.StaticTokenAuthenticationFilter;
+import pl.alyx.api.excel.security.filter.AclAuthorizationFilter;
+import pl.alyx.api.excel.security.filter.JwtAuthenticationFilter;
+import pl.alyx.api.excel.security.filter.RateLimitFilter;
+import pl.alyx.api.excel.security.filter.StaticTokenAuthenticationFilter;
 
 import java.util.Map;
 

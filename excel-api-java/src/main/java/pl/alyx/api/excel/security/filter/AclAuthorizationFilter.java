@@ -1,4 +1,4 @@
-package pl.alyx.api.excel.security;
+package pl.alyx.api.excel.security.filter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;

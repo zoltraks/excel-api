@@ -72,24 +72,24 @@ excel-api-java/
   src/main/
     java/pl/alyx/api/excel/
       Application.java          # Spring Boot entry point
-      config/                   # Configuration loaders, typed config objects, TLS/CORS wiring
+      config/                   # Settings models and file loaders (config.yaml, access.yaml)
       controller/               # REST controllers
-        advice/                 # GlobalExceptionHandler (@RestControllerAdvice)
       dto/                      # Request and response models
-      exception/                # Domain exception classes
-      security/                 # JWT, static-token, ACL, and rate-limit filters
-      service/                  # Business logic: ExcelService (Apache POI), SheetLayout, FileLockService, WriteQueueService
-        support/                # Shared helpers: cell value conversion
+      exception/                # Domain exception classes and GlobalExceptionHandler (@RestControllerAdvice)
+      security/                 # Web and security wiring (SecurityFilterChain, CORS, TLS), JwtUtil
+        filter/                 # JWT, static-token, ACL, and rate-limit servlet filters
+      service/                  # Business logic: ExcelService (Apache POI), SheetLayout, CellConverter, FileLockService, WriteQueueService
       metrics/                  # Prometheus collector and servlet filter
       logging/                  # JsonLayout (JSON log format)
-      lifecycle/                # LifecycleManager (--life graceful shutdown)
-      util/                     # DurationParser
+      lifecycle/                # LifecycleManager (--life graceful shutdown), DurationParser
     resources/
       openapi.yaml              # Contract copy, on classpath
       application.yaml          # Spring Boot config (port, profiles)
+      logback-spring.xml        # Logback configuration
   config/
     config.example.yaml         # Example configuration
     access.example.yaml         # Example sensitive configuration
+    application.example.properties # Example Spring Boot overrides
   pom.xml
   Dockerfile
   README.md
