@@ -1,5 +1,17 @@
 # Changes
 
+## Version 0.0.4
+
+Governance and conformance release: documented development rules consolidated, engineering standards fed from the standard library, and one test fix on modern JDKs.
+
+- **Autonomous SDLC**: `docs/WORKFLOW.md` documents the six-stage routine - window scope, clean-build gate, three-phase refactoring, production-ready gate, review, and synchronized version bump - with routine gates auto-resolving and commits staying user-reserved
+- **Parity rules**: change requests cover all applicable implementations by default, features are not complete until present in all supported implementations, and version numbers stay synchronized across components and the contract; future-version segments are supported for explicit planning
+- **Standards set**: `docs/standard/` files renamed to library-paired names (`typescript-fastify`, `java-spring`, `csharp-aspnet`, `go-cli`), enriched from the engineering-standard library, and extended with `docker-general`, `openapi-general`, and `bash-inline` standards
+- **Documentation conformance**: `docs/STYLE.md` extracted as the style owner; `AGENTS.md`, `docs/README.md`, and `excel-api-test/README.md` added; execution policy and community posture recorded; missing implementation plans backfilled; `docs/refactoring/0.0.3/JAVA_ASSESSMENT.md` completed
+- **Testing**: Java `LifecycleManagerTest` no longer relies on subclass-mocking `ApplicationReadyEvent` and passes on JDK 21+ toolchains
+- **Security**: non-breaking `npm audit` remediations applied to `excel-api-node`; `access.yaml` files carry `0600`; residual breaking-upgrade findings are tracked for the next window
+- **Hygiene**: stray `locks/` and `.DS_Store` artifacts removed; `locks/` is gitignored
+
 ## Version 0.0.3
 
 Full audit-remediation release: hardened authentication, transport security, and rate limiting; interoperable file locking and batched write queues; configurable sheet header modes; contract-conformant responses and request validation across all three servers.

@@ -36,6 +36,10 @@ Examples:
 - **Implementation details**: `docs/SPECIFICATION.md`.
 - **OpenAPI specification**: `docs/contract/openapi.yaml`.
 - **Copyright and licensing**: `docs/COPYRIGHTS.md`.
+- **Documentation style**: `docs/STYLE.md`.
+- **Documentation index**: `docs/README.md` - navigation index of the documentation set.
+- **Agent entry**: `AGENTS.md` - thin router to this file.
+- **Decision records**: `docs/decisions/` - empty until the first decision lands (N/A).
 - **Workflow**: `docs/WORKFLOW.md`. It owns the change cycle covering `docs/change/<version>/`, `docs/plan/<version>/`, `docs/refactoring/<version>/`, `docs/report/`, and `docs/archive/`.
 - **Refactoring process**: `docs/REFACTORING.md`.
 - **Testing strategy**: `docs/TESTING.md`.
@@ -74,6 +78,25 @@ The separation exists because this is a multi-language project with independent 
 - For any implementation task, consult the corresponding standard in `docs/standard/` before writing code.
 - Ask for clarification when requirements are missing or ambiguous.
 - **Documentation Awareness**: Maintain full awareness of all guideline files and their specialized purposes. If any file is added, removed, or its purpose changes, update this file accordingly.
+
+## Execution Policy
+
+The project runs in human-in-the-loop mode.
+The implementation plan is confirmed by the user before code is written.
+
+Reserved decisions stay with the user in every mode:
+
+- Commits - never made automatically.
+- Release baseline - which tree state ships.
+- Version bump - only on explicit request or inside the autonomous SDLC routine.
+
+The autonomous SDLC routine in `docs/WORKFLOW.md` is the one sanctioned exception:
+naming the routine delegates the routine's own gates, including the closing version bump.
+
+## Community Posture
+
+The project is not open to public contribution.
+`CONTRIBUTING.md` and `SECURITY.md` are intentionally omitted - their absence is a decision, not a gap.
 
 ## Applying the change
 
@@ -131,51 +154,8 @@ These rules apply to every change made in this project. Follow them in order —
 
 When the user says "memorize" or "remember", update the most relevant file in `docs/` with the new rule. If no specialized file is appropriate, update this file.
 
-## Documentation Guidelines
+Documentation style rules live in `docs/STYLE.md`.
 
-**Documentation Style**
-
-- Write short sentences.
-- Use explicit line breaks.
-- One idea per paragraph. Do not group unrelated thoughts in the same paragraph.
-- **Blank Lines**: Never put more than one blank line between any sections or blocks. Avoid using two or more consecutive blank lines.
-- **Language Consistency**: Always preserve the language of the document being modified.
-- **Lists**: Prefer bullet points (`-`) over numbering. Avoid numbering unless the order is strictly required for technical correctness. Always put exactly one blank line before starting a list.
-- **Procedures**: Do not use numbered lists for complex procedures with code blocks. Instead: end the introductory sentence with a dot. Use a bold heading for each step on its own line. Put exactly one empty line before the step description or code. Put exactly one empty line after the step content.
-- Use standard ASCII characters.
-- Keep section names short. Do not put qualifiers in section names using parentheses.
-- **Heading Format**: For H3-level subsections, use bold text on its own line instead of `###` syntax.
-- **Flattened Structure**: Use H2 for all major sections under the main H1. Avoid deeply nested hierarchies. Stick to the existing heading levels of the document being modified.
-- **Horizontal Dividers**: Do not use `---` anywhere in documents. Separate sections using headings only.
-- **Headings**: Avoid using colons in headings.
-
-**Markdown Tables**
-
-- Keep them readable as plain text.
-- **Proactive Formatting**: When editing any document in markdown format, check and fix markdown table alignment and documentation style compliance — even for tables not directly edited.
-- **Cell descriptions**: Use short, telegraphic noun phrases. Never start with "A", "An", or "The". Avoid full sentences.
-- **Minimal width**: Use the minimum column width that satisfies all constraints. Do not pad columns wider than necessary.
-- **Pipes**: All vertical pipes `|` must be vertically aligned.
-- **Separator row**: Use exactly `W` dashes where `W` is the maximum character width of all items in that column including the header.
-- **Padding**: Use exactly one space on the left (`| `) and at least one space on the right (` |`).
-- Content must be aligned left. Do not use `:---` or `---:`.
-- **Visual Indicators**: Use `✓` for affirmative/available features and `✗` for negative/unavailable features.
-
-**Formatting Rules**
-
-- Put code, commands, file names, and paths in backticks.
-- **Code Blocks**: Always use three backticks for code blocks. No indentation: starts at the very beginning of the line. Mandatory spacing: exactly one blank line before and after the block.
-
-**API Design Documentation**
-
-- **Endpoint Structure**: Group endpoints by resource.
-- **Table Format**: Use tables to list paths and methods.
-- **Parameter Tables**: Use tables with `Name`, `Type`, `Required`, and `Description`.
-- **Error Consistency**: Document standard error envelopes using JSON blocks and error code tables. Error description strings must be short.
-
-**CHANGELOG Maintenance**
-
-- For version bumping rules and CHANGELOG format, see `docs/VERSIONING.md`.
 
 ## Naming Conventions
 

@@ -27,3 +27,6 @@ Thumbs.db
 
 # Code workspace
 *.code-workspace
+
+# Stray runtime lock directory
+locks/

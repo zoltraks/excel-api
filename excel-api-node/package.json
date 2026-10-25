@@ -1,6 +1,6 @@
 {
   "name": "excel-api-node",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Excel API \u2014 Node.js/TypeScript implementation",
   "type": "module",
   "private": true,
