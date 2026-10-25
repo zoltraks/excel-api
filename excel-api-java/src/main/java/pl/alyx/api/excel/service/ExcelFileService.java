@@ -533,7 +533,10 @@ public class ExcelFileService {
                 ? firstDataRowPoi + afterRow
                 : sheet.getLastRowNum() + 1;
         if (afterRow != null && newRowNumber <= sheet.getLastRowNum()) {
+            final Map<Integer, Map<Integer, String>> formulas = snapshotFormulas(
+                    sheet, newRowNumber, sheet.getLastRowNum());
             sheet.shiftRows(newRowNumber, sheet.getLastRowNum(), 1);
+            restoreFormulas(sheet, formulas, 1);
         }
         final Row newRow = sheet.createRow(newRowNumber);
 
@@ -599,8 +602,14 @@ public class ExcelFileService {
         if (row == null) {
             throw new RowNotFoundException(recordIndex);
         }
+        final int lastRow = sheet.getLastRowNum();
+        final Map<Integer, Map<Integer, String>> formulas =
+                snapshotFormulas(sheet, excelRowNumber + 1, lastRow);
         sheet.removeRow(row);
-        sheet.shiftRows(excelRowNumber + 1, sheet.getLastRowNum(), -1);
+        if (excelRowNumber + 1 <= lastRow) {
+            sheet.shiftRows(excelRowNumber + 1, lastRow, -1);
+            restoreFormulas(sheet, formulas, -1);
+        }
     }
 
     /**
@@ -687,6 +696,50 @@ public class ExcelFileService {
 
             try (FileOutputStream fos = new FileOutputStream(filePath)) {
                 workbook.write(fos);
+            }
+        }
+    }
+
+    /**
+     * Captures the formula strings of a row range before a row shift so the
+     * displaced formulas can be restored verbatim - POI's shiftRows rewrites
+     * references, but the contract preserves the stored formula text.
+     */
+    private static Map<Integer, Map<Integer, String>> snapshotFormulas(
+            final Sheet sheet, final int startRow, final int endRow) {
+        final Map<Integer, Map<Integer, String>> formulas = new HashMap<>();
+        for (int r = startRow; r <= endRow; r++) {
+            final Row row = sheet.getRow(r);
+            if (row == null) {
+                continue;
+            }
+            for (int c = 0; c < row.getLastCellNum(); c++) {
+                final Cell cell = row.getCell(c);
+                if (cell != null && cell.getCellType() == CellType.FORMULA) {
+                    formulas.computeIfAbsent(r, k -> new HashMap<>())
+                            .put(c, cell.getCellFormula());
+                }
+            }
+        }
+        return formulas;
+    }
+
+    /**
+     * Restores formula strings captured by snapshotFormulas onto rows shifted
+     * by delta.
+     */
+    private static void restoreFormulas(
+            final Sheet sheet, final Map<Integer, Map<Integer, String>> formulas, final int delta) {
+        for (final Map.Entry<Integer, Map<Integer, String>> entry : formulas.entrySet()) {
+            final Row row = sheet.getRow(entry.getKey() + delta);
+            if (row == null) {
+                continue;
+            }
+            for (final Map.Entry<Integer, String> cellEntry : entry.getValue().entrySet()) {
+                final Cell cell = row.getCell(cellEntry.getKey());
+                if (cell != null && cell.getCellType() == CellType.FORMULA) {
+                    cell.setCellFormula(cellEntry.getValue());
+                }
             }
         }
     }

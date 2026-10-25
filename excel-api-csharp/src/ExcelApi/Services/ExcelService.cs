@@ -21,12 +21,7 @@ public class ExcelService
     public CellData ReadCell(string filePath, string sheetName, string cellRef, string format)
     {
         using var workbook = new XLWorkbook(filePath);
-        var worksheet = workbook.Worksheet(sheetName);
-
-        if (worksheet == null)
-        {
-            throw new ArgumentException($"Sheet '{sheetName}' not found");
-        }
+        var worksheet = GetWorksheetOrThrow(workbook, sheetName);
 
         var cell = worksheet.Cell(cellRef);
         return ConvertCell(cell, format);
@@ -35,12 +30,7 @@ public class ExcelService
     public RangeData ReadRange(string filePath, string sheetName, string rangeRef, string format)
     {
         using var workbook = new XLWorkbook(filePath);
-        var worksheet = workbook.Worksheet(sheetName);
-
-        if (worksheet == null)
-        {
-            throw new ArgumentException($"Sheet '{sheetName}' not found");
-        }
+        var worksheet = GetWorksheetOrThrow(workbook, sheetName);
 
         var range = worksheet.Range(rangeRef);
         var rows = new List<RangeRow>();
@@ -65,12 +55,7 @@ public class ExcelService
     public RecordListResponse ReadRecords(string filePath, string sheetName, SheetHeaderConfig? sheetConfig, int offset, int limit, string format)
     {
         using var workbook = new XLWorkbook(filePath);
-        var worksheet = workbook.Worksheet(sheetName);
-
-        if (worksheet == null)
-        {
-            throw new ArgumentException($"Sheet '{sheetName}' not found");
-        }
+        var worksheet = GetWorksheetOrThrow(workbook, sheetName);
 
         var layout = SheetLayout.Resolve(sheetConfig);
         var headers = ResolveColumnIds(workbook, worksheet, layout);
@@ -117,12 +102,7 @@ public class ExcelService
     public RecordItem ReadRecord(string filePath, string sheetName, int recordIndex, SheetHeaderConfig? sheetConfig, string format)
     {
         using var workbook = new XLWorkbook(filePath);
-        var worksheet = workbook.Worksheet(sheetName);
-
-        if (worksheet == null)
-        {
-            throw new ArgumentException($"Sheet '{sheetName}' not found");
-        }
+        var worksheet = GetWorksheetOrThrow(workbook, sheetName);
 
         var layout = SheetLayout.Resolve(sheetConfig);
         var headers = ResolveColumnIds(workbook, worksheet, layout);
@@ -186,11 +166,6 @@ public class ExcelService
             case XLDataType.Text:
                 return cell.GetString();
             case XLDataType.Number:
-                if (cell.DataType == XLDataType.DateTime)
-                {
-                    var dateTime = cell.GetDateTime();
-                    return format == "string" ? dateTime.ToString("o") : dateTime;
-                }
                 return cell.GetDouble();
             case XLDataType.Boolean:
                 return cell.GetBoolean();
@@ -242,10 +217,9 @@ public class ExcelService
 
     private static IXLWorksheet GetWorksheetOrThrow(XLWorkbook workbook, string sheetName)
     {
-        var worksheet = workbook.Worksheet(sheetName);
-        if (worksheet == null)
+        if (!workbook.TryGetWorksheet(sheetName, out var worksheet) || worksheet == null)
         {
-            throw new ArgumentException($"Sheet '{sheetName}' not found");
+            throw new SheetNotFoundException(sheetName);
         }
         return worksheet;
     }
@@ -334,7 +308,7 @@ public class ExcelService
 
     private RecordItem ApplyAddRecord(
         IXLWorksheet worksheet,
-        Dictionary<string, object> data,
+        Dictionary<string, object?> data,
         SheetLayout layout,
         string?[] headers,
         int? afterRow,
@@ -375,7 +349,7 @@ public class ExcelService
         return new RecordItem { Index = newRowNumber - layout.FirstDataRow + 1, Data = data };
     }
 
-    private RecordItem ApplyUpdateRecord(IXLWorksheet worksheet, int recordIndex, Dictionary<string, object> data, SheetLayout layout, string?[] headers)
+    private RecordItem ApplyUpdateRecord(IXLWorksheet worksheet, int recordIndex, Dictionary<string, object?> data, SheetLayout layout, string?[] headers)
     {
         int excelRowNumber = layout.FirstDataRow + recordIndex - 1;
         if (recordIndex < 1 || worksheet.LastRowUsed() == null || excelRowNumber > worksheet.LastRowUsed().RowNumber())
@@ -413,7 +387,7 @@ public class ExcelService
         var worksheet = GetWorksheetOrThrow(workbook, sheetName);
 
         var layout = SheetLayout.Resolve(sheetConfig);
-        var record = ApplyAddRecord(worksheet, data, layout, ResolveColumnIds(workbook, worksheet, layout), afterRow, copyStyleFrom);
+        var record = ApplyAddRecord(worksheet, ToDataMap(data), layout, ResolveColumnIds(workbook, worksheet, layout), afterRow, copyStyleFrom);
 
         workbook.Save();
 
@@ -426,7 +400,7 @@ public class ExcelService
         var worksheet = GetWorksheetOrThrow(workbook, sheetName);
 
         var layout = SheetLayout.Resolve(sheetConfig);
-        var record = ApplyUpdateRecord(worksheet, recordIndex, data, layout, ResolveColumnIds(workbook, worksheet, layout));
+        var record = ApplyUpdateRecord(worksheet, recordIndex, ToDataMap(data), layout, ResolveColumnIds(workbook, worksheet, layout));
 
         workbook.Save();
 
@@ -583,9 +557,9 @@ public class ExcelService
         };
     }
 
-    private static Dictionary<string, object> ToDataMap(object? value)
+    private static Dictionary<string, object?> ToDataMap(object? value)
     {
-        var data = new Dictionary<string, object>();
+        var data = new Dictionary<string, object?>();
         switch (value)
         {
             case System.Text.Json.JsonElement je when je.ValueKind == System.Text.Json.JsonValueKind.Object:
@@ -628,12 +602,7 @@ public class ExcelService
     public SheetMetadata GetSheetMetadata(string filePath, string sheetName, SheetHeaderConfig? sheetConfig)
     {
         using var workbook = new XLWorkbook(filePath);
-        var worksheet = workbook.Worksheet(sheetName);
-
-        if (worksheet == null)
-        {
-            throw new ArgumentException($"Sheet '{sheetName}' not found");
-        }
+        var worksheet = GetWorksheetOrThrow(workbook, sheetName);
 
         int rowCount = worksheet.LastRowUsed()?.RowNumber() ?? 0;
         int columnCount = worksheet.LastColumnUsed()?.ColumnNumber() ?? 0;
@@ -653,12 +622,7 @@ public class ExcelService
     public ColumnDefinitionsResponse GetColumnDefinitions(string filePath, string sheetName, SheetHeaderConfig? sheetConfig)
     {
         using var workbook = new XLWorkbook(filePath);
-        var worksheet = workbook.Worksheet(sheetName);
-
-        if (worksheet == null)
-        {
-            throw new ArgumentException($"Sheet '{sheetName}' not found");
-        }
+        var worksheet = GetWorksheetOrThrow(workbook, sheetName);
 
         var layout = SheetLayout.Resolve(sheetConfig);
         var ids = ResolveColumnIds(workbook, worksheet, layout);
@@ -709,6 +673,10 @@ public class ExcelService
 
     private void SetCellValue(IXLCell cell, object? value)
     {
+        if (value is System.Text.Json.JsonElement je)
+        {
+            value = UnwrapJsonValue(je);
+        }
         if (value == null)
         {
             cell.Clear();
@@ -767,7 +735,7 @@ public class RangeRow
 public class RecordItem
 {
     public int Index { get; set; }
-    public Dictionary<string, object> Data { get; set; } = new Dictionary<string, object>();
+    public Dictionary<string, object?> Data { get; set; } = new Dictionary<string, object?>();
 }
 
 public class RecordListResponse

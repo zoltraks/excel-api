@@ -58,7 +58,7 @@ public class OperationsController {
             fileLockService.acquire(id);
             try {
                 return excelService.batchRecordOperations(
-                        entry.getPath(), sheetName, operations, entry.getSheets().get(sheetName));
+                        entry.getPath(), sheetName, operations, entry.getSheetConfig(sheetName));
             } finally {
                 fileLockService.release(id);
             }

@@ -202,7 +202,7 @@ Edit `docs/contract/openapi.yaml` with the new endpoint, request/response schema
 
 **Synchronize**
 
-Run `shell/sync-openapi.sh` to propagate the contract to all implementations.
+Run `shell/sync.sh` to propagate the contract to all implementations.
 
 **Update documentation**
 

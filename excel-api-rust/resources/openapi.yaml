@@ -1,8 +1,9 @@
+# GENERATED from docs/contract/openapi.yaml - do not edit
 openapi: "3.1.0"
 info:
   title: "Excel File API"
   description: "HTTP service exposing Excel spreadsheet data as a JSON API"
-  version: "0.0.6"
+  version: "0.0.7"
   contact:
     name: "Filip Golewski"
   license:
@@ -571,7 +572,7 @@ components:
 
     HealthResponse:
       type: object
-      required: ["status", "implementation", "version", "time", "timezone"]
+      required: ["status", "implementation", "version", "uptime", "time", "timezone"]
       properties:
         status:
           type: string

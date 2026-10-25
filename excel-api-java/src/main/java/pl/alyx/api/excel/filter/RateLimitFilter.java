@@ -1,6 +1,7 @@
 package pl.alyx.api.excel.filter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import pl.alyx.api.excel.utility.OrderedJson;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -14,6 +15,7 @@ import pl.alyx.api.excel.configuration.JacksonConfiguration;
 import com.fasterxml.jackson.databind.SerializationFeature;
 
 import java.io.IOException;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -47,7 +49,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
         final Object section = configuration.get("rate_limit");
         final Map<String, Object> rateLimit = section instanceof Map
                 ? (Map<String, Object>) section
-                : Map.of();
+                : new LinkedHashMap<>();
         this.enabled = !Boolean.FALSE.equals(rateLimit.get("enabled"));
         this.tokenPerMinute = intValue(rateLimit.get("token_per_minute"), 20);
         this.requestsPerMinute = intValue(
@@ -80,9 +82,10 @@ public class RateLimitFilter extends OncePerRequestFilter {
         if (!allowed) {
             response.setStatus(STATUS_TOO_MANY_REQUESTS);
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-            objectMapper.writeValue(response.getWriter(), Map.of(
+            objectMapper.writeValue(response.getWriter(), OrderedJson.body(
                     "error", "RATE_LIMITED",
-                    "message", "Rate limit exceeded"));
+                    "message", "Rate limit exceeded"
+                ));
             return;
         }
         filterChain.doFilter(request, response);

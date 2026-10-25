@@ -38,6 +38,9 @@ The **MAJOR number has no maximum limit** and can be incremented beyond 9:
 Version numbers stay synchronized - every component and the API specification carries the same `X.Y.Z` value at all times.
 No implementation carries a version ahead of the others.
 
+`docs/contract/openapi.yaml` `info.version` is the single authoritative version value.
+`shell/sync.sh` propagates it to every carrier below; those fields are generated output, never hand-edited.
+
 Each implementation has its own version storage:
 
 ### API Specification (`docs/contract/openapi.yaml`)
@@ -78,10 +81,11 @@ When bumping the version for any component:
 
 1. Calculate the new version number per the bumping rules above.
 2. **If no project is specified**, bump all implementations and the API specification to the same version number.
-3. Update the version in all component files listed under **Files to Update**.
-4. Rebuild the component so generated files are refreshed.
-5. Add a new entry to `CHANGELOG.md` at the repository root (see below).
-6. Update the **Current Version** section at the bottom of this file.
+3. Set `info.version` in `docs/contract/openapi.yaml` to the new version.
+4. Run `shell/sync.sh` - it propagates the contract to all `resources/openapi.yaml` copies and stamps the version into every carrier listed under **Files to Update**.
+5. Rebuild the components so generated artifacts are refreshed.
+6. Add a new entry to `CHANGELOG.md` at the repository root (see below).
+7. Update the **Current Version** section at the bottom of this file.
 
 ## Versioning Strategy
 
@@ -168,4 +172,4 @@ Use the sources below. Source code carries the highest weight.
 
 ## Current Version
 
-The current Excel API version is: **0.0.6**
+The current Excel API version is: **0.0.7**

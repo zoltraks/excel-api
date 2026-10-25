@@ -924,7 +924,7 @@ The following authoritative references support the rules in this document.
 
 - `docs/contract/openapi.yaml` is the canonical contract and the only copy
   that is edited.
-- `shell/sync-openapi.sh` propagates the contract to
+- `shell/sync.sh` propagates the contract to
   `excel-api-node/resources/openapi.yaml`,
   `excel-api-java/src/main/resources/openapi.yaml`, and
   `excel-api-csharp/src/ExcelApi/Resources/openapi.yaml`. The copies are never

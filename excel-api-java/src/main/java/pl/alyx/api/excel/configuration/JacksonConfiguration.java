@@ -5,6 +5,8 @@ import java.util.Map;
 import org.springframework.boot.autoconfigure.jackson.Jackson2ObjectMapperBuilderCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
 
 /**
  * Applies {@code server.json.pretty} from config.yaml to the shared Jackson
@@ -24,7 +26,14 @@ public class JacksonConfiguration {
     @Bean
     @SuppressWarnings("unchecked")
     public Jackson2ObjectMapperBuilderCustomizer jsonPrettyCustomizer(final AppConfiguration configuration) {
-        return builder -> builder.indentOutput(isPretty(configuration));
+        return builder -> {
+            if (!isPretty(configuration)) {
+                return;
+            }
+            builder.indentOutput(true);
+            builder.postConfigurer((ObjectMapper mapper) -> mapper
+                    .setDefaultPrettyPrinter(new CompactSeparatorPrinter()));
+        };
     }
 
     /**
@@ -33,6 +42,29 @@ public class JacksonConfiguration {
      * @param configuration the loaded application configuration
      * @return true when pretty output is enabled
      */
+    /**
+     * Pretty printer that emits the standard {@code "key": "value"} separator
+     * used by the other implementations.
+     */
+    private static final class CompactSeparatorPrinter extends DefaultPrettyPrinter {
+        private static final long serialVersionUID = 1L;
+
+        CompactSeparatorPrinter() {
+            super();
+            _objectFieldValueSeparatorWithSpaces = ": ";
+        }
+
+        CompactSeparatorPrinter(final DefaultPrettyPrinter base) {
+            super(base);
+            _objectFieldValueSeparatorWithSpaces = ": ";
+        }
+
+        @Override
+        public CompactSeparatorPrinter createInstance() {
+            return new CompactSeparatorPrinter(this);
+        }
+    }
+
     @SuppressWarnings("unchecked")
     public static boolean isPretty(final AppConfiguration configuration) {
         final Object serverSection = configuration.get("server");

@@ -548,7 +548,7 @@ single-quoted literals, or write the file with a single-quoted heredoc.
 
 ## Project Conventions
 
-- Repo scripts live in `shell/` - currently `sync-openapi.sh`, which must run
+- Repo scripts live in `shell/` - currently `sync.sh`, which must run
   through `bash`, never `sh`.
 - `work/` is the only scratch root for temporary artifacts; scripts write
   nowhere else.

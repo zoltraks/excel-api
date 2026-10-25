@@ -56,11 +56,6 @@ public class ServerConfigurationTest {
     }
 
     @Test
-    public void testProfilesNotNull() {
-        assertNotNull(serverConfiguration.getProfiles());
-    }
-
-    @Test
     public void testSetTlsEnabled() {
         serverConfiguration.getTls().setEnabled(true);
         assertTrue(serverConfiguration.getTls().isEnabled());

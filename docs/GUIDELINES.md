@@ -180,7 +180,7 @@ When asked to make a code change, always update `docs/ARCHITECTURE.md` or `docs/
 
 **OpenAPI Synchronization**
 
-After editing `docs/contract/openapi.yaml`, run `shell/sync-openapi.sh` to propagate the updated contract to all implementation directories. Verify the diff in each copy before committing.
+After editing `docs/contract/openapi.yaml`, run `shell/sync.sh` to propagate the updated contract to all implementation directories and stamp `info.version` into every version carrier. Verify the diff in each copy before committing.
 
 **AI-Provenance Convention**
 
@@ -223,6 +223,6 @@ requirements this supports.
 - **Refactoring Documents**: Do not read any document from `docs/refactoring/` unless specifically instructed by the user.
 - **New Session Rule**: If the model changes or a new session starts, re-read `README.md`, this file, and the active Sources of Truth before doing any work. Do not assume prior context.
 - **Audit Reports**: Audit reports are stored in `docs/report/audit/<version>/` where `<version>` is the audited project version. Do not read audit reports automatically. They are produced artifacts, not active documentation. Read them only when the user explicitly requests an audit-report review, comparison, or other direct use.
-- **OpenAPI Synchronization**: Only modify `docs/contract/openapi.yaml`. The copies in `excel-api-node/resources/openapi.yaml`, `excel-api-java/src/main/resources/openapi.yaml`, and `excel-api-csharp/src/ExcelApi/Resources/openapi.yaml` must be synced by running `bash shell/sync-openapi.sh`, not manually edited.
+- **OpenAPI Synchronization**: Only modify `docs/contract/openapi.yaml`. The copies in `excel-api-node/resources/openapi.yaml`, `excel-api-java/src/main/resources/openapi.yaml`, and `excel-api-csharp/src/ExcelApi/Resources/openapi.yaml` must be synced by running `bash shell/sync.sh`, not manually edited.
 - **Copyright Compliance**: `docs/COPYRIGHTS.md` contains mandatory copyright and licensing rules that must be obeyed. All code must be original, AI-generated code must be verified for originality, and dependency licensing must be compatible (MIT, Apache 2.0, BSD, ISC, Boost only; GPL not allowed).
 - **No Legacy Checking**: Unless specifically told to do so, do not implement additional support for previous behavior or create legacy checking for deprecated configuration keys or features.

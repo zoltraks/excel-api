@@ -42,6 +42,19 @@ pub async fn request_metrics_log(
         elapsed,
         &[("method", &method), ("status", &status)],
     );
+    if response.status().as_u16() >= 400 {
+        state
+            .metrics
+            .increment("excel_api_errors_total", 1.0, &[("status", &status)]);
+    }
+    if let Some(endpoint) = endpoint_key(&method, &url) {
+        state
+            .metrics
+            .increment(&format!("excel_api_{endpoint}_requests_total"), 1.0, &[]);
+        state
+            .metrics
+            .observe(&format!("excel_api_{endpoint}_duration_ms"), elapsed, &[]);
+    }
 
     let record = json!({
         "level": "info",
@@ -67,6 +80,58 @@ pub async fn request_metrics_log(
 }
 
 /// Security headers on every response, including errors.
+/// Maps a request path to the shared endpoint metric names used by the
+/// other implementations, or None for infra endpoints.
+fn endpoint_key(method: &str, uri: &str) -> Option<&'static str> {
+    let path = uri.split('?').next().unwrap_or(uri).trim_end_matches('/');
+    if method == "POST" && path.ends_with("/auth/token") {
+        return Some("auth_token");
+    }
+    if path.ends_with("/lock-status") {
+        return (method == "GET").then_some("lock_status");
+    }
+    if path.ends_with("/columns") {
+        return (method == "GET").then_some("columns_get");
+    }
+    if path.ends_with("/records") {
+        return match method {
+            "GET" => Some("records_list"),
+            "POST" => Some("record_add"),
+            _ => None,
+        };
+    }
+    if path.ends_with("/operations") {
+        return (method == "POST").then(|| {
+            if path.contains("/cells/") {
+                "batch_cell"
+            } else {
+                "batch_record"
+            }
+        });
+    }
+    if path.ends_with("/workbooks") || path == "/workbooks" {
+        return (method == "GET").then_some("workbooks_list");
+    }
+    let parent_tail = path.rsplit('/').nth(1).unwrap_or("");
+    match parent_tail {
+        "records" => match method {
+            "GET" => Some("record_get"),
+            "PUT" => Some("record_update"),
+            "DELETE" => Some("record_delete"),
+            _ => None,
+        },
+        "cells" => match method {
+            "GET" => Some("cell_get"),
+            "PUT" => Some("cell_write"),
+            _ => None,
+        },
+        "range" => (method == "GET").then_some("range_get"),
+        "sheets" => (method == "GET").then_some("sheet_get"),
+        "workbooks" => (method == "GET").then_some("workbook_get"),
+        _ => None,
+    }
+}
+
 pub async fn security_headers(request: Request, next: Next) -> Response {
     let mut response = next.run(request).await;
     let headers = response.headers_mut();

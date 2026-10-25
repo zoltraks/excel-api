@@ -17,7 +17,27 @@ and are worth checking before diagnosing a failure as a code defect.
   `chmod 600` or the servers warn about insecure permissions.
 - **C# example server**: `work/example/` holds a ready environment - run the
   published binary with `--work work/example` on `http://localhost:8443`.
- Strategy
+- **Java binary**: `java` on PATH is a macOS stub - run jars with the JDK 27
+  binary at `/opt/homebrew/Cellar/openjdk/27/libexec/openjdk.jdk/Contents/Home/bin/java`
+  or set `JAVA_HOME` first.
+- **Incremental Maven builds**: `mvn compile` can report success on stale
+  classes after source edits - verify syntax-level changes with
+  `mvn clean compile` and never measure the exit code through a pipe
+  (`mvn ... | tail` reports `tail`'s status, not Maven's).
+- **Integration without Docker**: the Docker daemon is absent - run each
+  server natively against a copied `work/itest/` environment
+  (`fixture/` + `config.yaml` + `access.yaml` from `excel-api-test/config/`,
+  `access.yaml` chmod 600) and drive the suite with
+  `API_URL=http://localhost:8443/api/v1 npx jest --runInBand` from
+  `excel-api-test/`.
+- **Fixture hygiene**: the suite's write tests mutate `fixture/` workbooks -
+  restore clean copies between reruns or stale rows make delete/insert tests
+  fail on leftover data.
+- **Mechanical rewrites**: bulk regex rewrites of Java source are hazardous -
+  the 0.0.6 window saw a `Map.of` replacement eat closing parens and a `}`
+  anchor duplicate a method five times while incremental compile still
+  passed; always follow bulk rewrites with a clean compile plus checkstyle.
+## Verification Strategy
 
 ## Test Environment Setup
 

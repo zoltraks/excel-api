@@ -84,7 +84,12 @@ public class WorkbookConfiguration {
                         entry.setId((String) workbookMap.get("id"));
                     }
                     if (workbookMap.containsKey("path")) {
-                        entry.setPath((String) workbookMap.get("path"));
+                        String wbPath = (String) workbookMap.get("path");
+                        if (wbPath != null && !java.nio.file.Paths.get(wbPath).isAbsolute()
+                                && this.directory != null) {
+                            wbPath = java.nio.file.Paths.get(this.directory, wbPath).toString();
+                        }
+                        entry.setPath(wbPath);
                     }
                     if (workbookMap.containsKey("readonly")) {
                         entry.setReadonly((Boolean) workbookMap.get("readonly"));
@@ -170,7 +175,11 @@ public class WorkbookConfiguration {
         }
 
         public Map<String, SheetHeaderConfiguration> getSheets() {
-            return sheets;
+            return sheets != null ? sheets : new HashMap<>();
+        }
+
+        public SheetHeaderConfiguration getSheetConfig(final String sheetName) {
+            return getSheets().get(sheetName);
         }
 
         public void setSheets(Map<String, SheetHeaderConfiguration> sheets) {

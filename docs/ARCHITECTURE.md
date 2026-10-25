@@ -174,6 +174,19 @@ Each registered workbook has an in-memory cache entry containing parsed sheet da
 
 **Cache bypass.** The `Cache-Control: no-cache` request header forces a cache miss, causing the file to be re-read from disk.
 
+## Metrics Surface
+
+Every implementation exposes the same Prometheus/OpenMetrics family set on `GET /metrics`:
+
+- `excel_api_uptime_seconds` - gauge, server uptime in seconds
+- `excel_api_implementation_info` - gauge with an `implementation` label naming the server
+- `excel_api_http_requests_total` - counter labeled by `method` and `status`
+- `excel_api_http_request_duration_ms` - histogram labeled by `method` and `status`
+- `excel_api_<endpoint>_requests_total` - per-endpoint counters using shared endpoint names (`auth_token`, `workbooks_list`, `workbook_get`, `sheet_get`, `columns_get`, `records_list`, `record_get`, `record_add`, `record_update`, `record_delete`, `cell_get`, `cell_write`, `range_get`, `batch_cell`, `batch_record`, `lock_status`)
+- `excel_api_<endpoint>_duration_ms` - matching per-endpoint duration histograms
+- `excel_api_errors_total` - counter for responses with status >= 400
+- `excel_api_queue_depth` - gauge of pending plus running write jobs per workbook (`workbook` label)
+
 ## Logging Format
 
 All implementations use structured JSON logging for consistency and machine-readability. The log format is standardized across Node, Java, and C# implementations.

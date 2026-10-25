@@ -1,5 +1,17 @@
 # Changes
 
+## Version 0.0.7
+
+Parity and conformance release: version-source consolidation, health response renames, per-endpoint metrics, serialization order, and implementation-specific bug fixes across all four servers.
+
+- **Version source**: `docs/contract/openapi.yaml` `info.version` is now the single authoritative version; `shell/sync.sh` (renamed from `sync-openapi.sh`) propagates the contract to all `resources/openapi.yaml` copies with a generated marker and stamps the version into every carrier; Java and C# `/health` and `/openapi.*` read the version from the embedded synced contract instead of literals
+- **Health response**: all four servers return `status`, `implementation`, `version`, `uptime`, `time`, `timezone`; the contract's `HealthResponse` schema is updated and `uptime` is required
+- **Java fixes**: sheet and record endpoints no longer 401/500 on `sheets`-less workbooks (null-safe `getSheetConfig`, permitted error dispatch, `NoResourceFoundException` -> 404, domain error codes); workbook paths resolve against `registry.directory`; deleting the last data row and inserting with `after_row` preserve POI formulas verbatim
+- **C# fixes**: record writes preserve JSON value types instead of stringifying `JsonElement`; missing sheets return `404 SHEET_NOT_FOUND` via `SheetNotFoundException`/`TryGetWorksheet`
+- **Config parity**: Java binds `server.port`, `server.host`, and `server.base_path` to the embedded web server and applies `CONFIG_PROFILE` merges; C# gains the same top-level `profiles:`/`CONFIG_PROFILE` merge; `/auth/token` accepts both form-urlencoded and JSON on all four servers
+- **Serialization parity**: Rust enables `serde_json` `preserve_order`; Java emits `error`-then-`message` envelope order and a compact `"key": "value"` pretty separator; `/health` reports the timezone through the shared TZ env -> `/etc/localtime` -> platform-default precedence
+- **Metrics parity**: the documented canonical family set now ships on all four servers - per-endpoint `requests_total`/`duration_ms`, `errors_total`, and `queue_depth` (Java also wires the metrics filter output to `/metrics`)
+
 ## Version 0.0.6
 
 Feature release: a fourth server implementation in Rust, a Fastify 5 major upgrade for the Node server, and version-source refactoring.

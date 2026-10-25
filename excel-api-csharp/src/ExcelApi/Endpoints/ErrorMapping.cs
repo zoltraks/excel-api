@@ -28,6 +28,10 @@ public static class ErrorMapping
     public static IResult FromException(ArgumentException ex)
     {
         var message = ex.Message;
+        if (ex is SheetNotFoundException)
+        {
+            return Results.NotFound(new { error = "SHEET_NOT_FOUND", message });
+        }
         if (message.Contains("out of range"))
         {
             return Results.NotFound(new { error = "ROW_NOT_FOUND", message });

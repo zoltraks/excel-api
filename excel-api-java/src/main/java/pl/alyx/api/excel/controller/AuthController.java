@@ -1,6 +1,7 @@
 package pl.alyx.api.excel.controller;
 
 import org.springframework.http.ResponseEntity;
+import pl.alyx.api.excel.utility.OrderedJson;
 import org.springframework.security.crypto.bcrypt.BCrypt;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -13,6 +14,7 @@ import pl.alyx.api.excel.utility.JwtUtil;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 @RestController
@@ -34,10 +36,10 @@ public class AuthController {
     @PostMapping("/token")
     public ResponseEntity<?> getToken(@RequestBody(required = false) Map<String, String> jsonRequest) {
         if (jsonRequest == null) {
-            return ResponseEntity.status(STATUS_BAD_REQUEST).body(Map.of(
+            return ResponseEntity.status(STATUS_BAD_REQUEST).body(OrderedJson.body(
                     "error", "invalid_request",
                     "error_description", "Request body is required"
-            ));
+                ));
         }
         String grantType = jsonRequest.get("grant_type");
 
@@ -46,46 +48,44 @@ public class AuthController {
             String clientSecret = jsonRequest.get("client_secret");
 
             if (!validateOAuth2Client(clientId, clientSecret)) {
-                return ResponseEntity.status(STATUS_UNAUTHORIZED).body(Map.of(
+                return ResponseEntity.status(STATUS_UNAUTHORIZED).body(OrderedJson.body(
                         "error", "invalid_client",
                         "error_description", "Invalid client credentials"
-                ));
+                    ));
             }
 
             List<String> scopes = getScopesForClient(clientId);
             String token = jwtUtil.generateToken(clientId, scopes, DEFAULT_EXPIRATION_MINUTES);
 
-            return ResponseEntity.ok(Map.of(
+            return ResponseEntity.ok(OrderedJson.body(
                     "access_token", token,
                     "token_type", "Bearer",
-                    "expires_in", DEFAULT_EXPIRATION_SECONDS,
-                    "scope", String.join(" ", scopes)
-            ));
+                    "expires_in", DEFAULT_EXPIRATION_SECONDS
+                ));
         } else if ("password".equals(grantType)) {
             String username = jsonRequest.get("username");
             String password = jsonRequest.get("password");
 
             if (!validateUser(username, password)) {
-                return ResponseEntity.status(STATUS_UNAUTHORIZED).body(Map.of(
+                return ResponseEntity.status(STATUS_UNAUTHORIZED).body(OrderedJson.body(
                         "error", "invalid_grant",
                         "error_description", "Invalid username or password"
-                ));
+                    ));
             }
 
             List<String> scopes = getScopesForUser(username);
             String token = jwtUtil.generateToken(username, scopes, DEFAULT_EXPIRATION_MINUTES);
 
-            return ResponseEntity.ok(Map.of(
+            return ResponseEntity.ok(OrderedJson.body(
                     "access_token", token,
                     "token_type", "Bearer",
-                    "expires_in", DEFAULT_EXPIRATION_SECONDS,
-                    "scope", String.join(" ", scopes)
-            ));
+                    "expires_in", DEFAULT_EXPIRATION_SECONDS
+                ));
         } else {
-            return ResponseEntity.status(STATUS_BAD_REQUEST).body(Map.of(
+            return ResponseEntity.status(STATUS_BAD_REQUEST).body(OrderedJson.body(
                     "error", "unsupported_grant_type",
                     "error_description", "Grant type not supported"
-            ));
+                ));
         }
     }
 
@@ -98,46 +98,44 @@ public class AuthController {
             String clientSecret = formRequest.get("client_secret");
 
             if (!validateOAuth2Client(clientId, clientSecret)) {
-                return ResponseEntity.status(STATUS_UNAUTHORIZED).body(Map.of(
+                return ResponseEntity.status(STATUS_UNAUTHORIZED).body(OrderedJson.body(
                         "error", "invalid_client",
                         "error_description", "Invalid client credentials"
-                ));
+                    ));
             }
 
             List<String> scopes = getScopesForClient(clientId);
             String token = jwtUtil.generateToken(clientId, scopes, DEFAULT_EXPIRATION_MINUTES);
 
-            return ResponseEntity.ok(Map.of(
+            return ResponseEntity.ok(OrderedJson.body(
                     "access_token", token,
                     "token_type", "Bearer",
-                    "expires_in", DEFAULT_EXPIRATION_SECONDS,
-                    "scope", String.join(" ", scopes)
-            ));
+                    "expires_in", DEFAULT_EXPIRATION_SECONDS
+                ));
         } else if ("password".equals(grantType)) {
             String username = formRequest.get("username");
             String password = formRequest.get("password");
 
             if (!validateUser(username, password)) {
-                return ResponseEntity.status(STATUS_UNAUTHORIZED).body(Map.of(
+                return ResponseEntity.status(STATUS_UNAUTHORIZED).body(OrderedJson.body(
                         "error", "invalid_grant",
                         "error_description", "Invalid username or password"
-                ));
+                    ));
             }
 
             List<String> scopes = getScopesForUser(username);
             String token = jwtUtil.generateToken(username, scopes, DEFAULT_EXPIRATION_MINUTES);
 
-            return ResponseEntity.ok(Map.of(
+            return ResponseEntity.ok(OrderedJson.body(
                     "access_token", token,
                     "token_type", "Bearer",
-                    "expires_in", DEFAULT_EXPIRATION_SECONDS,
-                    "scope", String.join(" ", scopes)
-            ));
+                    "expires_in", DEFAULT_EXPIRATION_SECONDS
+                ));
         } else {
-            return ResponseEntity.status(STATUS_BAD_REQUEST).body(Map.of(
+            return ResponseEntity.status(STATUS_BAD_REQUEST).body(OrderedJson.body(
                     "error", "unsupported_grant_type",
                     "error_description", "Grant type not supported"
-            ));
+                ));
         }
     }
 

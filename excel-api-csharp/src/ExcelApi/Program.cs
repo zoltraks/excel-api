@@ -191,6 +191,8 @@ var queueConfig = OptionsLoader.LoadQueueConfig(workDir, configPath);
 var fileLockService = new FileLockService(queueConfig.LockDir, queueConfig.LockTimeoutMs);
 var writeQueueService = new WriteQueueService(queueConfig.BatchMaxSize);
 var metricsCollector = new MetricsCollector();
+writeQueueService.SetMetrics(metricsCollector);
+var contractInfo = new ContractInfo();
 var authConfig = OptionsLoader.LoadAuthConfig(workDir, configPath);
 var basePath = serverConfig.BasePath.TrimEnd('/');
 
@@ -207,21 +209,52 @@ app.Use(async (context, next) =>
     {
         sw.Stop();
         metricsCollector.RecordRequest(context.Request.Method, context.Response.StatusCode, sw.Elapsed.TotalMilliseconds);
+        var endpoint = EndpointKey(context.Request.Method, context.Request.Path.Value ?? "");
+        if (endpoint != null)
+        {
+            metricsCollector.RecordEndpoint(endpoint, sw.Elapsed.TotalMilliseconds);
+        }
     }
 });
 
 app.UseMiddleware<AuthMiddleware>(authService, basePath);
 
+// Maps a request path to the shared endpoint metric names used by the
+// other implementations, or null for infra endpoints.
+string? EndpointKey(string method, string uri)
+{
+    var path = uri.TrimEnd('/');
+    if (method == "POST" && path.EndsWith("/auth/token")) return "auth_token";
+    if (path.EndsWith("/lock-status")) return method == "GET" ? "lock_status" : null;
+    if (path.EndsWith("/columns")) return method == "GET" ? "columns_get" : null;
+    if (path.EndsWith("/records"))
+        return method switch { "GET" => "records_list", "POST" => "record_add", _ => null };
+    if (path.EndsWith("/operations"))
+        return method == "POST" ? (path.Contains("/cells/") ? "batch_cell" : "batch_record") : null;
+    if (path.EndsWith("/workbooks")) return method == "GET" ? "workbooks_list" : null;
+    var parent = path[..path.LastIndexOf('/')];
+    var parentTail = parent[(parent.LastIndexOf('/') + 1)..];
+    return parentTail switch
+    {
+        "records" => method switch { "GET" => "record_get", "PUT" => "record_update", "DELETE" => "record_delete", _ => null },
+        "cells" => method switch { "GET" => "cell_get", "PUT" => "cell_write", _ => null },
+        "range" => method == "GET" ? "range_get" : null,
+        "sheets" => method == "GET" ? "sheet_get" : null,
+        "workbooks" => method == "GET" ? "workbook_get" : null,
+        _ => null,
+    };
+}
+
 // Register endpoint groups
-app.MapHealthEndpoints(startTime, metricsCollector);
-app.MapOpenApiEndpoints();
+app.MapHealthEndpoints(startTime, metricsCollector, contractInfo);
+app.MapOpenApiEndpoints(contractInfo);
 
 var authGroup = string.IsNullOrEmpty(basePath) ? app.MapGroup("") : app.MapGroup(basePath);
 authGroup.MapAuthEndpoints(authService);
 
 var apiGroup = string.IsNullOrEmpty(basePath) ? app.MapGroup("") : app.MapGroup(basePath);
-apiGroup.MapHealthEndpoints(startTime, metricsCollector);
-apiGroup.MapOpenApiEndpoints();
+apiGroup.MapHealthEndpoints(startTime, metricsCollector, contractInfo);
+apiGroup.MapOpenApiEndpoints(contractInfo);
 apiGroup.MapWorkbookEndpoints(workbookConfig, excelService, fileLockService, writeQueueService);
 apiGroup.MapSheetEndpoints(workbookConfig, excelService);
 apiGroup.MapCellEndpoints(workbookConfig, excelService, fileLockService, writeQueueService);

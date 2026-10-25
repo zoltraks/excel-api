@@ -14,12 +14,31 @@ public class MetricsCollector
     private readonly DateTime _startTime = DateTime.UtcNow;
     private readonly ConcurrentDictionary<string, long> _requests = new();
     private readonly ConcurrentDictionary<string, Histogram> _durations = new();
+    private readonly ConcurrentDictionary<string, long> _endpointRequests = new();
+    private readonly ConcurrentDictionary<string, Histogram> _endpointDurations = new();
+    private readonly ConcurrentDictionary<string, long> _errors = new();
+    private readonly ConcurrentDictionary<string, long> _queueDepth = new();
 
     public void RecordRequest(string method, int status, double durationMs)
     {
         var key = $"{method}|{status}";
         _requests.AddOrUpdate(key, 1, (_, v) => v + 1);
         _durations.GetOrAdd(key, _ => new Histogram()).Observe(durationMs);
+        if (status >= 400)
+        {
+            _errors.AddOrUpdate(status.ToString(), 1, (_, v) => v + 1);
+        }
+    }
+
+    public void RecordEndpoint(string endpoint, double durationMs)
+    {
+        _endpointRequests.AddOrUpdate(endpoint, 1, (_, v) => v + 1);
+        _endpointDurations.GetOrAdd(endpoint, _ => new Histogram()).Observe(durationMs);
+    }
+
+    public void SetQueueDepth(string workbookId, long depth)
+    {
+        _queueDepth[workbookId] = depth;
     }
 
     public string ToExposition()
@@ -57,6 +76,45 @@ public class MetricsCollector
                 $"excel_api_http_request_duration_ms_sum{labels} {snapshot.Sum:F3}"));
             sb.AppendLine(FormattableString.Invariant(
                 $"excel_api_http_request_duration_ms_count{labels} {snapshot.Count}"));
+        }
+
+        foreach (var (endpoint, count) in _endpointRequests)
+        {
+            var name = $"excel_api_{endpoint}_requests_total";
+            sb.AppendLine($"# HELP {name} Requests to the {endpoint} endpoint");
+            sb.AppendLine($"# TYPE {name} counter");
+            sb.AppendLine(FormattableString.Invariant($"{name} {count}"));
+        }
+        foreach (var (endpoint, histogram) in _endpointDurations)
+        {
+            var name = $"excel_api_{endpoint}_duration_ms";
+            sb.AppendLine($"# HELP {name} {endpoint} request duration in milliseconds");
+            sb.AppendLine($"# TYPE {name} histogram");
+            var snapshot = histogram.Snapshot();
+            for (var i = 0; i < HistogramBucketsMs.Length; i++)
+            {
+                sb.AppendLine(FormattableString.Invariant(
+                    $"{name}_bucket{{le=\"{FmtBound(HistogramBucketsMs[i])}\"}} {snapshot.Buckets[i]}"));
+            }
+            sb.AppendLine(FormattableString.Invariant($"{name}_bucket{{le=\"+Inf\"}} {snapshot.Count}"));
+            sb.AppendLine(FormattableString.Invariant($"{name}_sum {snapshot.Sum:F3}"));
+            sb.AppendLine(FormattableString.Invariant($"{name}_count {snapshot.Count}"));
+        }
+
+        sb.AppendLine("# HELP excel_api_errors_total Total error responses");
+        sb.AppendLine("# TYPE excel_api_errors_total counter");
+        foreach (var (status, count) in _errors)
+        {
+            sb.AppendLine(FormattableString.Invariant(
+                $"excel_api_errors_total{{status=\"{status}\"}} {count}"));
+        }
+
+        sb.AppendLine("# HELP excel_api_queue_depth Pending and running write queue operations");
+        sb.AppendLine("# TYPE excel_api_queue_depth gauge");
+        foreach (var (workbook, depth) in _queueDepth)
+        {
+            sb.AppendLine(FormattableString.Invariant(
+                $"excel_api_queue_depth{{workbook=\"{workbook}\"}} {depth}"));
         }
 
         sb.AppendLine("# HELP excel_api_implementation_info Implementation information");

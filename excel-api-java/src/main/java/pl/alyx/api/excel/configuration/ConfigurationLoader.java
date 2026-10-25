@@ -48,6 +48,16 @@ public class ConfigurationLoader {
         ObjectMapper yamlMapper = new ObjectMapper(new YAMLFactory());
         Map<String, Object> configuration = yamlMapper.readValue(content, Map.class);
 
+        String profileName = System.getenv("CONFIG_PROFILE");
+        if (profileName != null && configuration.get("profiles") instanceof Map) {
+            Map<String, Object> profiles = (Map<String, Object>) configuration.get("profiles");
+            Object profile = profiles.get(profileName);
+            if (profile instanceof Map) {
+                mergeProfile(configuration, (Map<String, Object>) profile);
+            }
+        }
+        configuration.remove("profiles");
+
         // Resolve lifecycle with override hierarchy: CLI > env > configuration
         String cliLife = System.getProperty("excel.api.life");
         String envLife = System.getenv("LIFE");
@@ -92,6 +102,20 @@ public class ConfigurationLoader {
         workbookConfiguration.loadFromConfigurationMap(configuration);
 
         return new AppConfiguration(configuration);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void mergeProfile(
+            final Map<String, Object> base,
+            final Map<String, Object> overlay) {
+        for (Map.Entry<String, Object> entry : overlay.entrySet()) {
+            Object existing = base.get(entry.getKey());
+            if (existing instanceof Map && entry.getValue() instanceof Map) {
+                mergeProfile((Map<String, Object>) existing, (Map<String, Object>) entry.getValue());
+            } else {
+                base.put(entry.getKey(), entry.getValue());
+            }
+        }
     }
 
 }

@@ -1,6 +1,7 @@
 package pl.alyx.api.excel.filter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import pl.alyx.api.excel.utility.OrderedJson;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import pl.alyx.api.excel.configuration.AppConfiguration;
 import pl.alyx.api.excel.configuration.JacksonConfiguration;
@@ -18,6 +19,7 @@ import pl.alyx.api.excel.configuration.AccessConfiguration;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 
@@ -92,10 +94,10 @@ public class AclAuthorizationFilter extends OncePerRequestFilter {
         if (!checkPermission(tokenScopes, requiredScope, request.getMethod(), isAdminEndpoint)) {
             response.setStatus(STATUS_FORBIDDEN);
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-            objectMapper.writeValue(response.getWriter(), Map.of(
+            objectMapper.writeValue(response.getWriter(), OrderedJson.body(
                     "error", "FORBIDDEN",
                     "message", "Insufficient permissions"
-            ));
+                ));
             return;
         }
 

@@ -182,7 +182,7 @@ excel-api-csharp/
 
 **Caching**: The parsed `Workbook` is cached per path and stat-checked on every get; a poll task sweeps stale entries on `cache.poll_interval_ms`. `Cache-Control: no-cache` bypasses both get and set. Writes invalidate the path after a successful save.
 
-**OpenAPI loading**: The contract is embedded at compile time (`include_str!` on `resources/openapi.yaml`, kept in sync by `shell/sync-openapi.sh`). At startup `info.title`, `info.description`, and `servers` are replaced from `config.openapi`; `info.version` stays untouched and must equal `Cargo.toml`'s `package.version`.
+**OpenAPI loading**: The contract is embedded at compile time (`include_str!` on `resources/openapi.yaml`, kept in sync by `shell/sync.sh`). At startup `info.title`, `info.description`, and `servers` are replaced from `config.openapi`; `info.version` stays untouched and must equal `Cargo.toml`'s `package.version`.
 
 **Command-line parameters**: `--work`, `--config`, `--access`, `--life`, matching `WORK`, `CONFIG`, `ACCESS`, `LIFE` environment variables and the sibling implementations' resolution order (explicit file > `--work/config/` > `./config/`).
 
@@ -191,6 +191,12 @@ excel-api-csharp/
 - `display` formatting uses umya-spreadsheet's own `formatted_value`; rendering may differ slightly from ExcelJS `cell.text` for exotic number formats.
 - No streaming reader — the whole workbook is parsed per cache miss. For very large files, the Java implementation remains preferable.
 - Date cells are detected from number-format codes (builtin ids 14-22, 45-47, or codes containing `y`/`d`); uncommon custom formats may surface as plain numbers.
+
+## Cross-Implementation Behaviors
+
+**/auth/token content type.** The contract declares `application/x-www-form-urlencoded`. All four servers accept both `application/x-www-form-urlencoded` and `application/json` bodies - a deliberate lenient superset of the declared contract so every client shape works.
+
+**/health timezone precedence.** Every implementation resolves the reported `timezone` identifier through the same chain: `TZ` environment variable, then the `/etc/localtime` symlink target on Unix hosts, then the platform default zone.
 
 ## Excel API Go (CLI Client)
 

@@ -416,7 +416,7 @@ The following authoritative references support the rules in this document.
   schema, and the error-code vocabulary are contract-owned - the crate
   implements them, it does not reinterpret them.
 - `resources/openapi.yaml` is a synced copy of `docs/contract/openapi.yaml`
-  via `shell/sync-openapi.sh` - never edit it by hand.
+  via `shell/sync.sh` - never edit it by hand.
 - Verification ladder before reporting done: `cargo fmt --check`,
   `cargo clippy --all-targets -- -D warnings`, `cargo test`,
   `cargo build --release` - zero warnings.

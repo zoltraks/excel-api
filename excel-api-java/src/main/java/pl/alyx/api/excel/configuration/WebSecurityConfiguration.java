@@ -1,6 +1,7 @@
 package pl.alyx.api.excel.configuration;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import pl.alyx.api.excel.utility.OrderedJson;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -16,6 +17,7 @@ import pl.alyx.api.excel.filter.JwtAuthenticationFilter;
 import pl.alyx.api.excel.filter.RateLimitFilter;
 import pl.alyx.api.excel.filter.StaticTokenAuthenticationFilter;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 @Configuration
@@ -50,6 +52,8 @@ public class WebSecurityConfiguration {
                         .requestMatchers("/metrics").permitAll()
                         .requestMatchers("/openapi.yaml").permitAll()
                         .requestMatchers("/openapi.json").permitAll()
+                        .requestMatchers("/error").permitAll()
+                        .dispatcherTypeMatchers(jakarta.servlet.DispatcherType.ERROR).permitAll()
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(exceptions -> exceptions
@@ -82,9 +86,6 @@ public class WebSecurityConfiguration {
             final String message) throws java.io.IOException {
         response.setStatus(status);
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-        objectMapper.writeValue(response.getWriter(), Map.of(
-                "error", error,
-                "message", message
-        ));
+        objectMapper.writeValue(response.getWriter(), OrderedJson.body("error", error, "message", message));
     }
 }

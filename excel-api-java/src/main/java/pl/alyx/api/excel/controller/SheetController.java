@@ -52,7 +52,7 @@ public class SheetController {
         }
 
         SheetMetadata metadata = excelService.getSheetMetadata(
-                entry.getPath(), sheetName, entry.getSheets().get(sheetName));
+                entry.getPath(), sheetName, entry.getSheetConfig(sheetName));
         return ResponseEntity.ok(metadata);
     }
 }

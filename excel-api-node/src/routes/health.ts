@@ -11,7 +11,7 @@ export async function healthRoutes(server: FastifyInstance): Promise<void> {
       version: PACKAGE_VERSION,
       uptime: Math.floor(process.uptime()),
       time: `${now.getFullYear()}-${p2(now.getMonth() + 1)}-${p2(now.getDate())} ${p2(now.getHours())}:${p2(now.getMinutes())}:${p2(now.getSeconds())}.${p2(now.getMilliseconds(), 3)}`,
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      timezone: process.env.TZ || Intl.DateTimeFormat().resolvedOptions().timeZone,
     };
   });
 }

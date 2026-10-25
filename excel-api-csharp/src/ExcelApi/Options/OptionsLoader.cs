@@ -189,6 +189,10 @@ public static class OptionsLoader
             .Build();
 
         var fullConfig = deserializer.Deserialize<Dictionary<string, object>>(content);
+        if (fullConfig != null)
+        {
+            ApplyProfile(fullConfig);
+        }
         if (fullConfig != null && fullConfig.ContainsKey(section))
         {
             var sectionYaml = serializer.Serialize(fullConfig[section]);
@@ -263,6 +267,46 @@ public static class OptionsLoader
         }
 
         return queueConfig;
+    }
+
+    private static void ApplyProfile(Dictionary<string, object> config)
+    {
+        var profileName = Environment.GetEnvironmentVariable("CONFIG_PROFILE");
+        if (string.IsNullOrEmpty(profileName)
+            || !config.TryGetValue("profiles", out var profilesObj)
+            || profilesObj is not Dictionary<object, object> profiles
+            || !profiles.TryGetValue(profileName, out var profileObj)
+            || profileObj is not Dictionary<object, object> overlay)
+        {
+            config.Remove("profiles");
+            return;
+        }
+
+        MergeProfile(config, overlay);
+        config.Remove("profiles");
+    }
+
+    private static void MergeProfile(Dictionary<string, object> baseMap, Dictionary<object, object> overlay)
+    {
+        foreach (var kv in overlay)
+        {
+            if (kv.Key is not string key)
+            {
+                continue;
+            }
+            if (baseMap.TryGetValue(key, out var existing)
+                && existing is Dictionary<object, object> existingMap
+                && kv.Value is Dictionary<object, object> overlayMap)
+            {
+                var merged = existingMap.ToDictionary(e => e.Key.ToString() ?? "", e => e.Value);
+                MergeProfile(merged, overlayMap);
+                baseMap[key] = merged;
+            }
+            else
+            {
+                baseMap[key] = kv.Value;
+            }
+        }
     }
 
     private static string InterpolateVariables(string content)

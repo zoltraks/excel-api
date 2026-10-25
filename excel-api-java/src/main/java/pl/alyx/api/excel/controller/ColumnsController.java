@@ -40,7 +40,7 @@ public class ColumnsController {
         }
 
         Map<String, Object> result = excelService.getColumnDefinitions(
-                entry.getPath(), sheetName, entry.getSheets().get(sheetName));
+                entry.getPath(), sheetName, entry.getSheetConfig(sheetName));
         return ResponseEntity.ok(result);
     }
 }

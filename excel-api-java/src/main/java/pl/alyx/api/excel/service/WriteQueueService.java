@@ -3,6 +3,7 @@ package pl.alyx.api.excel.service;
 import org.springframework.stereotype.Service;
 import pl.alyx.api.excel.configuration.WorkbookConfiguration;
 import pl.alyx.api.excel.exception.ServiceBusyException;
+import pl.alyx.api.excel.observability.MetricsCollector;
 
 import java.io.IOException;
 import java.util.Map;
@@ -35,8 +36,13 @@ public class WriteQueueService {
     private final Map<String, Object> monitors = new ConcurrentHashMap<>();
     private final Map<String, AtomicInteger> depths = new ConcurrentHashMap<>();
 
-    public WriteQueueService(final WorkbookConfiguration workbookConfiguration) {
+    private final MetricsCollector metricsCollector;
+
+    public WriteQueueService(
+            final WorkbookConfiguration workbookConfiguration,
+            final MetricsCollector metricsCollector) {
         this.batchMaxSize = workbookConfiguration.getBatchMaxSize();
+        this.metricsCollector = metricsCollector;
     }
 
     /**
@@ -57,11 +63,13 @@ public class WriteQueueService {
         }
         Object monitor = monitors.computeIfAbsent(fileId, k -> new Object());
         try {
+            metricsCollector.setQueueDepth(fileId, depth.get());
             synchronized (monitor) {
                 return job.get();
             }
         } finally {
             depth.decrementAndGet();
+            metricsCollector.setQueueDepth(fileId, depth.get());
         }
     }
 

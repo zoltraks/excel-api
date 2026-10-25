@@ -25,6 +25,13 @@ public class WriteQueueService
     private readonly ConcurrentDictionary<string, WorkbookLane> lanes = new();
     private readonly int batchMaxSize;
 
+    private BigBytes.ExcelApi.Metrics.MetricsCollector? _metrics;
+
+    public void SetMetrics(BigBytes.ExcelApi.Metrics.MetricsCollector metrics)
+    {
+        _metrics = metrics;
+    }
+
     public WriteQueueService(int batchMaxSize)
     {
         this.batchMaxSize = batchMaxSize;
@@ -38,9 +45,11 @@ public class WriteQueueService
     {
         var lane = lanes.GetOrAdd(fileId, _ => new WorkbookLane());
         var depth = Interlocked.Increment(ref lane.Depth);
+        _metrics?.SetQueueDepth(fileId, depth);
         if (depth > batchMaxSize)
         {
             Interlocked.Decrement(ref lane.Depth);
+            _metrics?.SetQueueDepth(fileId, lane.Depth);
             throw new ServiceBusyException($"Write queue capacity reached for workbook '{fileId}'");
         }
 
@@ -59,6 +68,7 @@ public class WriteQueueService
         finally
         {
             Interlocked.Decrement(ref lane.Depth);
+            _metrics?.SetQueueDepth(fileId, lane.Depth);
         }
     }
 

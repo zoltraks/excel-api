@@ -27,6 +27,23 @@ public class TlsConfiguration {
             final AppConfiguration configuration) {
         return factory -> {
             Map<String, Object> server = section(configuration, "server");
+            Object port = server != null ? server.get("port") : null;
+            if (port instanceof Number) {
+                factory.setPort(((Number) port).intValue());
+            }
+            Object host = server != null ? server.get("host") : null;
+            if (host instanceof String && !((String) host).isEmpty()
+                    && !"0.0.0.0".equals(host)) {
+                try {
+                    factory.setAddress(java.net.InetAddress.getByName((String) host));
+                } catch (java.net.UnknownHostException e) {
+                    throw new IllegalStateException("server.host is not resolvable: " + host, e);
+                }
+            }
+            Object basePath = server != null ? server.get("base_path") : null;
+            if (basePath instanceof String && !((String) basePath).isEmpty()) {
+                factory.setContextPath((String) basePath);
+            }
             Map<String, Object> tls = section(server, "tls");
             if (tls == null || !Boolean.TRUE.equals(tls.get("enabled"))) {
                 return;

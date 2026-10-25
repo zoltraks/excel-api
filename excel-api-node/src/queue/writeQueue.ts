@@ -1,5 +1,7 @@
 // Write queue with debounce batching
 
+import { metrics } from '../metrics/collector.js';
+
 export interface BatchOperation {
   type: 'cell' | 'record' | 'range';
   op?: 'add' | 'update' | 'delete' | 'write' | 'clear' | undefined;
@@ -69,6 +71,7 @@ class WriteQueue {
     return new Promise((resolve, reject) => {
       pending.push({ operation, resolve, reject });
       this.pendingOperations.set(workbookId, pending);
+      metrics.setGauge('excel_api_queue_depth', this.getDepth(workbookId), { workbook: workbookId });
 
       if (pending.length >= this.batchMaxSize) {
         this.scheduleDrain(workbookId, 0);
@@ -129,6 +132,7 @@ class WriteQueue {
       return;
     }
     this.pendingOperations.set(workbookId, []);
+    metrics.setGauge('excel_api_queue_depth', this.getDepth(workbookId), { workbook: workbookId });
 
     const executor = this.executors.get(workbookId);
     const previousChain = this.chains.get(workbookId) ?? Promise.resolve();

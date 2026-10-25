@@ -55,7 +55,7 @@ public class RecordController {
         RecordListResponse response = excelService.readRecords(
             entry.getPath(),
             sheetName,
-            entry.getSheets().get(sheetName),
+            entry.getSheetConfig(sheetName),
             offset,
             limit,
             format
@@ -83,7 +83,7 @@ public class RecordController {
             entry.getPath(),
             sheetName,
             recordIndex,
-            entry.getSheets().get(sheetName),
+            entry.getSheetConfig(sheetName),
             format
         );
         return ResponseEntity.ok(record);
@@ -119,7 +119,7 @@ public class RecordController {
                     entry.getPath(),
                     sheetName,
                     data,
-                    entry.getSheets().get(sheetName),
+                    entry.getSheetConfig(sheetName),
                     afterRow,
                     copyStyleFrom
                 );
@@ -160,7 +160,7 @@ public class RecordController {
                     sheetName,
                     recordIndex,
                     data,
-                    entry.getSheets().get(sheetName)
+                    entry.getSheetConfig(sheetName)
                 );
                 return ResponseEntity.ok(record);
             } finally {
@@ -191,7 +191,7 @@ public class RecordController {
         return writeQueueService.submit(id, () -> {
             fileLockService.acquire(id);
             try {
-                excelService.deleteRecord(entry.getPath(), sheetName, recordIndex, entry.getSheets().get(sheetName));
+                excelService.deleteRecord(entry.getPath(), sheetName, recordIndex, entry.getSheetConfig(sheetName));
             } finally {
                 fileLockService.release(id);
             }

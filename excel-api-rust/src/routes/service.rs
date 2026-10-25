@@ -21,7 +21,7 @@ pub async fn health(State(state): State<Arc<AppState>>) -> Response {
             "version": env!("CARGO_PKG_VERSION"),
             "uptime": state.started.elapsed().as_secs(),
             "time": chrono::Local::now().format("%Y-%m-%d %H:%M:%S%.3f").to_string(),
-            "timezone": iana_time_zone::get_timezone().unwrap_or_else(|_| "UTC".to_string()),
+            "timezone": std::env::var("TZ").ok().filter(|v| !v.is_empty()).unwrap_or_else(|| iana_time_zone::get_timezone().unwrap_or_else(|_| "UTC".to_string())),
         }),
     )
 }
@@ -72,11 +72,27 @@ fn oauth_error(code: &str, description: &str) -> Response {
 
 pub async fn token(
     State(state): State<Arc<AppState>>,
-    axum::extract::Form(form): axum::extract::Form<TokenForm>,
+    headers: axum::http::HeaderMap,
+    body: axum::body::Bytes,
 ) -> Response {
     state
         .metrics
         .increment("excel_api_auth_token_requests_total", 1.0, &[]);
+    let content_type = headers
+        .get(axum::http::header::CONTENT_TYPE)
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("");
+    let form: TokenForm = if content_type.starts_with("application/json") {
+        match serde_json::from_slice(&body) {
+            Ok(f) => f,
+            Err(_) => return oauth_error("invalid_request", "malformed JSON body"),
+        }
+    } else {
+        match serde_urlencoded::from_bytes(&body) {
+            Ok(f) => f,
+            Err(_) => return oauth_error("invalid_request", "malformed form body"),
+        }
+    };
     let Some(grant_type) = form.grant_type.clone() else {
         return oauth_error("invalid_request", "grant_type is required");
     };
