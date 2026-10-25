@@ -1,5 +1,7 @@
 # Node.js/TypeScript Engineering Standards
 
+<!-- Standards set: typescript-general-development.md@0.1.4, typescript-fastify-development.md@0.1.4 | Date: 2026-10-25 -->
+
 ## Scope
 
 This document defines TypeScript development standards for the Excel API Node implementation.
@@ -192,6 +194,25 @@ export class LockError extends Error {
 
 Use `async/await` exclusively. Do not use raw `.then()` / `.catch()` chains in new code.
 Always `await` promises — floating promises are forbidden.
+A route handler returns its payload or awaits `reply.send` — never both.
+
+**Fastify Conventions**
+
+* Route handlers stay thin - authorization, validation, and service calls; business logic lives behind the route layer.
+* Routes register through a plugin or module function, never by decorating the root instance from inside a handler.
+* `fastify-plugin` is used for decorators, hooks, and configuration that must cross the encapsulation boundary.
+* Shared concerns (CORS, security headers, rate limiting, body parsing) register once at the root; every `register` call is awaited so plugin order stays deterministic.
+* Validate every untrusted input at the boundary with a Zod schema - request bodies, params, query strings, headers, environment variables. Never cast untrusted data with `as`; narrow it with a schema parse or an explicit type guard. Derive TypeScript types from schemas where the toolchain supports it.
+* `setErrorHandler` maps thrown errors to the shared error envelope centrally; `setNotFoundHandler` gives a consistent 404 shape.
+* `request.log` for request-scoped messages - never a module-level logger inside a handler.
+* Raw streams use `reply.hijack()` - assigning `reply.sent = true` is forbidden.
+* `process.env` is never read deep inside modules - configuration passes in from the `config/` module.
+
+**Module Boundaries**
+
+* Modules split along one dependency direction - helpers and shared state live in the lowest layer, imports never form a cycle.
+* When a split produces circular imports, the shared member moves down to the lower layer.
+* An extracted module imports only the names it references - never the source file's full import block.
 
 **Forbidden Patterns**
 
@@ -201,6 +222,9 @@ Always `await` promises — floating promises are forbidden.
 * Raw `console.log` in production code — use the logger module exclusively.
 * Hardcoded secrets, connection strings, or credentials in source files.
 * `setInterval` for polling — use `setTimeout` with recalculated delay.
+* Trusting client-supplied identity or scope claims without server-side verification.
+* Business logic inside a route handler.
+* Synchronous blocking calls such as `fs.readFileSync` on the request path.
 
 ## Configuration Loading
 

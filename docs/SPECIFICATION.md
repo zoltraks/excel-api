@@ -6,7 +6,7 @@ This document describes implementation-specific details, technology choices, kno
 
 **Stack**: Node.js 22 LTS, TypeScript 5.x (strict mode), Fastify, ExcelJS.
 
-**Development standard**: `docs/standard/ts-node-development.md`.
+**Development standard**: `docs/standard/typescript-fastify-development.md`.
 
 **Source layout:**
 
@@ -60,7 +60,7 @@ excel-api-node/
 
 **Stack**: Java 21, Spring Boot 3.x, Apache POI 5.x, Maven.
 
-**Development standard**: `docs/standard/java-spring-maven-development.md`.
+**Development standard**: `docs/standard/java-spring-development.md`.
 
 **Package**: `pl.alyx.api.excel`.
 
@@ -215,7 +215,7 @@ Batch mode: commands from stdin or a file, output to stdout. Intended for script
 
 **Stack**: TypeScript 5.x, Jest, standard `node-fetch` for HTTP requests.
 
-**Development standard**: Follows TypeScript/Node.js standard from `docs/standard/ts-node-development.md`.
+**Development standard**: Follows TypeScript/Node.js standard from `docs/standard/typescript-fastify-development.md`.
 
 **Source layout:**
 

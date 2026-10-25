@@ -1,5 +1,7 @@
 # Java/Spring Boot/Maven Engineering Standards
 
+<!-- Standards set: java-general-development.md@0.1.2, java-spring-development.md@0.1.2, java-maven-development.md@0.1.3 | Date: 2026-10-25 -->
+
 ## Scope
 
 This document defines Java development standards for the Excel API Java implementation.
@@ -136,6 +138,7 @@ public sealed interface WriteOp permits AddOp, UpdateOp, DeleteOp {
 * Use `@ControllerAdvice` to map exceptions to HTTP error responses.
 * Never catch and silently discard exceptions.
 * Never return raw stack traces in HTTP responses.
+* Error responses follow the same envelope shape across all endpoints — an unpredictable error body makes clients brittle.
 
 ```java
 public class LockTimeoutException extends RuntimeException {
@@ -181,6 +184,11 @@ Use `@Nullable` annotation on parameters that accept null.
 * Checked exceptions in new code — wrap in `RuntimeException` subclass.
 * `System.out.println` — use SLF4J logger exclusively.
 * Hardcoded secrets or credentials in source files.
+* `equals` without `hashCode` — collections then misbehave silently.
+* `Date` and `Calendar` in new code — use `java.time` types.
+* `synchronized` blocks inside virtual-thread tasks that perform blocking I/O — the carrier pins the virtual thread; use `ReentrantLock` instead.
+* Pooled virtual threads — virtual threads are cheap and short-lived.
+* Raw `Thread.sleep` for coordination — it cannot be interrupted cleanly.
 
 ## Configuration Loading
 
@@ -194,7 +202,11 @@ Configuration hierarchy (lowest to highest priority):
 - Environment variables (prefixed `EXCEL_API_`)
 - JVM system properties
 
+Bind configuration to typed classes (`AppConfig` / `AccessConfig`) — typed binding validates at startup instead of failing on first use.
+`@Value` injections are for single ad-hoc values only — scattered `@Value` makes configuration impossible to survey.
+
 Validation failures terminate the application with exit code `1` and a descriptive error message logged at `ERROR` level.
+The `config.example.yaml` and `access.example.yaml` files document every key without values.
 
 ## Logging
 
@@ -236,6 +248,7 @@ Custom shutdown logic drains write queues before the application context closes.
 * Secret values are never logged.
 * Run `mvn dependency-check:check` (OWASP Dependency Check) in CI.
 * The Docker image runs as a non-root user.
+* Spring Security configuration is explicit — an unconfigured default that opens endpoints is a defect. A `SecurityFilterChain` bean defines the filter chain; the removed `WebSecurityConfigurerAdapter` hierarchy is never used.
 
 **Dockerfile Pattern**
 
@@ -278,6 +291,14 @@ Common Maven commands:
 - `mvn test` — run unit tests
 - `mvn checkstyle:check` — code style check
 - `mvn dependency:tree` — inspect dependency graph
+
+Build rules:
+
+- Plugin versions are pinned in `pluginManagement` or on the plugin declaration — an unpinned plugin resolves to whatever was latest at build time.
+- The Spring Boot repackaging plugin produces the runnable artifact — no manual assembly or shade configuration.
+- Machine-local values such as credentials and repository mirrors live in `settings.xml` under `~/.m2`, never in the POM.
+- A build under development carries `-SNAPSHOT`; a released build carries a fixed version.
+- Dependency updates are applied deliberately after `mvn versions:display-dependency-updates`, never by range.
 
 ## Testing
 

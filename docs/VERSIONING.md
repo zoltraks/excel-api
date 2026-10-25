@@ -35,6 +35,9 @@ The **MAJOR number has no maximum limit** and can be incremented beyond 9:
 
 ## Files to Update
 
+Version numbers stay synchronized - every component and the API specification carries the same `X.Y.Z` value at all times.
+No implementation carries a version ahead of the others.
+
 Each implementation has its own version storage:
 
 ### API Specification (`docs/contract/openapi.yaml`)
@@ -88,8 +91,9 @@ It changes only after the work is completed, designated for production, and the 
 
 The `<version>` segment in `docs/change/<version>/`, `docs/plan/<version>/`, and `docs/refactoring/<version>/` uses the last released version.
 Documents in that directory describe work released as the next version.
+The last released version is the default - a request may name a future version explicitly, and work planned for that upcoming release lives under its segment instead.
 For example, a change request in `docs/change/0.0.2/` is worked on the released version 0.0.2 and its changes are described in the section of version 0.0.3.
-Bumping the version does not move existing documents and does not create a new version directory by itself.
+Bumping the version does not move existing documents and does not create a new version directory by itself - naming a future version does.
 
 ## ASE Directory Archiving
 

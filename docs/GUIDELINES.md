@@ -44,10 +44,13 @@ Examples:
 
 **Development standards** (one per implementation language):
 
-- `docs/standard/ts-node-development.md` — TypeScript/Node.js
-- `docs/standard/java-spring-maven-development.md` — Java/Spring Boot/Maven
+- `docs/standard/typescript-fastify-development.md` — TypeScript/Node.js
+- `docs/standard/java-spring-development.md` — Java/Spring Boot/Maven
 - `docs/standard/csharp-aspnet-development.md` — C#/ASP.NET
 - `docs/standard/go-cli-development.md` — Go CLI
+- `docs/standard/docker-general-development.md` — Docker
+- `docs/standard/openapi-general-development.md` — OpenAPI contract
+- `docs/standard/bash-inline-development.md` — Bash scripts
 
 ## Documentation Purpose
 
@@ -81,11 +84,13 @@ These rules apply to every change made in this project. Follow them in order —
 - Read the request carefully.
 - Identify all components, modules, and documentation files affected.
 - All implementations must be consistent with the requested change.
+- A change request covers every applicable implementation - Node, Java, and C# servers. A new feature lands in all supported implementations, not a subset.
+- Version numbers stay synchronized across all components and the API specification.
 
 **Write the change request**
 
 - Every change requires a change request document before any other work starts.
-- Create it in `docs/change/<version>/` where `<version>` is the current project version from `docs/VERSIONING.md`.
+- Create it in `docs/change/<version>/` where `<version>` is the current project version from `docs/VERSIONING.md`, or a future version the request names explicitly.
 - Name it in kebab-case after the change (e.g., `range-endpoint-fix.md`).
 - Describe what should change and why, not how to implement it. Follow the change request outline in `docs/WORKFLOW.md`.
 

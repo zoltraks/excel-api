@@ -1,5 +1,7 @@
 # C#/ASP.NET Engineering Standards
 
+<!-- Standards set: csharp-general-development.md@0.1.6, csharp-aspnet-development.md@0.1.2 | Date: 2026-10-25 -->
+
 ## Scope
 
 This document defines C# development standards for the Excel API C# implementation.
@@ -201,6 +203,9 @@ public class WriteQueueService
 * `Console.WriteLine` — use `ILogger` exclusively.
 * Hardcoded secrets or credentials in source files.
 * `async void` — use `async Task` exclusively (except event handlers).
+* `Thread.Sleep` in async code — use `await Task.Delay`.
+* `.Result` or `.Wait()` on a task — use `await`; blocking risks deadlock and wastes a thread.
+* `Contains` used as a prefix test — anchor the check positionally; a needle found mid-string is not a leading marker.
 
 ## Configuration Loading
 
@@ -334,6 +339,8 @@ public class WriteQueueServiceTests
 ## Formatting
 
 Use `.editorconfig` for code style. Key rules: 4-space indentation, `var` when type is apparent, file-scoped namespaces, braces on new line (Allman style).
+
+`using` directives keep one placement consistently across the solution - above the file-scoped namespace declaration.
 
 `dotnet format` enforces the `.editorconfig` rules. A build that fails formatting check is not accepted.
 

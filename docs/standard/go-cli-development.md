@@ -1,5 +1,7 @@
 # Go CLI Engineering Standards
 
+<!-- Standards set: go-general-development.md@0.1.2, go-cli-development.md@0.1.2 | Date: 2026-10-25 -->
+
 ## Scope
 
 This document defines Go development standards for the Excel API Go CLI client.
@@ -97,6 +99,15 @@ Follow the [Effective Go](https://go.dev/doc/effective_go) guidelines.
 * All fallible functions return `error` as the last return value.
 * Never ignore errors. Use `_` only with an explicit comment explaining why.
 * Wrap errors with context using `fmt.Errorf` and `%w` verb.
+* Use `%v` instead of `%w` at a public API boundary — wrapping exposes an implementation detail the caller should not depend on.
+* Use `errors.Join` to combine independent errors such as validation failures.
+* Use `errors.Is` for sentinel checks and `errors.As` for typed errors. Never compare errors with `==` across a package boundary — wrapping breaks equality.
+
+**Context Propagation**
+
+* Every function that performs I/O or can block accepts `context.Context` as its first argument.
+* Pass the context to every downstream call that accepts one.
+* Never store a context in a struct field — a context is scoped to a request, a struct outlives it.
 
 ```go
 resp, err := c.httpClient.Do(req)
@@ -136,6 +147,7 @@ func NewClient(baseURL string) *Client {
 * Use `encoding/json` for all marshaling/unmarshaling.
 * Use struct tags: `` `json:"field_name"` ``.
 * For CLI JSON output, use `json.MarshalIndent` with 2-space indentation.
+* Use `map[string]any` for dynamic JSON responses when the schema is not known at compile time.
 * JSON responses must be valid JSON objects, never top-level arrays.
 
 **Token Management**
@@ -159,6 +171,7 @@ The `format/` package handles cell values that contain newlines, tabs, and Unico
 * `init()` functions for complex setup — use explicit initialization in `main()`.
 * Global mutable state — pass state through function parameters and struct fields.
 * Hardcoded secrets or credentials in source files.
+* Naked `return` in a function longer than five lines.
 
 ## Configuration and Profiles
 
@@ -178,6 +191,14 @@ default_profile: "production"
 ```
 
 Profile selection: `--profile` flag > `default_profile` in config > direct `--url` flag.
+
+## Security
+
+* HTTPS for all API communication.
+* Credentials are held in memory only for the session; profile files that carry tokens must not be committed and stay gitignored.
+* Validate and sanitize user input at the command boundary.
+* `http.Client` timeouts prevent hanging on a dead server — never use the default client.
+* Diagnostics go to `stderr`; structured output goes to `stdout`. Use `log/slog` when structured logging is introduced.
 
 ## Version Management
 
