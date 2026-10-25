@@ -1,4 +1,4 @@
 // Package config provides CLI configuration and version information.
 package config
 
-const Version = "0.0.5"
+const Version = "0.0.6"

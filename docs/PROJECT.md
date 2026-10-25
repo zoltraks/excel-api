@@ -26,7 +26,7 @@
 
 Excel API is an HTTP service that exposes Excel spreadsheet files as a JSON API with support for reading, writing, and modifying workbook data.
 
-The project has three interchangeable server implementations sharing a single OpenAPI 3.1 contract, plus a command-line client for interactive and batch operations.
+The project has four interchangeable server implementations sharing a single OpenAPI 3.1 contract, plus a command-line client for interactive and batch operations.
 
 This document is the primary project specification and the definitive source of truth for all project requirements.
 It serves as the foundation for initial development and subsequent extension.
@@ -94,6 +94,7 @@ Files remain on the local filesystem and are accessed through a service layer th
 | API Server | Node.js 22 + TS      | `excel-api-node/`    | Lightweight implementation using ExcelJS   |
 | API Server | Java 21 + Spring     | `excel-api-java/`    | Full-featured implementation using POI     |
 | API Server | C# + ASP.NET 8       | `excel-api-csharp/`  | Mid-weight implementation using ClosedXML  |
+| API Server | Rust + axum/Tokio    | `excel-api-rust/`    | Implementation using umya-spreadsheet      |
 | CLI Client | Go 1.22+             | `excel-api-go/`      | Interactive and batch console client       |
 | Test Suite | TypeScript + Vitest  | `excel-api-test/`    | Black-box integration tests                |
 
@@ -226,15 +227,17 @@ Each cell in a range or row response may include metadata beyond its value.
 
 ## API Servers
 
-Three implementations of the same OpenAPI contract. Each is a standalone HTTP service that reads, writes, and modifies Excel files on the local filesystem.
+Four implementations of the same OpenAPI contract. Each is a standalone HTTP service that reads, writes, and modifies Excel files on the local filesystem.
 
 **Excel API Node** (`excel-api-node/`). TypeScript on Node.js 22, using ExcelJS for spreadsheet operations and Fastify for HTTP. Lightest footprint, fastest startup. Does not evaluate formulas — returns cached values only. Natural single-threaded queue via Promise chains.
 
 **Excel API Java** (`excel-api-java/`). Java 21 on Spring Boot, using Apache POI for spreadsheet operations. Most complete Excel format coverage. Optional formula evaluation via POI's `FormulaEvaluator`. Streaming reader (SAX API) for large files. Heaviest footprint.
 
-**Excel API C#** (`excel-api-csharp/`). C# on ASP.NET 8 Minimal API, using ClosedXML for spreadsheet operations. Published with ReadyToRun (R2R) for near-native startup. `InsertRowsBelow` with style copy is the most ergonomic row insertion API among the three libraries. `Channel<T>` provides bounded-capacity queue with backpressure.
+**Excel API C#** (`excel-api-csharp/`). C# on ASP.NET 8 Minimal API, using ClosedXML for spreadsheet operations. Published with ReadyToRun (R2R) for near-native startup. `InsertRowsBelow` with style copy is the most ergonomic row insertion API among the four libraries. `Channel<T>` provides bounded-capacity queue with backpressure.
 
-All three implementations share:
+**Excel API Rust** (`excel-api-rust/`). Rust on axum/Tokio, using umya-spreadsheet for workbook I/O, which preserves formulas and styles across read-modify-write. Blocking workbook work runs on `spawn_blocking`; per-workbook lane tasks provide serialized, debounced writes. Smallest memory footprint and strongest resource safety of the four.
+
+All four implementations share:
 
 - Common configuration file format (`config.yaml`, `access.yaml`)
 - Common lockfile protocol for cross-process synchronization
@@ -426,6 +429,7 @@ The project uses a single version number across all components. The version is d
 | Node       | `excel-api-node/package.json` → `version` field               |
 | Java       | `excel-api-java/pom.xml` → `<version>` element                |
 | C#         | `excel-api-csharp/src/ExcelApi/ExcelApi.csproj` → `<Version>` |
+| Rust       | `excel-api-rust/Cargo.toml` → `version` field               |
 | Go         | `excel-api-go/internal/config/version.go` → `Version` const   |
 | API Spec   | `docs/contract/openapi.yaml` → `info.version`                 |
 

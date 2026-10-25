@@ -4,7 +4,7 @@ This document describes implementation-specific details, technology choices, kno
 
 ## Excel API Node
 
-**Stack**: Node.js 22 LTS, TypeScript 5.x (strict mode), Fastify, ExcelJS.
+**Stack**: Node.js 22 LTS, TypeScript 5.x (strict mode), Fastify 5, ExcelJS.
 
 **Development standard**: `docs/standard/typescript-fastify-development.md`.
 
@@ -103,7 +103,7 @@ excel-api-java/
 **Known limitations:**
 
 - Memory footprint. The full `XSSFWorkbook` model for a 50 MB file can consume 1–2 GB of heap. The streaming reader mitigates this for read operations, but write operations require the full model.
-- Startup time. Spring Boot + JVM cold start is 2–5 seconds, the slowest of the three implementations.
+- Startup time. Spring Boot + JVM cold start is 2–5 seconds, the slowest of the four implementations.
 
 **Queue implementation**: Per-workbook `synchronized` monitor serialization. `WriteQueueService.submit()` executes each job under the workbook's monitor object, so writes to the same workbook never interleave. Pending depth is tracked per workbook with an `AtomicInteger` and capped at `batch_max_size` — excess submissions throw `ServiceBusyException` (`503 SERVICE_BUSY`). The synchronous monitor is the completion signal: the controller blocks inside `submit()` until the job returns.
 
@@ -145,7 +145,7 @@ excel-api-csharp/
   README.md
 ```
 
-**Excel library**: ClosedXML 0.102+. Fluent API for `.xlsx` read-modify-write. `InsertRowsBelow` with style copy is the most ergonomic row insertion among the three libraries. Limited formula evaluation (basic functions only).
+**Excel library**: ClosedXML 0.102+. Fluent API for `.xlsx` read-modify-write. `InsertRowsBelow` with style copy is the most ergonomic row insertion among the four libraries. Limited formula evaluation (basic functions only).
 
 **AOT considerations**: Full Native AOT is not used due to ClosedXML's runtime reflection in the formula evaluator and `System.Xml.Linq` usage. ReadyToRun (R2R) is used instead, providing pre-compiled native code with IL fallback for reflection paths. Startup time: 200–400 ms. Migration to full AOT is planned when ClosedXML declares official trimming support.
 
@@ -169,6 +169,28 @@ excel-api-csharp/
 **OpenAPI loading**: Embedded resource loaded via `Assembly.GetManifestResourceStream("BigBytes.ExcelApi.Resources.openapi.yaml")`. Parsed with YamlDotNet, fields replaced, serialized and cached.
 
 **Command-line parameters**: The C# implementation accepts `--work`, `--config`, and `--access` parameters. These correspond to environment variables `WORK`, `CONFIG`, and `ACCESS`. The working directory parameter sets the base path for configuration file resolution. Config and access parameters can specify alternate file locations (relative to working directory if set, or absolute paths).
+
+## Excel API Rust
+
+**Stack**: Rust 1.89+ (edition 2024) on Tokio, axum 0.8 for HTTP, `umya-spreadsheet` for `.xlsx` read-modify-write, `jsonwebtoken` for HS256, `bcrypt` for password hashes, `axum-server` for TLS, `tower-http` for CORS. Single crate at `excel-api-rust/` (no workspace).
+
+**Excel library**: umya-spreadsheet. Preserves formulas and styles across read-modify-write, which neither `calamine` (read-only) nor `rust_xlsxwriter` (rewrites files) guarantee. `insert_new_row` rewrites formula references — the implementation snapshots formula text before insertion and restores it afterward to keep displaced rows byte-identical, matching ExcelJS behavior. `formatted_value` supplies the `display` cell format.
+
+**Async boundaries**: All blocking workbook and file work (load, save, lock acquisition) runs inside `tokio::task::spawn_blocking`; request handlers never block Tokio worker threads. State is injected via `axum::extract::State` over `Arc<AppState>` — no globals. All errors map through a shared `IntoResponse`-producing helper.
+
+**Queue implementation**: One Tokio lane task per workbook, fed by an `mpsc` channel. Pending ops are debounced (`batch_debounce_ms`, timer restarts on each enqueue) and flushed as one batch under a single lock/open/save cycle. Depth is capped at `batch_max_size` — overflow returns `503 SERVICE_BUSY`. Completion travels over `oneshot` channels; lock-acquisition failure maps to `409 FILE_LOCKED`.
+
+**Caching**: The parsed `Workbook` is cached per path and stat-checked on every get; a poll task sweeps stale entries on `cache.poll_interval_ms`. `Cache-Control: no-cache` bypasses both get and set. Writes invalidate the path after a successful save.
+
+**OpenAPI loading**: The contract is embedded at compile time (`include_str!` on `resources/openapi.yaml`, kept in sync by `shell/sync-openapi.sh`). At startup `info.title`, `info.description`, and `servers` are replaced from `config.openapi`; `info.version` stays untouched and must equal `Cargo.toml`'s `package.version`.
+
+**Command-line parameters**: `--work`, `--config`, `--access`, `--life`, matching `WORK`, `CONFIG`, `ACCESS`, `LIFE` environment variables and the sibling implementations' resolution order (explicit file > `--work/config/` > `./config/`).
+
+**Known limitations:**
+
+- `display` formatting uses umya-spreadsheet's own `formatted_value`; rendering may differ slightly from ExcelJS `cell.text` for exotic number formats.
+- No streaming reader — the whole workbook is parsed per cache miss. For very large files, the Java implementation remains preferable.
+- Date cells are detected from number-format codes (builtin ids 14-22, 45-47, or codes containing `y`/`d`); uncommon custom formats may surface as plain numbers.
 
 ## Excel API Go (CLI Client)
 
@@ -246,7 +268,7 @@ excel-api-test/
   README.md
 ```
 
-**Test approach**: Black-box integration tests. Tests execute against a running server implementation via HTTP. Tests know only the API contract, not the implementation details. This ensures all three server implementations can be validated against the same test suite.
+**Test approach**: Black-box integration tests. Tests execute against a running server implementation via HTTP. Tests know only the API contract, not the implementation details. This ensures all four server implementations can be validated against the same test suite.
 
 **Test categories**:
 

@@ -55,6 +55,8 @@ Examples:
 - `docs/standard/docker-general-development.md` — Docker
 - `docs/standard/openapi-general-development.md` — OpenAPI contract
 - `docs/standard/bash-inline-development.md` — Bash scripts
+- `docs/standard/rust-general-development.md` — Rust general
+- `docs/standard/rust-api-development.md` — Rust API server
 
 ## Documentation Purpose
 

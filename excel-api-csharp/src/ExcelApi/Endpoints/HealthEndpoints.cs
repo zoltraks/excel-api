@@ -32,7 +32,7 @@ public static class HealthEndpoints
             {
                 status = "ok",
                 implementation = "excel-api-csharp",
-                version = "0.0.3",
+                version = "0.0.6",
                 uptime_seconds = uptimeSeconds,
                 server_time = serverTime,
                 timezone = timezone

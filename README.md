@@ -2,7 +2,7 @@
 
 HTTP service exposing Excel spreadsheet data as a JSON API with queued write operations and file-level locking for concurrent access.
 
-The project provides three interchangeable server implementations sharing a single OpenAPI contract, plus a command-line client for interactive and batch operations.
+The project provides four interchangeable server implementations sharing a single OpenAPI contract, plus a command-line client for interactive and batch operations.
 
 ## Components
 
@@ -11,6 +11,7 @@ The project provides three interchangeable server implementations sharing a sing
 | API Server     | Node.js + TypeScript    | `excel-api-node/`  | Lightweight implementation using ExcelJS   |
 | API Server     | Java 21 + Spring Boot   | `excel-api-java/`  | Full-featured implementation using POI     |
 | API Server     | C# + ASP.NET 8          | `excel-api-csharp/`| Mid-weight implementation using ClosedXML  |
+| API Server     | Rust + axum/Tokio       | `excel-api-rust/`  | Implementation using umya-spreadsheet      |
 | CLI Client     | Go 1.22+                | `excel-api-go/`    | Interactive and batch console client       |
 | Test Suite     | TypeScript + Jest       | `excel-api-test/`  | Black-box integration tests for any server |
 
@@ -40,11 +41,12 @@ Run integration tests against a running implementation:
 
 ```bash
 IMAGE=excel-api-java docker compose -f docker-compose.test.yaml up --abort-on-container-exit
+IMAGE=excel-api-rust docker compose -f docker-compose.test.yaml up --abort-on-container-exit
 ```
 
 ## Configuration
 
-All three server implementations share the same two-file configuration format.
+All four server implementations share the same two-file configuration format.
 
 **`config.yaml`** contains non-sensitive settings: server port and TLS, workbook registry, queue parameters, cache settings, authorization mode, JWT issuer and expiration, logging level and format, and OpenAPI metadata overrides.
 

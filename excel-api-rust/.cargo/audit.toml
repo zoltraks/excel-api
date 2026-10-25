@@ -1,0 +1,23 @@
+# cargo-audit configuration.
+#
+# Ignored advisories - each entry documents why the finding is not
+# reachable through this crate's code paths. Re-evaluate on every
+# dependency bump.
+
+[advisories]
+ignore = [
+  # rsa 0.9.10 (Marvin timing attack) - pulled by jsonwebtoken for RS256;
+  # this service issues/verifies HS256 only, RSA code paths never run.
+  "RUSTSEC-2023-0071",
+  # zip 8.6.0 extract() advisories - all concern writing archive members
+  # to the filesystem (SUID bits, symlink escapes). umya-spreadsheet
+  # reads archive contents into memory only; extract() is never called.
+  # Upgrade blocked: umya-spreadsheet requires zip ^8.6.0.
+  "RUSTSEC-2026-0367",
+  "RUSTSEC-2026-0368",
+  "RUSTSEC-2026-0369",
+  # crypto-bigint 0.5.5 timing variability - reached only through
+  # elliptic-curve/ECDSA JWT algorithms; HS256 verification does not
+  # use it.
+  "RUSTSEC-2026-0387",
+]

@@ -7,6 +7,7 @@ TARGETS=(
   "excel-api-node/resources/openapi.yaml"
   "excel-api-java/src/main/resources/openapi.yaml"
   "excel-api-csharp/src/ExcelApi/Resources/openapi.yaml"
+  "excel-api-rust/resources/openapi.yaml"
 )
 
 if [[ ! -f "$SOURCE" ]]; then

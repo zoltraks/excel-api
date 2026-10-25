@@ -1,0 +1,32 @@
+[package]
+name = "excel-api-rust"
+version = "0.0.6"
+edition = "2024"
+rust-version = "1.89"
+description = "Excel API - Rust implementation (axum/tokio, umya-spreadsheet)"
+license = "MIT"
+publish = false
+
+[dependencies]
+anyhow = "1.0.104"
+axum = "0.8.9"
+axum-server = { version = "0.8.0", features = ["tls-rustls"] }
+bcrypt = "0.19.3"
+chrono = "0.4.45"
+hostname = "0.4.2"
+iana-time-zone = "0.1.65"
+jsonwebtoken = { version = "11.1.0", default-features = false, features = ["rust_crypto"] }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+serde_yaml_ng = "0.10.0"
+sha2 = "0.11.1"
+subtle = "2.6.1"
+thiserror = "2.0.21"
+tokio = { version = "1.54.1", features = ["full"] }
+tower-http = { version = "0.7.1", features = ["cors"] }
+umya-spreadsheet = "3.1.1"
+
+[lints.clippy]
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"

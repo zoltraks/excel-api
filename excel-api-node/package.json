@@ -1,6 +1,6 @@
 {
   "name": "excel-api-node",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "Excel API — Node.js/TypeScript implementation",
   "type": "module",
   "private": true,
@@ -18,10 +18,10 @@
     "test:coverage": "vitest --coverage"
   },
   "dependencies": {
-    "@fastify/cors": "^9.0.0",
+    "@fastify/cors": "^11.3.1",
     "bcrypt": "^5.1.0",
     "exceljs": "^4.4.0",
-    "fastify": "^4.29.1",
+    "fastify": "^5.12.7",
     "jsonwebtoken": "^9.0.0",
     "uuid": "^11.1.1",
     "yaml": "^2.4.0",

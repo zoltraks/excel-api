@@ -1,5 +1,13 @@
 # Changes
 
+## Version 0.0.6
+
+Feature release: a fourth server implementation in Rust, a Fastify 5 major upgrade for the Node server, and version-source refactoring.
+
+- **Excel API Rust** (`excel-api-rust/`): new implementation on axum/Tokio with umya-spreadsheet workbook I/O - full contract parity (records, cells, ranges, batch operations, lock status, metrics, OAuth2 + static-token auth, scope ACLs, TLS, CORS, rate limiting, mtime cache), per-workbook serialized write lanes with debounced batching, the shared lockfile protocol, digest-pinned non-root Dockerfile, and synchronized `resources/openapi.yaml` via `shell/sync-openapi.sh`
+- **Fastify 5**: `excel-api-node` upgrades `fastify` to 5.12 and `@fastify/cors` to 11, eliminating the `find-my-way` advisory chain; the documented Node floor is aligned to the Node 22 baseline already enforced by engines and Docker
+- **Version source refactor**: `excel-api-node` `/health` and `/openapi.*` now report `PACKAGE_VERSION` from `package.json` instead of a stale literal; Java and C# version literals are resynchronized to the release
+
 ## Version 0.0.5
 
 Feature and parity release: configurable pretty-printed JSON on all three servers, expired-token error parity, and dependency security upgrades.

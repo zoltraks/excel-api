@@ -17,7 +17,7 @@ Node.js/TypeScript implementation of the Excel API using ExcelJS. This implement
 
 ## Prerequisites
 
-- Node.js 18+
+- Node.js 22+
 - npm or yarn
 
 ## Installation

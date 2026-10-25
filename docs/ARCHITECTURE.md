@@ -43,11 +43,11 @@
 
 **OpenAPI as single source of truth.** The OpenAPI 3.1 specification in `docs/contract/openapi.yaml` is the authoritative contract. Implementations must conform to it. The contract is never derived from an implementation.
 
-**Cross-implementation interoperability.** All three server implementations share the same lockfile protocol and cache strategy. A lock taken by one implementation is visible to others. This enables running multiple implementations simultaneously without conflict.
+**Cross-implementation interoperability.** All four server implementations share the same lockfile protocol and cache strategy. A lock taken by one implementation is visible to others. This enables running multiple implementations simultaneously without conflict.
 
 ## Request Processing Flow
 
-Every HTTP request follows the same processing pipeline in all three implementations.
+Every HTTP request follows the same processing pipeline in all four implementations.
 
 ```text
 HTTP Request
@@ -156,7 +156,7 @@ All implementations follow the same lockfile protocol to enable cross-implementa
 }
 ```
 
-**Lock mechanism.** Atomic exclusive create — Node uses `fs.writeFileSync` with the `wx` flag, Java uses `Files.write` with `CREATE_NEW`, C# uses `FileMode.CreateNew`. If the file exists, the lock is held; creation fails atomically. Acquisition polls with a bounded deadline. All three implementations observe the same lockfile, so locks are mutually visible across implementations.
+**Lock mechanism.** Atomic exclusive create — Node uses `fs.writeFileSync` with the `wx` flag, Java uses `Files.write` with `CREATE_NEW`, C# uses `FileMode.CreateNew`. If the file exists, the lock is held; creation fails atomically. Acquisition polls with a bounded deadline. All four implementations observe the same lockfile, so locks are mutually visible across implementations.
 
 **Lock timeout.** Configurable (`queue.lock_timeout_ms`, default 30000 ms). If the lock cannot be acquired within the timeout, the request fails with 409 `FILE_LOCKED`.
 
@@ -378,6 +378,43 @@ excel-api-java/
     access.example.yaml         # Example sensitive configuration
   pom.xml
   Dockerfile
+```
+
+**excel-api-rust/** - Rust/axum implementation
+
+```
+excel-api-rust/
+  src/
+    main.rs                  # Bootstrap: config, logger, registry, router, TLS, lifecycle
+    cli.rs                   # --work/--config/--access/--life parsing
+    config.rs                # config.yaml + access.yaml schema, interpolation, profiles
+    auth.rs                  # HS256 JWT, OAuth2 grants, static tokens, ACL, middleware
+    excel.rs                 # umya-spreadsheet ops: layouts, values, records, batch
+    workbook.rs              # Workbook registry
+    lock.rs                  # Shared lockfile protocol
+    queue.rs                 # Per-workbook write lanes, debounced batching
+    cache.rs                 # Parsed-workbook cache, mtime invalidation
+    ratelimit.rs             # Fixed-window limiter
+    metrics.rs               # OpenMetrics collector/exposition
+    logger.rs                # JSON console + rotating file logger
+    middleware.rs            # Request metrics/log, security headers, rate limit
+    error.rs                 # {error, message} envelope helpers
+    state.rs                 # AppState (Arc-shared dependencies)
+    util.rs                  # Durations, column letters, cell refs, timestamps
+    routes/
+      mod.rs                 # Router assembly, base-path + root mounts, CORS
+      service.rs             # /health, /metrics, /openapi.{yaml,json}, /auth/token
+      data.rs                # Workbook/sheet/record/cell/operations/lock-status
+  resources/
+    openapi.yaml             # Contract copy (sync script target)
+  config/
+    config.example.yaml      # Example configuration
+    access.example.yaml      # Example sensitive configuration
+  Cargo.toml                 # Edition, rust-version, deps, lints
+  rust-toolchain.toml        # Pinned toolchain
+  rustfmt.toml
+  Dockerfile                 # Multi-stage, digest-pinned, non-root
+  README.md
 ```
 
 **excel-api-csharp/** - C#/ASP.NET implementation
