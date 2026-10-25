@@ -52,6 +52,10 @@ export function cellRoutes(
             metrics.incrementCounter('excel_api_errors_total', 1, { error: 'SHEET_NOT_FOUND' });
             return reply.status(404).send({ error: 'SHEET_NOT_FOUND', message: error.message });
           }
+          if (error instanceof Error && error.message.startsWith('Invalid')) {
+            metrics.incrementCounter('excel_api_errors_total', 1, { error: 'VALIDATION_ERROR' });
+            return reply.status(400).send({ error: 'VALIDATION_ERROR', message: error.message });
+          }
           metrics.incrementCounter('excel_api_errors_total', 1, { error: 'INTERNAL_ERROR' });
           throw error;
         }
@@ -154,9 +158,20 @@ export function cellRoutes(
             metrics.incrementCounter('excel_api_errors_total', 1, { error: 'SHEET_NOT_FOUND' });
             return reply.status(404).send({ error: 'SHEET_NOT_FOUND', message: error.message });
           }
+          if (error instanceof Error && error.message.startsWith('Invalid')) {
+            metrics.incrementCounter('excel_api_errors_total', 1, { error: 'VALIDATION_ERROR' });
+            return reply.status(400).send({ error: 'VALIDATION_ERROR', message: error.message });
+          }
           metrics.incrementCounter('excel_api_errors_total', 1, { error: 'INTERNAL_ERROR' });
           throw error;
         }
+      },
+    );
+    server.delete<{ Params: { id: string; sheetName: string; cellRef: string } }>(
+      '/workbooks/:id/sheets/:sheetName/cells/:cellRef',
+      { preHandler: [authMiddleware] },
+      async (_request, reply) => {
+        reply.status(405).send({ error: 'METHOD_NOT_ALLOWED', message: 'Method not allowed' });
       },
     );
   };

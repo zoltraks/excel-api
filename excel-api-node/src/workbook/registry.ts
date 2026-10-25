@@ -1,5 +1,6 @@
 // Workbook registry mapping IDs to file paths
 
+import { formatLocalTime } from '../util/datetime.js';
 import * as path from 'path';
 import * as fs from 'fs';
 import type { Config, SheetHeaderConfig } from '../config/types.js';
@@ -9,8 +10,8 @@ export interface WorkbookInfo {
   filename: string;
   readonly: boolean;
   path: string;
-  modified_at: string;
-  size_bytes: number;
+  modified: string;
+  size: number;
   sheets?: Record<string, SheetHeaderConfig> | undefined;
 }
 
@@ -33,8 +34,8 @@ export class WorkbookRegistry {
         filename: entry.path,
         readonly: entry.readonly,
         path: fullPath,
-        modified_at: stats.mtime.toISOString(),
-        size_bytes: stats.size,
+        modified: formatLocalTime(stats.mtime),
+        size: stats.size,
         sheets: entry.sheets,
       });
     }
@@ -56,8 +57,8 @@ export class WorkbookRegistry {
     const workbook = this.workbooks.get(id);
     if (workbook && fs.existsSync(workbook.path)) {
       const stats = fs.statSync(workbook.path);
-      workbook.modified_at = stats.mtime.toISOString();
-      workbook.size_bytes = stats.size;
+      workbook.modified = formatLocalTime(stats.mtime);
+      workbook.size = stats.size;
     }
   }
 }

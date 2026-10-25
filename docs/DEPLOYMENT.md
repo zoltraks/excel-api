@@ -67,7 +67,7 @@ server:
     key_file: "certs/server.key"   # PEM private key, relative to WORK or absolute
 ```
 
-When `enabled` is true, all three implementations serve HTTPS on the configured
+When `enabled` is true, all four implementations serve HTTPS on the configured
 `server.host`/`server.port` listener and fail at startup if `cert_file` or
 `key_file` are missing. Mount certificate and key files as read-only volumes.
 Alternatively, keep `enabled: false` and terminate TLS at a reverse proxy in

@@ -1,6 +1,6 @@
 # C#/ASP.NET Engineering Standards
 
-<!-- Standards set: csharp-general-development.md@0.1.6, csharp-aspnet-development.md@0.1.2 | Date: 2026-10-25 -->
+<!-- Standards set: csharp-general-development.md@0.1.6, csharp-aspnet-development.md@0.1.3 | Date: 2026-10-25 -->
 
 ## Scope
 
@@ -17,8 +17,8 @@ All paths below are relative to the `excel-api-csharp/` directory unless stated 
 
 ## Core Technologies
 
-* **.NET 8**: Target framework. Use LTS release.
-* **C# 12**: Language version. Use primary constructors, collection expressions, raw string literals where appropriate.
+* **.NET 8 or later**: Target framework floor. A patch release carries security fixes the project should take automatically; `<TargetFramework>` in the `.csproj` pins the concrete version.
+* **C# 12 or later**: Language version floor, selected by the target framework. Use primary constructors, collection expressions, raw string literals where appropriate.
 * **ASP.NET Minimal API**: HTTP framework. No MVC controllers pattern — use `MapGet`, `MapPost`, etc.
 * **ClosedXML 0.102+**: Excel file operations. Read-modify-write with style preservation.
 * **ReadyToRun (R2R)**: Pre-compilation for fast startup. Not full Native AOT (see SPECIFICATION.md for rationale).
@@ -361,3 +361,14 @@ Code is self-documenting through naming. Limit comments to the absolute minimum.
 **SOLID.** Constructor injection for dependencies. Interfaces at service boundaries. Composition over inheritance.
 
 **No Global State.** All state managed by DI-scoped services. No static mutable fields.
+
+## ASP.NET Parity Patterns
+
+- `app.UseStatusCodePages` normalizes empty framework 405/415 bodies to
+  the contract envelope.
+- ClosedXML formula cached-value absence is `cell.CachedValue.IsBlank` -
+  `GetFormattedString()` evaluates formulas, which the contract forbids.
+- ClosedXML builtin number formats come back empty on `Format()` - resolve
+  them via `NumberFormatId` against the OOXML builtin table.
+- Seed `errors_total` eagerly (e.g. `status="0"` at zero) so the metric
+  family is present before the first error.

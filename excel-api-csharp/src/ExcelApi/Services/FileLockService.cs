@@ -53,7 +53,7 @@ public class FileLockService
             {
                 Pid = pid,
                 Hostname = hostname,
-                LockedAt = DateTime.UtcNow.ToString("o"),
+                LockedAt = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff"),
                 Implementation = Implementation
             };
 
@@ -143,6 +143,11 @@ public class FileLockService
 
     private bool IsStale(LockfileContent lockContent)
     {
+        if (DateTime.TryParseExact(lockContent.LockedAt, "yyyy-MM-dd HH:mm:ss.fff", null,
+                System.Globalization.DateTimeStyles.None, out var localTime))
+        {
+            return DateTime.Now - localTime >= TimeSpan.FromMilliseconds(lockTimeoutMs);
+        }
         if (!DateTime.TryParse(lockContent.LockedAt, null,
                 System.Globalization.DateTimeStyles.RoundtripKind, out var lockTime))
         {

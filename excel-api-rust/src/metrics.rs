@@ -41,10 +41,12 @@ fn make_key(name: &str, labels: &[(&str, &str)]) -> String {
 
 impl Metrics {
     pub fn new() -> Self {
-        Self {
+        let metrics = Self {
             store: Mutex::new(Store::default()),
             started: Instant::now(),
-        }
+        };
+        metrics.increment("excel_api_errors_total", 0.0, &[("status", "0")]);
+        metrics
     }
 
     fn lock(&self) -> std::sync::MutexGuard<'_, Store> {

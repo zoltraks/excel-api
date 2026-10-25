@@ -1,5 +1,41 @@
 # Changes
 
+## Version 0.0.8
+
+Interoperability and documentation-parity release: cross-implementation file
+compatibility fixes, response-field renames with a unified local-time
+convention, a Rust source-layout reorganization, and engineering-standard
+alignment.
+
+- **Foreign-workbook interop**: Node and Rust now read `.xlsx` packages
+  saved by any implementation - writers that emit `x:`-prefixed
+  spreadsheetml elements (ClosedXML and others) produced empty models in
+  ExcelJS and umya-spreadsheet; both implementations retry a failed load
+  against an in-memory normalized package (`docProps/*` dropped, `x:`
+  prefixes stripped)
+- **Response field renames**: `timezone` is now `zone`, `modified_at` is
+  `modified`, `size_bytes` is `size` across health and workbook responses
+  on all four servers, the contract, and the Go client; all timestamps use
+  `YYYY-MM-DD hh:mm:ss.fff` local server time
+- **Java fix**: `GET /workbooks` and `GET /workbooks/{id}` resolve
+  registry paths once - the double join made the list empty and detail
+  return `WORKBOOK_NOT_FOUND`; `filename` now reports the basename like
+  the other servers
+- **Rust reorganization**: `src/` refactored into single-concern modules -
+  `app.rs` composition root, `config/`, `auth/`, and `queue/` directory
+  modules, `routes/` flattened with `types.rs`/`helpers.rs` shared files
+- **Documentation parity**: live docs corrected to the real six-component
+  roster and Rust toolchain; `docs/TESTING.md` gains the
+  cross-implementation verification procedure (ports 4801-4804, shared
+  fixture/lock environment) plus the tracked `shell/cross_test.py`
+  harness
+- **Standards alignment**: vendored engineering standards use
+  minimum-version floors instead of pinned runtimes, record the project's
+  deliberate Rust conventions, and sync `openapi-general` to canonical
+  0.1.5; `docs/GUIDELINES.md` gains the API-conventions section
+- **Refactoring**: C# nullability warnings eliminated for a zero-warning
+  Release build; Rust `queue.rs` split under the file-size threshold
+
 ## Version 0.0.7
 
 Parity and conformance release: version-source consolidation, health response renames, per-endpoint metrics, serialization order, and implementation-specific bug fixes across all four servers.

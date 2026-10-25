@@ -125,12 +125,19 @@ pub fn column_definitions(
         };
         entry.insert("type".to_string(), Value::String(typ));
         entry.insert("number_format".to_string(), Value::Null);
-        if layout.description_row > 0 {
-            let desc = cell_text(ws, col, layout.description_row);
-            if !desc.is_empty() {
-                entry.insert("descriptions".to_string(), json!({ "default": desc }));
-            }
-        }
+        entry.insert(
+            "descriptions".to_string(),
+            if layout.description_row > 0 {
+                let desc = cell_text(ws, col, layout.description_row);
+                if desc.is_empty() {
+                    Value::Null
+                } else {
+                    json!({ "default": desc })
+                }
+            } else {
+                Value::Null
+            },
+        );
         columns.push(Value::Object(entry));
     }
     let source = match layout.mode.as_str() {

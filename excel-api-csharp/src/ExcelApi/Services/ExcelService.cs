@@ -23,6 +23,9 @@ public class ExcelService
         using var workbook = new XLWorkbook(filePath);
         var worksheet = GetWorksheetOrThrow(workbook, sheetName);
 
+        if (!System.Text.RegularExpressions.Regex.IsMatch(cellRef, "^[A-Za-z]+[0-9]+$"))
+            throw new ArgumentException($"Invalid cell reference '{cellRef}'");
+
         var cell = worksheet.Cell(cellRef);
         return ConvertCell(cell, format);
     }
@@ -72,7 +75,7 @@ public class ExcelService
         for (int r = startRow; r <= endRow; r++)
         {
             var row = worksheet.Row(r);
-            var data = new Dictionary<string, object>();
+            var data = new Dictionary<string, object?>();
 
             for (int c = 0; c < headers.Length; c++)
             {
@@ -118,7 +121,7 @@ public class ExcelService
         }
 
         var row = worksheet.Row(excelRowNumber);
-        var data = new Dictionary<string, object>();
+        var data = new Dictionary<string, object?>();
 
         for (int c = 0; c < headers.Length; c++)
         {
@@ -133,13 +136,64 @@ public class ExcelService
         return new RecordItem { Index = recordIndex, Data = data };
     }
 
+    private static readonly IReadOnlyDictionary<int, string> BuiltinFormats = new Dictionary<int, string>
+    {
+        [1] = "0",
+        [2] = "0.00",
+        [3] = "#,##0",
+        [4] = "#,##0.00",
+        [9] = "0%",
+        [10] = "0.00%",
+        [11] = "0.00E+00",
+        [12] = "# ?/?",
+        [13] = "# ??/??",
+        [14] = "m/d/yy",
+        [15] = "d-mmm-yy",
+        [16] = "d-mmm",
+        [17] = "mmm-yy",
+        [18] = "h:mm AM/PM",
+        [19] = "h:mm:ss AM/PM",
+        [20] = "h:mm",
+        [21] = "h:mm:ss",
+        [22] = "m/d/yy h:mm",
+        [37] = "#,##0 ;(#,##0)",
+        [38] = "#,##0 ;[Red](#,##0)",
+        [39] = "#,##0.00;(#,##0.00)",
+        [40] = "#,##0.00;[Red](#,##0.00)",
+        [44] = "_($* #,##0.00_);_($* (#,##0.00);_($* \"-\"??_);_(@_)",
+        [45] = "mm:ss",
+        [46] = "[h]:mm:ss",
+        [47] = "mmss.0",
+        [48] = "##0.0E+0",
+        [49] = "@",
+    };
+
+    private static string GetFormattedText(IXLCell cell)
+    {
+        return cell.HasFormula && cell.CachedValue.IsBlank ? "" : cell.GetFormattedString();
+    }
+
+    private static string? BuiltinFormat(int formatId)
+    {
+        return BuiltinFormats.TryGetValue(formatId, out var code) ? code : null;
+    }
+
     private CellData ConvertCell(IXLCell cell, string format)
     {
         var value = GetCellValue(cell, format);
         var type = GetCellType(cell);
-        var numberFormat = cell.Style.NumberFormat.Format;
+        var formatted = format == "display" ? GetFormattedText(cell) : null;
+        if (format == "display")
+        {
+            value = formatted;
+        }
+        var rawFormat = cell.Style.NumberFormat.Format;
+        if (string.IsNullOrEmpty(rawFormat) && cell.Style.NumberFormat.NumberFormatId > 0)
+        {
+            rawFormat = BuiltinFormat(cell.Style.NumberFormat.NumberFormatId);
+        }
+        var numberFormat = string.IsNullOrEmpty(rawFormat) || rawFormat == "General" ? null : rawFormat;
         var isFormula = cell.HasFormula;
-        var formatted = format == "display" ? cell.GetFormattedString() : null;
 
         return new CellData
         {
@@ -154,11 +208,32 @@ public class ExcelService
         };
     }
 
-    private object GetCellValue(IXLCell cell, string format)
+    private object? GetCellValue(IXLCell cell, string format)
     {
+        if (cell.HasFormula)
+        {
+            var cv = cell.CachedValue;
+            if (cv.IsBlank)
+            {
+                return null;
+            }
+            if (cv.IsNumber)
+            {
+                return cv.GetNumber();
+            }
+            if (cv.IsBoolean)
+            {
+                return cv.GetBoolean();
+            }
+            if (cv.IsDateTime)
+            {
+                return cv.GetDateTime().ToString("yyyy-MM-dd HH:mm:ss.fff");
+            }
+            return cv.GetText();
+        }
         if (cell.IsEmpty())
         {
-            return "";
+            return null;
         }
 
         switch (cell.DataType)
@@ -173,7 +248,7 @@ public class ExcelService
                 return cell.GetTimeSpan().ToString();
             case XLDataType.DateTime:
                 var dt = cell.GetDateTime();
-                return format == "string" ? dt.ToString("o") : dt;
+                return dt.ToString("yyyy-MM-dd HH:mm:ss.fff");
             default:
                 return cell.GetString();
         }
@@ -181,6 +256,27 @@ public class ExcelService
 
     private string GetCellType(IXLCell cell)
     {
+        if (cell.HasFormula)
+        {
+            var cv = cell.CachedValue;
+            if (cv.IsBlank)
+            {
+                return "empty";
+            }
+            if (cv.IsNumber)
+            {
+                return "number";
+            }
+            if (cv.IsBoolean)
+            {
+                return "boolean";
+            }
+            if (cv.IsDateTime)
+            {
+                return "date";
+            }
+            return "string";
+        }
         if (cell.IsEmpty())
         {
             return "empty";
@@ -713,7 +809,7 @@ public class CellData
     public string Ref { get; set; } = "";
     public string Column { get; set; } = "";
     public int Row { get; set; }
-    public object Value { get; set; } = "";
+    public object? Value { get; set; }
     public string Type { get; set; } = "";
     public string? NumberFormat { get; set; }
     public bool IsFormula { get; set; }

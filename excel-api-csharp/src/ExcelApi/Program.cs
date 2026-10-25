@@ -217,6 +217,22 @@ app.Use(async (context, next) =>
     }
 });
 
+app.UseStatusCodePages(async context =>
+{
+    var statusCode = context.HttpContext.Response.StatusCode;
+    var (error, message) = statusCode switch
+    {
+        405 => ("METHOD_NOT_ALLOWED", "Method not allowed"),
+        415 => ("UNSUPPORTED_MEDIA_TYPE", "Content-Type is not supported"),
+        _ => (null, null),
+    };
+    if (error != null)
+    {
+        context.HttpContext.Response.ContentType = "application/json";
+        await context.HttpContext.Response.WriteAsJsonAsync(new { error, message });
+    }
+});
+
 app.UseMiddleware<AuthMiddleware>(authService, basePath);
 
 // Maps a request path to the shared endpoint metric names used by the
@@ -238,7 +254,7 @@ string? EndpointKey(string method, string uri)
     {
         "records" => method switch { "GET" => "record_get", "PUT" => "record_update", "DELETE" => "record_delete", _ => null },
         "cells" => method switch { "GET" => "cell_get", "PUT" => "cell_write", _ => null },
-        "range" => method == "GET" ? "range_get" : null,
+        "ranges" => method == "GET" ? "range_get" : null,
         "sheets" => method == "GET" ? "sheet_get" : null,
         "workbooks" => method == "GET" ? "workbook_get" : null,
         _ => null,

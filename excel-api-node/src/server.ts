@@ -1,6 +1,6 @@
 // Excel API Node  HTTP service entry point
 
-import Fastify, { type FastifyInstance } from 'fastify';
+import Fastify, { type FastifyError, type FastifyInstance } from 'fastify';
 import * as fs from 'fs';
 import { loadConfig, loadAccessConfig } from './config/loader.js';
 import { initRegistry, getRegistry } from './workbook/registry.js';
@@ -127,6 +127,22 @@ server.addHook('onResponse', (request, reply, done) => {
   done();
 });
 
+
+server.addHook('onRequest', async (request, reply) => {
+  const ct = request.headers['content-type'];
+  if (
+    ct &&
+    !ct.startsWith('application/json') &&
+    !ct.startsWith('application/x-www-form-urlencoded') &&
+    ['POST', 'PUT', 'PATCH'].includes(request.method) &&
+    request.url.includes('/api/')
+  ) {
+    return reply
+      .status(415)
+      .send({ error: 'UNSUPPORTED_MEDIA_TYPE', message: 'Content-Type is not supported' });
+  }
+});
+
 server.addContentTypeParser('application/x-www-form-urlencoded', (_request, payload, done) => {
   let body = '';
   payload.on('data', (chunk: Buffer) => {
@@ -177,6 +193,33 @@ if (basePath) {
   await server.register(metricsRoutes, { prefix: basePath });
   await server.register(openapiRoutes(config), { prefix: basePath });
 }
+
+server.addContentTypeParser(
+  'application/json',
+  { parseAs: 'string' },
+  (_req, body, done) => {
+    try {
+      done(null, body && (body as string).trim() ? JSON.parse(body as string) : {});
+    } catch (error) {
+      done(error as Error, undefined);
+    }
+  },
+);
+
+server.setErrorHandler((error: FastifyError, _request, reply) => {
+  const status = error.statusCode ?? 500;
+  const code =
+    status === 415
+      ? 'UNSUPPORTED_MEDIA_TYPE'
+      : status === 405
+        ? 'METHOD_NOT_ALLOWED'
+        : status < 500
+          ? 'INVALID_REQUEST'
+          : 'INTERNAL_ERROR';
+  const message = status < 500 ? error.message : 'Internal server error';
+  reply.status(status).send({ error: code, message });
+});
+
 await server.register(authRoutes(oauth2Handler));
 if (basePath) {
   await server.register(authRoutes(oauth2Handler), { prefix: basePath });

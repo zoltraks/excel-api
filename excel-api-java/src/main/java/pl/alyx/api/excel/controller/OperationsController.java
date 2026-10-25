@@ -66,7 +66,7 @@ public class OperationsController {
 
         Map<String, Object> body = new java.util.HashMap<>();
         body.put("results", results);
-        body.put("applied_at", Instant.now().toString());
+        body.put("applied_at", java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS")));
         return ResponseEntity.ok(body);
     }
 }

@@ -28,8 +28,8 @@ export function workbookRoutes(
               id: wb.id,
               filename: wb.filename,
               readonly: wb.readonly,
-              modified_at: wb.modified_at,
-              size_bytes: wb.size_bytes,
+              modified: wb.modified,
+              size: wb.size,
               sheets: sheetInfos.map((s) => s.name),
             };
           }),
@@ -66,8 +66,8 @@ export function workbookRoutes(
           id: workbook.id,
           filename: workbook.filename,
           readonly: workbook.readonly,
-          modified_at: workbook.modified_at,
-          size_bytes: workbook.size_bytes,
+          modified: workbook.modified,
+          size: workbook.size,
           sheets: sheets.map((s) => s.name),
         };
       },

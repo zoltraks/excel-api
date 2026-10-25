@@ -15,7 +15,7 @@ fn is_date_format(code: &str, id: u32) -> bool {
     lc.contains('y') || lc.contains('d')
 }
 
-fn serial_to_iso(serial: f64) -> Option<String> {
+fn serial_to_local(serial: f64) -> Option<String> {
     let base = chrono::NaiveDate::from_ymd_opt(1899, 12, 30)?;
     let days = serial.trunc() as i64;
     let secs = (serial.fract() * 86_400.0).round() as i64;
@@ -23,13 +23,21 @@ fn serial_to_iso(serial: f64) -> Option<String> {
         .and_hms_opt(0, 0, 0)?
         .checked_add_signed(chrono::Duration::days(days))?
         .checked_add_signed(chrono::Duration::seconds(secs))?;
-    Some(dt.format("%Y-%m-%dT%H:%M:%S%.3fZ").to_string())
+    Some(dt.format("%Y-%m-%d %H:%M:%S%.3f").to_string())
 }
 
 fn number_fmt(sheet: &Worksheet, col: u32, row: u32) -> (Option<String>, u32) {
     match sheet.cell((col, row)) {
         Some(cell) => match cell.style().number_format() {
-            Some(nf) => (Some(nf.format_code().to_string()), nf.number_format_id()),
+            Some(nf) => {
+                let code = nf.format_code().to_string();
+                let code = if code.is_empty() || code == "General" {
+                    None
+                } else {
+                    Some(code)
+                };
+                (code, nf.number_format_id())
+            }
             None => (None, 0),
         },
         None => (None, 0),
@@ -37,7 +45,11 @@ fn number_fmt(sheet: &Worksheet, col: u32, row: u32) -> (Option<String>, u32) {
 }
 
 fn json_number(n: f64) -> Value {
-    serde_json::Number::from_f64(n).map_or(Value::Null, Value::Number)
+    if n.fract() == 0.0 && n.abs() < 9.0e15 {
+        Value::Number((n as i64).into())
+    } else {
+        serde_json::Number::from_f64(n).map_or(Value::Null, Value::Number)
+    }
 }
 
 /// JSON value for a cell under the `native` format.
@@ -47,22 +59,31 @@ pub(crate) fn native_value(sheet: &Worksheet, col: u32, row: u32) -> (Value, &'s
     };
     let cv = cell.cell_value();
     if cv.is_formula() {
-        let result = match cv.raw_value() {
-            CellRawValue::Numeric(n) => json_number(*n),
-            CellRawValue::Bool(b) => Value::Bool(*b),
-            CellRawValue::Empty => Value::Null,
-            other => Value::String(other.to_string()),
+        return match cv.raw_value() {
+            CellRawValue::Numeric(n) => {
+                let (code, id) = number_fmt(sheet, col, row);
+                if code.is_some_and(|c| is_date_format(&c, id)) {
+                    (
+                        serial_to_local(*n).map_or(Value::Null, Value::String),
+                        "date",
+                    )
+                } else {
+                    (json_number(*n), "number")
+                }
+            }
+            CellRawValue::Bool(b) => (Value::Bool(*b), "boolean"),
+            CellRawValue::Empty => (Value::Null, "empty"),
+            other => (Value::String(other.to_string()), "string"),
         };
-        return (
-            json!({ "formula": cv.formula(), "result": result }),
-            "formula",
-        );
     }
     match cv.raw_value() {
         CellRawValue::Numeric(n) => {
             let (code, id) = number_fmt(sheet, col, row);
             if code.is_some_and(|c| is_date_format(&c, id)) {
-                (serial_to_iso(*n).map_or(Value::Null, Value::String), "date")
+                (
+                    serial_to_local(*n).map_or(Value::Null, Value::String),
+                    "date",
+                )
             } else {
                 (json_number(*n), "number")
             }

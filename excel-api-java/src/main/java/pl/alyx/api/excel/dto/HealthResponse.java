@@ -6,5 +6,5 @@ public record HealthResponse(
         String implementation,
         String version,
         String time,
-        String timezone) {
+        String zone) {
 }

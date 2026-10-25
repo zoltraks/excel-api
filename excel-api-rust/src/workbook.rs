@@ -15,6 +15,7 @@ pub struct WorkbookInfo {
 
 pub struct WorkbookRegistry {
     workbooks: HashMap<String, WorkbookInfo>,
+    order: Vec<String>,
 }
 
 impl WorkbookRegistry {
@@ -23,12 +24,14 @@ impl WorkbookRegistry {
     pub fn new(config: &Config, warn: &dyn Fn(&str)) -> Self {
         let base = PathBuf::from(&config.registry.directory);
         let mut workbooks = HashMap::new();
+        let mut order = Vec::new();
         for entry in &config.registry.workbooks {
             let full = base.join(&entry.path);
             if !full.exists() {
                 warn(&format!("Workbook file not found: {}", full.display()));
                 continue;
             }
+            order.push(entry.id.clone());
             workbooks.insert(
                 entry.id.clone(),
                 WorkbookInfo {
@@ -39,7 +42,7 @@ impl WorkbookRegistry {
                 },
             );
         }
-        Self { workbooks }
+        Self { workbooks, order }
     }
 
     pub fn get(&self, id: &str) -> Option<&WorkbookInfo> {
@@ -47,6 +50,6 @@ impl WorkbookRegistry {
     }
 
     pub fn all(&self) -> impl Iterator<Item = &WorkbookInfo> {
-        self.workbooks.values()
+        self.order.iter().filter_map(|id| self.workbooks.get(id))
     }
 }

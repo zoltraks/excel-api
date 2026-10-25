@@ -22,7 +22,7 @@ public static class HealthEndpoints
                 version = contractInfo.Version,
                 uptime = uptimeSeconds,
                 time = time,
-                timezone = timezone
+                zone = timezone
             });
         });
 

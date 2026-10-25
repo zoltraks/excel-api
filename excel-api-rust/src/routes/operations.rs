@@ -11,7 +11,8 @@ use crate::error::json_body;
 use crate::queue::{BatchOperation, OpVerb};
 use crate::state::AppState;
 
-use super::common::*;
+use super::helpers::*;
+use super::types::*;
 
 pub async fn record_operations(
     State(state): State<Arc<AppState>>,
@@ -171,7 +172,7 @@ async fn batch_result(
             json_body(
                 StatusCode::OK,
                 state.pretty,
-                &json!({ "results": mapped, "applied_at": crate::util::utc_now_iso() }),
+                &json!({ "results": mapped, "applied_at": crate::util::local_now() }),
             )
         }
         Err(e) => err_enqueue(state, &e),

@@ -85,7 +85,7 @@ public class MetricsFilter extends OncePerRequestFilter {
                 case "PUT" -> "cell_write";
                 default -> null;
             };
-            case "range" -> "GET".equals(method) ? "range_get" : null;
+            case "ranges" -> "GET".equals(method) ? "range_get" : null;
             case "sheets" -> "GET".equals(method) ? "sheet_get" : null;
             case "workbooks" -> "GET".equals(method) ? "workbook_get" : null;
             default -> null;

@@ -152,7 +152,7 @@ All implementations follow the same lockfile protocol to enable cross-implementa
   "pid": 12345,
   "hostname": "worker-01",
   "implementation": "excel-api-node",
-  "locked_at": "2025-03-15T14:24:58Z"
+  "locked_at": "2025-03-15 14:24:58.358"
 }
 ```
 
@@ -189,7 +189,7 @@ Every implementation exposes the same Prometheus/OpenMetrics family set on `GET 
 
 ## Logging Format
 
-All implementations use structured JSON logging for consistency and machine-readability. The log format is standardized across Node, Java, and C# implementations.
+All implementations use structured JSON logging for consistency and machine-readability. The log format is standardized across Node, Java, C#, and Rust implementations.
 
 **JSON log entry format:**
 
@@ -309,23 +309,24 @@ Semantics derived from the mode:
 
 ## Architectural Decisions
 
-| ID   | Decision                  | Choice                                        | Rationale                                                                                |
-| ---- | ------------------------- | --------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| A-01 | Multi-language implementations | Node, Java, C# servers with Go CLI         | Technology diversity, interchangeability proof, different performance trade-offs        |
-| A-02 | OpenAPI 3.1 as contract   | Single source of truth for all implementations | Ensures API consistency, enables client generation, documentation-first development       |
-| A-03 | ExcelJS for Node          | ExcelJS 4.x                                   | Lightweight, TypeScript-native, good performance for small to medium files                |
-| A-04 | Apache POI for Java       | Apache POI 5.x                                | Most complete OOXML support, streaming reader for large files, optional formula evaluation |
-| A-05 | ClosedXML for C#          | ClosedXML 0.102+                              | Fluent API, ergonomic row insertion, ReadyToRun for near-native startup                  |
-| A-06 | Advisory file locking     | Atomic exclusive lockfile create + JSON payload | Cross-implementation interoperability, stale lock takeover, no external dependencies      |
-| A-07 | Write queue with batching  | Per-workbook serialized write lanes with depth cap | Single lock + open/save per batch; excess depth rejected with 503 SERVICE_BUSY          |
-| A-08 | In-memory cache           | Per-workbook cache with mtime invalidation     | Eliminates disk I/O for reads, detects external changes, configurable polling            |
-| A-09 | Dual addressing modes     | Cell-level and record-level endpoints         | Supports both raw spreadsheet access and tabular CRUD operations                         |
-| A-10 | Configuration split       | config.yaml + access.yaml                     | Separation of structural and sensitive data, different permission requirements            |
-| A-11 | OAuth2 + static tokens    | Multiple authorization mechanisms              | Flexibility for machine-to-machine and human authorization, development convenience      |
-| A-12 | CLI-first design          | Go CLI with REPL and batch mode               | Primary interactive surface, supports scripting, independent of server implementation   |
-| A-13 | JSON object responses     | Never top-level arrays, always envelope object | Security (JSON hijacking prevention), consistency, extensibility                          |
-| A-14 | Contract-first development | OpenAPI defined before implementations         | Clear API surface, prevents implementation divergence, enables client generation         |
-| A-15 | Implementation independence | Each component has own build system          | No cross-dependencies, independent deployment, technology choice freedom                  |
+| ID   | Decision                           | Choice                                             | Rationale                                                                                  |
+| ---- | ---------------------------------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| A-01 | Multi-language implementations     | Node, Java, C#, Rust servers with Go CLI           | Technology diversity, interchangeability proof, different performance trade-offs           |
+| A-02 | OpenAPI 3.1 as contract            | Single source of truth for all implementations     | Ensures API consistency, enables client generation, documentation-first development        |
+| A-03 | ExcelJS for Node                   | ExcelJS 4.x                                        | Lightweight, TypeScript-native, good performance for small to medium files                 |
+| A-04 | Apache POI for Java                | Apache POI 5.x                                     | Most complete OOXML support, streaming reader for large files, optional formula evaluation |
+| A-05 | ClosedXML for C#                   | ClosedXML 0.102+                                   | Fluent API, ergonomic row insertion, ReadyToRun for near-native startup                    |
+| A-06 | Advisory file locking              | Atomic exclusive lockfile create + JSON payload    | Cross-implementation interoperability, stale lock takeover, no external dependencies       |
+| A-07 | Write queue with batching          | Per-workbook serialized write lanes with depth cap | Single lock + open/save per batch; excess depth rejected with 503 SERVICE_BUSY             |
+| A-08 | In-memory cache                    | Per-workbook cache with mtime invalidation         | Eliminates disk I/O for reads, detects external changes, configurable polling              |
+| A-09 | Dual addressing modes              | Cell-level and record-level endpoints              | Supports both raw spreadsheet access and tabular CRUD operations                           |
+| A-10 | Configuration split                | config.yaml + access.yaml                          | Separation of structural and sensitive data, different permission requirements             |
+| A-11 | OAuth2 + static tokens             | Multiple authorization mechanisms                  | Flexibility for machine-to-machine and human authorization, development convenience        |
+| A-12 | CLI-first design                   | Go CLI with REPL and batch mode                    | Primary interactive surface, supports scripting, independent of server implementation      |
+| A-13 | JSON object responses              | Never top-level arrays, always envelope object     | Security (JSON hijacking prevention), consistency, extensibility                           |
+| A-14 | Contract-first development         | OpenAPI defined before implementations             | Clear API surface, prevents implementation divergence, enables client generation           |
+| A-15 | Implementation independence        | Each component has own build system                | No cross-dependencies, independent deployment, technology choice freedom                   |
+| A-16 | umya-spreadsheet and axum for Rust | umya-spreadsheet 3.x, axum 0.8                     | Preserves formulas and styles across read-modify-write, async Tokio stack                  |
 
 ## Error Response Envelope
 
@@ -335,7 +336,7 @@ Implementations must not include stack traces, internal class names, or filesyst
 
 ## File Structure
 
-The project repository contains five component directories, each with its own source layout and build system.
+The project repository contains six component directories, each with its own source layout and build system.
 
 **excel-api-node/** - TypeScript/Node.js implementation
 
@@ -398,11 +399,32 @@ excel-api-java/
 ```
 excel-api-rust/
   src/
-    main.rs                  # Bootstrap: config, logger, registry, router, TLS, lifecycle
+    main.rs                  # Entry point: CLI parse -> app::run()
+    app.rs                   # Composition root: config, logger, registry, router, TLS, lifecycle
     cli.rs                   # --work/--config/--access/--life parsing
-    config.rs                # config.yaml + access.yaml schema, interpolation, profiles
-    auth.rs                  # HS256 JWT, OAuth2 grants, static tokens, ACL, middleware
-    excel.rs                 # umya-spreadsheet ops: layouts, values, records, batch
+    config/
+      mod.rs                 # Root Config/Loaded + load(), access file permissions
+      server.rs              # Server, TLS, CORS, JSON settings
+      openapi.rs             # OpenAPI metadata settings
+      registry.rs            # Registry and workbook entry schemas
+      queue.rs               # Write-queue settings
+      cache.rs               # Cache settings
+      auth.rs                # Auth mode and JWT settings
+      logging.rs             # Logging, lifecycle, rate-limit settings
+      access.rs              # access.yaml schema (OAuth2, static tokens, ACL)
+      resolve.rs             # Env interpolation, profile merge, path resolution
+      defaults.rs            # Shared serde default helpers
+    auth/
+      mod.rs                 # AuthContext, AclChecker, secrets_equal, scope_check
+      jwt.rs                 # HS256 JWT validation
+      oauth.rs               # OAuth2 client credentials and password grants
+      static_token.rs        # Static token lookup
+    excel/
+      mod.rs                 # umya-spreadsheet ops module root + shared helpers
+      layout.rs              # Sheet header layout resolution (single/multi/legend/none)
+      ops.rs                 # Write operations and batch execution under the lockfile protocol
+      records.rs             # Tabular reads: records, sheet metadata, column definitions
+      values.rs              # Cell value extraction and JSON shaping (native/display/string)
     workbook.rs              # Workbook registry
     lock.rs                  # Shared lockfile protocol
     queue.rs                 # Per-workbook write lanes, debounced batching
@@ -416,13 +438,22 @@ excel-api-rust/
     util.rs                  # Durations, column letters, cell refs, timestamps
     routes/
       mod.rs                 # Router assembly, base-path + root mounts, CORS
-      service.rs             # /health, /metrics, /openapi.{yaml,json}, /auth/token
-      data.rs                # Workbook/sheet/record/cell/operations/lock-status
+      system.rs              # /health, /metrics, /openapi.{yaml,json}, /auth/token
+      types.rs               # WorkbookSnapshot + registry lookup helpers
+      helpers.rs             # Shared loaders, error mapping, readonly guards
+      workbooks.rs           # Workbooks route handlers
+      sheets.rs              # Sheets route handlers
+      records.rs             # Records route handlers
+      cells.rs               # Cells route handlers
+      operations.rs          # Batch operations route handlers
+      lock_status.rs         # Lock-status route handlers
   resources/
     openapi.yaml             # Contract copy (sync script target)
   config/
     config.example.yaml      # Example configuration
     access.example.yaml      # Example sensitive configuration
+  .cargo/
+    audit.toml               # cargo-audit advisory ignores with documented rationale
   Cargo.toml                 # Edition, rust-version, deps, lints
   rust-toolchain.toml        # Pinned toolchain
   rustfmt.toml

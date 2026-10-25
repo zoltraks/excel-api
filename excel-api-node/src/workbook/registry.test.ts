@@ -109,8 +109,8 @@ describe('Workbook Registry', () => {
     const workbook = registry.get('test1');
     expect(workbook).toBeDefined();
     expect(workbook?.path).toContain('test1.xlsx');
-    expect(workbook?.size_bytes).toBeGreaterThan(0);
-    expect(workbook?.modified_at).toBeDefined();
+    expect(workbook?.size).toBeGreaterThan(0);
+    expect(workbook?.modified).toBeDefined();
   });
 
   it('should warn on missing workbook files', () => {
@@ -128,10 +128,10 @@ describe('Workbook Registry', () => {
     expect(workbooks.length).toBeGreaterThanOrEqual(0);
   });
 
-  it('should refresh modified_at timestamp', () => {
+  it('should refresh modified timestamp', () => {
     const registry = initRegistry(config);
     const workbook = registry.get('test1');
-    const originalModified = workbook?.modified_at;
+    const originalModified = workbook?.modified;
 
     // Wait a bit and modify the file
     const filePath = path.join(tempDir, 'test1.xlsx');
@@ -140,7 +140,7 @@ describe('Workbook Registry', () => {
     registry.refreshModifiedAt('test1');
     const refreshed = registry.get('test1');
 
-    expect(refreshed?.modified_at).not.toBe(originalModified);
+    expect(refreshed?.modified).not.toBe(originalModified);
   });
 
   it('should return same registry instance on subsequent init calls', () => {

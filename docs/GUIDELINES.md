@@ -64,9 +64,9 @@ The three core documentation files have distinct purposes for this multi-languag
 
 **PROJECT.md** is the project specification and requirements document. It defines the system overview, vision, goals, data model, components, API contract, and operations. This is the definitive source of truth for what the system must do and how it behaves at the specification level.
 
-**ARCHITECTURE.md** describes the shared architecture and cross-implementation patterns. It defines the component diagram, request processing flow, authorization flow, queue and batching architecture, lockfile protocol, cache architecture, and other patterns that all implementations must follow. This document ensures consistency across the three interchangeable server implementations.
+**ARCHITECTURE.md** describes the shared architecture and cross-implementation patterns. It defines the component diagram, request processing flow, authorization flow, queue and batching architecture, lockfile protocol, cache architecture, and other patterns that all implementations must follow. This document ensures consistency across the four interchangeable server implementations.
 
-**SPECIFICATION.md** contains implementation-specific details for each component. It documents the technology stack, source layout, Excel library choices, known limitations, and queue implementation details for Node, Java, C#, Go, and the test suite. This file captures the differences and trade-offs between implementations.
+**SPECIFICATION.md** contains implementation-specific details for each component. It documents the technology stack, source layout, Excel library choices, known limitations, and queue implementation details for Node, Java, C#, Rust, Go, and the test suite. This file captures the differences and trade-offs between implementations.
 
 The separation exists because this is a multi-language project with independent implementations sharing a common contract. A single monolithic document (as used in single-technology projects) would not adequately capture the implementation-specific variations while maintaining clarity on shared patterns.
 
@@ -109,7 +109,7 @@ These rules apply to every change made in this project. Follow them in order —
 - Read the request carefully.
 - Identify all components, modules, and documentation files affected.
 - All implementations must be consistent with the requested change.
-- A change request covers every applicable implementation - Node, Java, and C# servers. A new feature lands in all supported implementations, not a subset.
+- A change request covers every applicable implementation - Node, Java, C#, and Rust servers. A new feature lands in all supported implementations, not a subset.
 - Version numbers stay synchronized across all components and the API specification.
 
 **Write the change request**
@@ -168,6 +168,12 @@ Documentation style rules live in `docs/STYLE.md`.
 - **Official Component Names**: Always use component names from the Components Overview section in PROJECT.md.
 - **Version numbers**: Use just the number (e.g., `0.1.0`). Do not prefix with `v`.
 
+## API Conventions
+
+- **JSON field names**: short snake_case, favoring the briefest clear form - `zone` over `timezone`, `modified` over `modified_at`, `size` over `size_bytes`.
+- **Timestamps**: every timestamp the API produces uses `YYYY-MM-DD hh:mm:ss.fff` (milliseconds, no zone suffix) in local server time. The rule covers response fields (`time`, `modified`, `applied_at`, `locked_since`), the on-disk lockfile `locked_at`, and Excel date-typed cell values. Numeric durations (`uptime`, `expires_in`) stay numeric. Lockfile parsing tolerates the legacy RFC3339 format so a mixed-version lockfile still resolves staleness.
+- **Contract-visible changes are features**: a rename, reformat, or behavior change in any JSON response, the OpenAPI contract, or the lockfile protocol is a feature - it lands in all four server implementations, the Go client, and the integration suite in the same change set, with the contract updated first.
+
 ## Build and Release Process
 
 **Quality Workflow**
@@ -223,6 +229,6 @@ requirements this supports.
 - **Refactoring Documents**: Do not read any document from `docs/refactoring/` unless specifically instructed by the user.
 - **New Session Rule**: If the model changes or a new session starts, re-read `README.md`, this file, and the active Sources of Truth before doing any work. Do not assume prior context.
 - **Audit Reports**: Audit reports are stored in `docs/report/audit/<version>/` where `<version>` is the audited project version. Do not read audit reports automatically. They are produced artifacts, not active documentation. Read them only when the user explicitly requests an audit-report review, comparison, or other direct use.
-- **OpenAPI Synchronization**: Only modify `docs/contract/openapi.yaml`. The copies in `excel-api-node/resources/openapi.yaml`, `excel-api-java/src/main/resources/openapi.yaml`, and `excel-api-csharp/src/ExcelApi/Resources/openapi.yaml` must be synced by running `bash shell/sync.sh`, not manually edited.
+- **OpenAPI Synchronization**: Only modify `docs/contract/openapi.yaml`. The per-implementation copies must be synced by running `bash shell/sync.sh`, never edited manually - the script's `TARGETS` list owns the copy locations.
 - **Copyright Compliance**: `docs/COPYRIGHTS.md` contains mandatory copyright and licensing rules that must be obeyed. All code must be original, AI-generated code must be verified for originality, and dependency licensing must be compatible (MIT, Apache 2.0, BSD, ISC, Boost only; GPL not allowed).
 - **No Legacy Checking**: Unless specifically told to do so, do not implement additional support for previous behavior or create legacy checking for deprecated configuration keys or features.

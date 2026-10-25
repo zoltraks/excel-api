@@ -21,7 +21,7 @@ public final class RequestGuards {
     public static Map<String, Object> requireData(final Map<String, Object> request) {
         final Object data = request.get("data");
         if (!(data instanceof Map)) {
-            throw new ValidationException("'data' is required and must be an object");
+            throw new ValidationException("data is required");
         }
         return (Map<String, Object>) data;
     }

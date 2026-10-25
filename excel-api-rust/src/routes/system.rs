@@ -21,7 +21,7 @@ pub async fn health(State(state): State<Arc<AppState>>) -> Response {
             "version": env!("CARGO_PKG_VERSION"),
             "uptime": state.started.elapsed().as_secs(),
             "time": chrono::Local::now().format("%Y-%m-%d %H:%M:%S%.3f").to_string(),
-            "timezone": std::env::var("TZ").ok().filter(|v| !v.is_empty()).unwrap_or_else(|| iana_time_zone::get_timezone().unwrap_or_else(|_| "UTC".to_string())),
+            "zone": std::env::var("TZ").ok().filter(|v| !v.is_empty()).unwrap_or_else(|| iana_time_zone::get_timezone().unwrap_or_else(|_| "UTC".to_string())),
         }),
     )
 }

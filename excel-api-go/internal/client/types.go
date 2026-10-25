@@ -5,8 +5,8 @@ type WorkbookItem struct {
 	ID         string `json:"id"`
 	Filename   string `json:"filename"`
 	Readonly   bool   `json:"readonly"`
-	ModifiedAt string `json:"modified_at"`
-	SizeBytes  int64  `json:"size_bytes"`
+	ModifiedAt string `json:"modified"`
+	SizeBytes  int64  `json:"size"`
 }
 
 // WorkbookListResponse is returned by /workbooks.

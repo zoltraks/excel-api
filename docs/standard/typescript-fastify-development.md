@@ -1,6 +1,6 @@
 # Node.js/TypeScript Engineering Standards
 
-<!-- Standards set: typescript-general-development.md@0.1.4, typescript-fastify-development.md@0.1.4 | Date: 2026-10-25 -->
+<!-- Standards set: typescript-general-development.md@0.1.5, typescript-fastify-development.md@0.1.5 | Date: 2026-10-25 -->
 
 ## Scope
 
@@ -31,7 +31,7 @@ All paths below are relative to the `excel-api-node/` directory unless stated ot
 
 ## Core Technologies
 
-* **Node.js 22 LTS**: Runtime platform. Use the LTS release for production services.
+* **Node.js 22 LTS or later**: Runtime platform floor. A patch release carries security fixes the project should take automatically; the digest-pinned `node:22-alpine` base image in the Dockerfile pins the concrete version.
 * **TypeScript 5.x** (strict mode): Required for all source files. No JavaScript source files in `src/`.
 * **Fastify**: HTTP framework. Preferred over Express for performance and schema validation.
 * **ExcelJS 4.x**: Excel file operations. Read-modify-write with style preservation.
@@ -358,3 +358,20 @@ Never use numbered comments. Do not comment what the code does. Do not leave com
 **SOLID.** Extend via composition. Keep core logic independent of HTTP transport and configuration loading. Depend on abstract interfaces at module boundaries.
 
 **No Global State.** All state flows through constructors and function parameters.
+
+## Fastify Parity Patterns
+
+- `setErrorHandler` must register before `register()` route blocks to reach
+  encapsulated child scopes; registering it after routes leaves framework
+  errors (`FST_ERR_*`, `{statusCode, code}` envelopes) unmapped.
+- Content-type parser errors preempt routing: a `DELETE` with
+  `Content-Type: application/json` and an empty body fails in the parser
+  before the route runs. Register a tolerant JSON parser (`parseAs:
+  'string'`, empty body to `{}`) when deletes must accept a JSON
+  content-type.
+- Gate media types with an `onRequest` hook that returns the
+  `UNSUPPORTED_MEDIA_TYPE` envelope; exempt `auth/token`'s
+  `application/x-www-form-urlencoded` contract.
+- zod issue shapes differ across majors - `received` is not on
+  `invalid_type` issues in zod 4; detect missing-required fields via
+  `issue.code === 'invalid_type'` and the issue path.

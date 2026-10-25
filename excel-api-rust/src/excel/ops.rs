@@ -42,11 +42,7 @@ pub fn apply_write_cell(
     let (col, row) = parse_cell_ref(cell_ref)
         .ok_or_else(|| ExcelError::Invalid(format!("cell reference '{cell_ref}'")))?;
     set_json_value(ws, col, row, value);
-    let mut data = cell_data(ws, col, row, "native");
-    data.insert(
-        "formatted".to_string(),
-        Value::String(ws.formatted_value((col, row))),
-    );
+    let data = cell_data(ws, col, row, "native");
     Ok(Value::Object(data))
 }
 

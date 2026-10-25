@@ -16,6 +16,8 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.time.Instant;
+import java.time.ZoneId;
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -27,6 +29,8 @@ import java.util.Map;
 @Service
 public class FileLockService {
 
+    private static final java.time.format.DateTimeFormatter TS_FORMATTER =
+        java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS");
     private static final long POLL_INTERVAL_MS = 25L;
     private static final String IMPLEMENTATION = "excel-api-java";
 
@@ -65,7 +69,7 @@ public class FileLockService {
             Map<String, Object> content = new HashMap<>();
             content.put("pid", pid);
             content.put("hostname", hostname);
-            content.put("locked_at", Instant.now().toString());
+            content.put("locked_at", LocalDateTime.now().format(TS_FORMATTER));
             content.put("implementation", IMPLEMENTATION);
 
             try {
@@ -140,6 +144,8 @@ public class FileLockService {
         JsonNode existing = tryReadLockfile(lockFilePath(fileId));
         if (existing == null || isStale(existing)) {
             info.put("locked", false);
+            info.put("locked_by", null);
+            info.put("locked_since", null);
             return info;
         }
         info.put("locked", true);
@@ -158,10 +164,16 @@ public class FileLockService {
             return false;
         }
         try {
-            Instant lockTime = Instant.parse(lockedAt);
+            Instant lockTime = LocalDateTime.parse(lockedAt, TS_FORMATTER)
+                .atZone(ZoneId.systemDefault()).toInstant();
             return Instant.now().toEpochMilli() - lockTime.toEpochMilli() >= lockTimeoutMs;
         } catch (Exception e) {
-            return false;
+            try {
+                Instant lockTime = Instant.parse(lockedAt);
+                return Instant.now().toEpochMilli() - lockTime.toEpochMilli() >= lockTimeoutMs;
+            } catch (Exception ignored) {
+                return false;
+            }
         }
     }
 

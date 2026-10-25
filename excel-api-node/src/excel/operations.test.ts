@@ -10,6 +10,7 @@ import {
   readRecords,
   getSheetMetadata,
   getColumnDefinitions,
+  loadWorkbookXlsx,
 } from './operations.js';
 
 describe('addRecord', () => {
@@ -242,5 +243,46 @@ describe('header modes', () => {
     await expect(readRecords(filePath, 'data', { mode: 'legend' })).rejects.toThrow(
       'legend_sheet is not configured',
     );
+  });
+});
+
+describe('loadWorkbookXlsx on foreign-written packages', () => {
+  let tempDir: string;
+  let filePath: string;
+
+  beforeEach(async () => {
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'excel-api-foreign-'));
+    filePath = path.join(tempDir, 'foreign.xlsx');
+
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet('data');
+    sheet.getRow(1).values = ['name', 'value'];
+    sheet.getRow(2).values = ['alpha', 1];
+    await workbook.xlsx.writeFile(filePath);
+  });
+
+  afterEach(() => {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  });
+
+  it('loads a workbook whose XML parts carry the x: namespace prefix', async () => {
+    const { default: JSZip } = await import('jszip');
+    const raw = fs.readFileSync(filePath);
+    const zip = await JSZip.loadAsync(raw);
+    const prefix = (text: string) =>
+      text.replace(/<(\/?)(workbook|sheets|sheet|worksheet|sheetData|row|c|v)\b/g, '<$1x:$2');
+    for (const entry of zip.file(/.*/)) {
+      if (!entry.name.endsWith('.xml') && !entry.name.endsWith('.rels')) continue;
+      zip.file(entry.name, prefix(await entry.async('string')));
+    }
+    fs.writeFileSync(filePath, await zip.generateAsync({ type: 'nodebuffer' }));
+
+    const plain = new ExcelJS.Workbook();
+    await expect(plain.xlsx.readFile(filePath)).rejects.toThrow();
+
+    const workbook = new ExcelJS.Workbook();
+    await loadWorkbookXlsx(workbook, filePath);
+    expect(workbook.getWorksheet('data')?.getCell('A2').value).toBe('alpha');
+    expect(workbook.getWorksheet('data')?.getCell('B2').value).toBe(1);
   });
 });

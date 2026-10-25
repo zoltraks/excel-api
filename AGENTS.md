@@ -20,13 +20,14 @@ AI-assisted development. Read it and `README.md` before any change.
 
 ## Components
 
-| Directory | Implementation |
-| --------- | -------------- |
-| `excel-api-node/` | Node.js/TypeScript server (Fastify) |
-| `excel-api-java/` | Java 21/Spring Boot server (POI) |
-| `excel-api-csharp/` | C#/ASP.NET 8 server (ClosedXML) |
-| `excel-api-go/` | Go CLI client |
-| `excel-api-test/` | Jest black-box integration suite |
+| Directory           | Implementation                      |
+| ------------------- | ----------------------------------- |
+| `excel-api-node/`   | Node.js/TypeScript server (Fastify) |
+| `excel-api-java/`   | Java 21/Spring Boot server (POI)    |
+| `excel-api-csharp/` | C#/ASP.NET 8 server (ClosedXML)     |
+| `excel-api-rust/`   | Rust/axum server (umya-spreadsheet) |
+| `excel-api-go/`     | Go CLI client                       |
+| `excel-api-test/`   | Jest black-box integration suite    |
 
 Key rules at a glance: every change starts with a change request and an
 implementation plan, features land in all applicable implementations, version

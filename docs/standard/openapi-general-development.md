@@ -1,6 +1,6 @@
 # OpenAPI Engineering Standards
 
-<!-- Standards set: openapi-general-development@0.1.4 | Date: 2026-10-25 -->
+<!-- Standards set: openapi-general-development@0.1.5 | Date: 2026-10-25 -->
 
 ## Purpose
 
@@ -153,6 +153,23 @@ OpenAPI 3.2 is the latest published version of the specification, adding the `qu
 
 Adopt 3.2 only when the downstream toolchain supports it,
 because linter and generator coverage for 3.2 is still incomplete.
+
+The root document declares `openapi: 3.1.0` (or the latest 3.1.x patch) or `openapi: 3.0.x`.
+
+OpenAPI 3.0.x remains a fully supported choice - it has the broadest compatibility across
+generators, validators, and UI renderers,
+and a simple specification gains nothing from 3.1-only features.
+
+**Version Upgrade Authority**
+
+An agent must not change the declared `openapi` version without explicit user confirmation,
+because a version change may affect downstream tooling compatibility, code generation,
+and validation behavior.
+
+When a version upgrade is recommended, the agent presents the change as a proposal with the
+current version, the proposed version, and the rationale.
+
+The upgrade is applied only after the user confirms.
 
 The root document declares `openapi: 3.1.0` (or the latest 3.1.x patch) or `openapi: 3.0.x`.
 

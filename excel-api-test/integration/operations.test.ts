@@ -33,7 +33,7 @@ describe('Batch Operations', () => {
     expect(body.results[0].op).toBe('add');
     expect(typeof body.results[0].index).toBe('number');
     expect(body.results[2].op).toBe('update');
-    expect(body.applied_at).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    expect(body.applied_at).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}$/);
 
     // Writes must be persisted — batch is a real open/save cycle
     const list = (await (

@@ -2,7 +2,7 @@ openapi: "3.1.0"
 info:
   title: "Excel File API"
   description: "HTTP service exposing Excel spreadsheet data as a JSON API"
-  version: "0.0.7"
+  version: "0.0.8"
   contact:
     name: "Filip Golewski"
   license:
@@ -571,7 +571,7 @@ components:
 
     HealthResponse:
       type: object
-      required: ["status", "implementation", "version", "uptime", "time", "timezone"]
+      required: ["status", "implementation", "version", "uptime", "time", "zone"]
       properties:
         status:
           type: string
@@ -585,8 +585,9 @@ components:
           description: "Whole seconds since process start"
         time:
           type: string
+          pattern: "^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}\\.\\d{3}$"
           description: "Server current local time in YYYY-MM-DD hh:mm:ss.fff format"
-        timezone:
+        zone:
           type: string
           description: "Server timezone identifier (e.g., Europe/Warsaw, UTC)"
 
@@ -604,11 +605,13 @@ components:
           type: array
           items:
             type: string
-        modified_at:
+        modified:
           type: string
-          format: date-time
-        size_bytes:
+          pattern: "^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}\\.\\d{3}$"
+          description: "File modification timestamp, local server time in YYYY-MM-DD hh:mm:ss.fff format"
+        size:
           type: integer
+          description: "File size in bytes"
 
     SheetInfo:
       type: object
@@ -828,7 +831,8 @@ components:
                 type: integer
         applied_at:
           type: string
-          format: date-time
+          pattern: "^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}\\.\\d{3}$"
+          description: "Local server time in YYYY-MM-DD hh:mm:ss.fff format"
 
     LockStatus:
       type: object
@@ -840,7 +844,8 @@ components:
           type: string
         locked_since:
           type: string
-          format: date-time
+          pattern: "^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}\\.\\d{3}$"
+          description: "Local server time in YYYY-MM-DD hh:mm:ss.fff format"
         queue_depth:
           type: integer
 

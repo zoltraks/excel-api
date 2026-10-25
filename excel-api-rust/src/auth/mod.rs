@@ -1,12 +1,19 @@
-// Authentication: HS256 JWT, OAuth2 grants, static tokens, ACL.
+// Authentication and authorization: JWT, static tokens, OAuth2, ACL.
+
+mod jwt;
+mod oauth;
+mod static_token;
+
+pub use jwt::*;
+pub use oauth::*;
+pub use static_token::*;
 
 use axum::http::StatusCode;
 use axum::response::Response;
-use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use subtle::ConstantTimeEq;
 
-use crate::config::{AccessConfig, Config};
+use crate::config::AccessConfig;
 use crate::error::err_body;
 
 #[derive(Debug, Clone)]
@@ -15,122 +22,12 @@ pub struct AuthContext {
     pub scopes: Vec<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Claims {
-    pub sub: String,
-    #[serde(default)]
-    pub scope: Vec<String>,
-    pub iss: String,
-    pub iat: u64,
-    pub exp: u64,
-}
-
-pub struct JwtAuth {
-    secret: String,
-    issuer: String,
-    pub expiration_minutes: u64,
-}
-
-impl JwtAuth {
-    pub fn new(config: &Config, access: &AccessConfig) -> Self {
-        Self {
-            secret: access.jwt.secret.clone(),
-            issuer: config.auth.jwt.issuer.clone(),
-            expiration_minutes: config.auth.jwt.expiration_minutes,
-        }
-    }
-
-    pub fn sign(
-        &self,
-        sub: &str,
-        scopes: &[String],
-    ) -> Result<(String, u64), jsonwebtoken::errors::Error> {
-        let now = chrono::Utc::now().timestamp() as u64;
-        let claims = Claims {
-            sub: sub.to_string(),
-            scope: scopes.to_vec(),
-            iss: self.issuer.clone(),
-            iat: now,
-            exp: now + self.expiration_minutes * 60,
-        };
-        let token = jsonwebtoken::encode(
-            &jsonwebtoken::Header::default(),
-            &claims,
-            &jsonwebtoken::EncodingKey::from_secret(self.secret.as_bytes()),
-        )?;
-        Ok((token, self.expiration_minutes * 60))
-    }
-
-    /// Signature + expiry verification; failures map to `TOKEN_EXPIRED` upstream.
-    pub fn verify(&self, token: &str) -> Result<AuthContext, jsonwebtoken::errors::Error> {
-        let data = jsonwebtoken::decode::<Claims>(
-            token,
-            &jsonwebtoken::DecodingKey::from_secret(self.secret.as_bytes()),
-            &jsonwebtoken::Validation::new(jsonwebtoken::Algorithm::HS256),
-        )?;
-        Ok(AuthContext {
-            sub: data.claims.sub,
-            scopes: data.claims.scope,
-        })
-    }
-}
-
 /// Constant-time comparison: both sides SHA-256 hashed first, matching the
 /// reference implementation's comparison protocol.
 pub fn secrets_equal(a: &str, b: &str) -> bool {
     let ha = Sha256::digest(a.as_bytes());
     let hb = Sha256::digest(b.as_bytes());
     ha.ct_eq(&hb).into()
-}
-
-#[derive(Debug)]
-pub enum GrantError {
-    InvalidRequest,
-    InvalidClient,
-    UnsupportedGrantType,
-}
-
-pub fn client_credentials_grant<'a>(
-    access: &'a AccessConfig,
-    client_id: &str,
-    client_secret: &str,
-) -> Result<&'a crate::config::OAuth2Client, GrantError> {
-    access
-        .oauth2
-        .clients
-        .iter()
-        .find(|c| {
-            secrets_equal(&c.client_id, client_id)
-                && secrets_equal(&c.client_secret, client_secret)
-                && c.grant_types.iter().any(|g| g == "client_credentials")
-        })
-        .ok_or(GrantError::InvalidClient)
-}
-
-pub fn password_grant<'a>(
-    access: &'a AccessConfig,
-    username: &str,
-    password: &str,
-) -> Result<&'a crate::config::OAuth2User, GrantError> {
-    access
-        .oauth2
-        .users
-        .iter()
-        .find(|u| {
-            u.username == username && bcrypt::verify(password, &u.password_hash).unwrap_or(false)
-        })
-        .ok_or(GrantError::InvalidClient)
-}
-
-pub fn lookup_static_token<'a>(
-    access: &'a AccessConfig,
-    token: &str,
-) -> Option<&'a crate::config::StaticToken> {
-    access
-        .tokens
-        .r#static
-        .iter()
-        .find(|t| secrets_equal(&t.token, token))
 }
 
 pub struct AclChecker {
@@ -189,7 +86,7 @@ pub async fn auth_middleware(
                 request.extensions_mut().insert(ctx);
                 return next.run(request).await;
             }
-            Err(e) => {
+            Err(_e) => {
                 state.metrics.increment(
                     "excel_api_errors_total",
                     1.0,
@@ -199,7 +96,7 @@ pub async fn auth_middleware(
                     state.pretty,
                     StatusCode::UNAUTHORIZED,
                     "TOKEN_EXPIRED",
-                    &e.to_string(),
+                    "Invalid or expired token",
                 );
             }
         }
@@ -225,7 +122,7 @@ pub async fn auth_middleware(
         state.pretty,
         StatusCode::UNAUTHORIZED,
         "UNAUTHORIZED",
-        "Missing or invalid authentication",
+        "Authentication required",
     )
 }
 

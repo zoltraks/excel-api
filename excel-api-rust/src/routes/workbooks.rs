@@ -11,7 +11,8 @@ use crate::error::json_body;
 use crate::excel;
 use crate::state::AppState;
 
-use super::common::*;
+use super::helpers::*;
+use super::types::*;
 
 pub async fn list_workbooks(State(state): State<Arc<AppState>>, request: Request) -> Response {
     state
@@ -37,9 +38,9 @@ pub async fn list_workbooks(State(state): State<Arc<AppState>>, request: Request
             "id": snap.id,
             "filename": filename,
             "readonly": snap.readonly,
-            "sheet_names": excel::sheet_names(&book),
-            "modified_at": modified,
-            "size_bytes": size,
+            "sheets": excel::sheet_names(&book),
+            "modified": modified,
+            "size": size,
         }));
     }
     let total = items.len();
@@ -75,9 +76,9 @@ pub async fn get_workbook(
             "id": snap.id,
             "filename": filename,
             "readonly": snap.readonly,
-            "sheet_names": excel::sheet_names(&book),
-            "modified_at": modified,
-            "size_bytes": size,
+            "sheets": excel::sheet_names(&book),
+            "modified": modified,
+            "size": size,
         }),
     )
 }

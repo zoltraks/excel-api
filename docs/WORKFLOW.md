@@ -20,7 +20,7 @@ Create the change request and the implementation plan, then ask for confirmation
 Do not include time or duration estimates in either document.
 Creating or updating change requests and plans is a documentation-only change and does not require the verification loop.
 
-A change request covers every implementation the change applies to - Node, Java, and C# servers, plus the Go CLI and the test suite where relevant.
+A change request covers every implementation the change applies to - Node, Java, C#, and Rust servers, plus the Go CLI and the test suite where relevant.
 A new feature is not complete until it exists in all supported implementations.
 A change that applies to one implementation only names that scope explicitly.
 
@@ -33,7 +33,7 @@ Required content:
 - **Type**: Feature, Fix, Refactor, or Chore.
 - **Summary**: One to three sentences describing what the change is and why it matters.
 - **Description**: What should change, not how to implement it. Include behavioral rules, edge cases, and constraints that are part of the requirement.
-- **Coverage**: The implementations the change applies to - normally all supported implementations (Node, Java, C#). A change limited to one implementation names that scope explicitly.
+- **Coverage**: The implementations the change applies to - normally all supported implementations (Node, Java, C#, Rust). A change limited to one implementation names that scope explicitly.
 
 Optional content: Use Cases, Hints, Out of Scope.
 
@@ -171,6 +171,9 @@ Three phases per `docs/REFACTORING.md`.
   A stack with nothing to refactor records that explicitly instead of producing boilerplate.
 - **Refactoring**: execute each proposal step by step.
   Every step leaves the tree buildable and runs the build-test-fix loop before the next step.
+  Scripted file transforms cut at item boundaries including attributes and doc comments -
+  a corrupted scripted move is reverted via `git checkout` and retried at correct
+  boundaries, never patched forward.
 - **Assessment**: one `<STACK>_ASSESSMENT.md` per proposal after completion, per the "Evaluating Completed Work" checklist.
 
 **Stage 4 - Production-ready gate**
@@ -218,7 +221,7 @@ Write a test in `excel-api-test/integration/` that exercises the new endpoint.
 
 **Run the full test suite**
 
-Verify all three implementations pass.
+Verify all implementations pass.
 
 ## Modifying an Existing Endpoint
 

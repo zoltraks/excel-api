@@ -115,7 +115,7 @@ func main() {
 			die("Error fetching workbook: %v", err)
 		}
 		fmt.Printf("Workbook:\n  ID: %s\n  File: %s\n  Readonly: %v\n  Modified: %s\n",
-			result["id"], result["filename"], result["readonly"], result["modified_at"])
+			result["id"], result["filename"], result["readonly"], result["modified"])
 	case *getCell != "":
 		p := splitArg(*getCell, "workbookId:sheetName:cellRef", 3)
 		result, err := c.GetCell(p[0], p[1], p[2], *format)

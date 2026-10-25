@@ -1,6 +1,9 @@
 // Excel file operations using ExcelJS
 
 import ExcelJS from 'exceljs';
+import JSZip from 'jszip';
+import { formatLocalTime } from '../util/datetime.js';
+import { readFile as fsReadFile } from 'node:fs/promises';
 import type { SheetHeaderConfig } from '../config/types.js';
 import {
   resolveSheetLayout,
@@ -30,6 +33,37 @@ export interface RangeData {
   rows: RangeRow[];
 }
 
+// ExcelJS matches unprefixed element names - non-Excel writers (ClosedXML,
+// umya-spreadsheet) emit the spreadsheetml namespace with an `x:` prefix, so a
+// foreign-saved workbook parses to an empty model and fails deep in the parse
+// ('company', 'sheetNo', or a stack overflow). On a parse failure, rewrite the
+// package in memory: drop the optional docProps parts and strip the `x:`
+// element prefix from every XML part, then retry the load.
+export async function loadWorkbookXlsx(workbook: ExcelJS.Workbook, filePath: string): Promise<void> {
+  try {
+    await workbook.xlsx.readFile(filePath);
+    return;
+  } catch (err) {
+    if (!(err instanceof Error)) {
+      throw err;
+    }
+  }
+  const zip = await JSZip.loadAsync(await fsReadFile(filePath));
+  for (const entry of zip.file(/.*/)) {
+    if (entry.name.startsWith('docProps/')) {
+      zip.remove(entry.name);
+      continue;
+    }
+    if (!entry.name.endsWith('.xml') && !entry.name.endsWith('.rels')) {
+      continue;
+    }
+    const text = await entry.async('string');
+    zip.file(entry.name, text.replace(/<(\/?)x:/g, '<$1'));
+  }
+  const buffer = Buffer.from(await zip.generateAsync({ type: 'arraybuffer' }));
+  await workbook.xlsx.load(buffer as unknown as Parameters<typeof workbook.xlsx.load>[0]);
+}
+
 function colLetter(col: number): string {
   let letters = '';
   let remaining = col;
@@ -48,7 +82,7 @@ export interface SheetInfo {
 
 export async function readSheetNames(filePath: string): Promise<SheetInfo[]> {
   const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.readFile(filePath);
+  await loadWorkbookXlsx(workbook, filePath);
 
   return workbook.worksheets.map((sheet, index) => ({
     name: sheet.name,
@@ -63,20 +97,23 @@ export async function readCell(
   format: 'native' | 'display' | 'string' = 'native',
 ): Promise<CellData> {
   const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.readFile(filePath);
+  await loadWorkbookXlsx(workbook, filePath);
 
   const sheet = workbook.getWorksheet(sheetName);
   if (!sheet) {
     throw new Error(`Sheet '${sheetName}' not found`);
   }
 
-  const cell = sheet.getCell(cellRef);
   const position = parseCellRef(cellRef);
+  const cell = sheet.getCell(cellRef);
   const cellData: CellData = {
     ref: `${colLetter(position.col)}${position.row}`,
     column: colLetter(position.col),
     row: position.row,
-    value: cell.value,
+    value:
+      cell.type === ExcelJS.ValueType.Formula
+        ? nativeValue((cell.value as { result?: unknown }).result ?? null)
+        : nativeValue(cell.value),
     type: getCellType(cell),
     number_format: cell.numFmt ?? null,
     is_formula: cell.formula !== undefined,
@@ -101,7 +138,7 @@ export async function readRange(
   format: 'native' | 'display' | 'string' = 'native',
 ): Promise<RangeData> {
   const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.readFile(filePath);
+  await loadWorkbookXlsx(workbook, filePath);
 
   const sheet = workbook.getWorksheet(sheetName);
   if (!sheet) {
@@ -129,7 +166,10 @@ export async function readRange(
         ref: `${column}${row}`,
         column,
         row,
-        value: cell.value,
+        value:
+          cell.type === ExcelJS.ValueType.Formula
+            ? nativeValue((cell.value as { result?: unknown }).result ?? null)
+            : nativeValue(cell.value),
         type: getCellType(cell),
         number_format: cell.numFmt ?? null,
         is_formula: cell.formula !== undefined,
@@ -168,9 +208,20 @@ function getCellType(cell: ExcelJS.Cell): string {
   if (cell.type === ExcelJS.ValueType.Number) return 'number';
   if (cell.type === ExcelJS.ValueType.Boolean) return 'boolean';
   if (cell.type === ExcelJS.ValueType.Date) return 'date';
-  if (cell.type === ExcelJS.ValueType.Formula) return 'formula';
+  if (cell.type === ExcelJS.ValueType.Formula) {
+    const result = (cell.value as { result?: unknown }).result;
+    if (result instanceof Date) return 'date';
+    if (typeof result === 'number') return 'number';
+    if (typeof result === 'boolean') return 'boolean';
+    if (result === null || result === undefined) return 'empty';
+    return 'string';
+  }
   if (cell.value === null || cell.value === undefined) return 'empty';
   return 'string';
+}
+
+function nativeValue(value: unknown): unknown {
+  return value instanceof Date ? formatLocalTime(value) : value;
 }
 
 function formatValueAsString(value: unknown): string {
@@ -178,7 +229,7 @@ function formatValueAsString(value: unknown): string {
   if (typeof value === 'string') return value;
   if (typeof value === 'number') return value.toString();
   if (typeof value === 'boolean') return value.toString();
-  if (value instanceof Date) return value.toISOString();
+  if (value instanceof Date) return formatLocalTime(value);
   return String(value);
 }
 
@@ -204,7 +255,7 @@ export async function readRecords(
   format: 'native' | 'display' | 'string' = 'native',
 ): Promise<RecordList> {
   const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.readFile(filePath);
+  await loadWorkbookXlsx(workbook, filePath);
 
   const sheet = workbook.getWorksheet(sheetName);
   if (!sheet) {
@@ -266,7 +317,7 @@ export async function readRecord(
   format: 'native' | 'display' | 'string' = 'native',
 ): Promise<RecordItem> {
   const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.readFile(filePath);
+  await loadWorkbookXlsx(workbook, filePath);
 
   const sheet = workbook.getWorksheet(sheetName);
   if (!sheet) {
@@ -322,19 +373,21 @@ export function applyWriteCell(
   cellRef: string,
   value: unknown,
 ): CellData {
+  const position = parseCellRef(cellRef);
   const cell = sheet.getCell(cellRef);
   cell.value = value as ExcelJS.CellValue;
-
-  const position = parseCellRef(cellRef);
   return {
     ref: `${colLetter(position.col)}${position.row}`,
     column: colLetter(position.col),
     row: position.row,
-    value: cell.value,
+    value:
+      cell.type === ExcelJS.ValueType.Formula
+        ? nativeValue((cell.value as { result?: unknown }).result ?? null)
+        : nativeValue(cell.value),
     type: getCellType(cell),
     number_format: cell.numFmt ?? null,
     is_formula: cell.formula !== undefined,
-    formatted: cell.text,
+    formatted: null,
   };
 }
 
@@ -423,7 +476,7 @@ export async function writeCell(
   value: unknown,
 ): Promise<CellData> {
   const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.readFile(filePath);
+  await loadWorkbookXlsx(workbook, filePath);
 
   const cellData = applyWriteCell(getSheetOrThrow(workbook, sheetName), cellRef, value);
 
@@ -441,7 +494,7 @@ export async function addRecord(
   copyStyleFrom?: number,
 ): Promise<RecordItem> {
   const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.readFile(filePath);
+  await loadWorkbookXlsx(workbook, filePath);
 
   const sheet = getSheetOrThrow(workbook, sheetName);
   const layout = resolveSheetLayout(sheetConfig);
@@ -467,7 +520,7 @@ export async function updateRecord(
   sheetConfig?: SheetHeaderConfig,
 ): Promise<RecordItem> {
   const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.readFile(filePath);
+  await loadWorkbookXlsx(workbook, filePath);
 
   const sheet = getSheetOrThrow(workbook, sheetName);
   const layout = resolveSheetLayout(sheetConfig);
@@ -491,7 +544,7 @@ export async function deleteRecord(
   sheetConfig?: SheetHeaderConfig,
 ): Promise<void> {
   const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.readFile(filePath);
+  await loadWorkbookXlsx(workbook, filePath);
 
   const sheet = getSheetOrThrow(workbook, sheetName);
   const layout = resolveSheetLayout(sheetConfig);
@@ -513,7 +566,7 @@ export async function getSheetMetadata(
   first_data_row: number;
 }> {
   const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.readFile(filePath);
+  await loadWorkbookXlsx(workbook, filePath);
 
   const sheet = workbook.getWorksheet(sheetName);
   if (!sheet) {
@@ -542,12 +595,12 @@ export async function getColumnDefinitions(
     letter: string;
     id: string;
     type: string;
-    descriptions?: Record<string, string>;
+    descriptions?: Record<string, string> | null;
     number_format: string | null;
   }>;
 }> {
   const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.readFile(filePath);
+  await loadWorkbookXlsx(workbook, filePath);
 
   const sheet = workbook.getWorksheet(sheetName);
   if (!sheet) {
@@ -561,7 +614,7 @@ export async function getColumnDefinitions(
     letter: string;
     id: string;
     type: string;
-    descriptions?: Record<string, string>;
+    descriptions?: Record<string, string> | null;
     number_format: string | null;
   }> = [];
 
@@ -577,6 +630,7 @@ export async function getColumnDefinitions(
       id,
       type: typeRow ? cellTextAt(typeRow, colNumber) || 'string' : 'string',
       number_format: null,
+      descriptions: null,
     };
     const description = descriptionRow ? cellTextAt(descriptionRow, colNumber) : '';
     if (description) {

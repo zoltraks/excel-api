@@ -7,6 +7,7 @@ import { getWriteQueue, type BatchOperation, type BatchResult } from '../queue/w
 import { handleEnqueueError } from './writeHelpers.js';
 import { validate, RecordBatchSchema, CellBatchSchema } from './validate.js';
 import { metrics } from '../metrics/collector.js';
+import { formatLocalTime } from '../util/datetime.js';
 
 type AuthMiddleware = (request: FastifyRequest, reply: FastifyReply) => Promise<void>;
 
@@ -106,7 +107,7 @@ export function operationRoutes(
                 : operations[i].recordIndex,
             ),
           ),
-          applied_at: new Date().toISOString(),
+          applied_at: formatLocalTime(new Date()),
         };
       },
     );
@@ -169,7 +170,7 @@ export function operationRoutes(
         metrics.observeHistogram('excel_api_batch_cell_duration_ms', Date.now() - startTime);
         return {
           results: results.map((result, i) => toContractResult(operations[i], result)),
-          applied_at: new Date().toISOString(),
+          applied_at: formatLocalTime(new Date()),
         };
       },
     );

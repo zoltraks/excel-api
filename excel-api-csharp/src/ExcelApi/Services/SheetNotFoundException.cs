@@ -4,7 +4,7 @@ namespace BigBytes.ExcelApi.Services;
 /// Thrown when a workbook does not contain the requested sheet.
 /// </summary>
 public class SheetNotFoundException(string sheetName)
-    : ArgumentException($"Sheet '{sheetName}' not found")
+    : ArgumentException($"Sheet '{sheetName}' not found in workbook")
 {
     public string SheetName { get; } = sheetName;
 }

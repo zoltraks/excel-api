@@ -1,6 +1,6 @@
 # Go CLI Engineering Standards
 
-<!-- Standards set: go-general-development.md@0.1.2, go-cli-development.md@0.1.2 | Date: 2026-10-25 -->
+<!-- Standards set: go-general-development.md@0.1.2, go-cli-development.md@0.1.3 | Date: 2026-10-25 -->
 
 ## Scope
 
@@ -17,7 +17,7 @@ All paths below are relative to the `excel-api-go/` directory unless stated othe
 
 ## Core Technologies
 
-* **Go 1.22+**: Language version. Use the latest stable release.
+* **Go 1.22+**: Language version floor. A patch release carries security fixes the project should take automatically; the `go` directive in `go.mod` pins the concrete version.
 * **Standard `net/http`**: HTTP client for API communication. No external HTTP framework.
 * **`encoding/json`**: JSON marshaling/unmarshaling.
 * **`chzyer/readline`**: Interactive REPL with history and tab completion.

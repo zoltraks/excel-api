@@ -88,7 +88,7 @@ func executeCommand(command string, args []string, c *client.Client) {
 			return
 		}
 		fmt.Printf("Workbook:\n  ID: %s\n  File: %s\n  Readonly: %v\n  Modified: %s\n",
-			result["id"], result["filename"], result["readonly"], result["modified_at"])
+			result["id"], result["filename"], result["readonly"], result["modified"])
 	case "get-cell":
 		if len(args) < 3 {
 			fmt.Println("usage: get-cell <id> <sheet> <ref>")

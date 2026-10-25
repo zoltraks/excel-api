@@ -1,6 +1,6 @@
 # Rust General Engineering Standards
 
-<!-- Standards set: rust-general-development.md@0.1.3 | Date: 2026-10-26 -->
+<!-- Standards set: rust-general-development.md@0.1.5 | Date: 2026-10-25 -->
 
 ## Purpose
 
@@ -91,13 +91,13 @@ A violation of any of these rules is a defect, not a style preference.
 
 Before asking the user anything, inspect the repository and infer the project shape.
 
-| Signal Found In The Repository                | Inferred Decision                      | Confidence |
-|-----------------------------------------------|----------------------------------------|------------|
-| `rust-toolchain.toml` with `channel = "1.85"` | Rust 1.85+, edition 2024 available     | High       |
-| `Cargo.toml` with `edition = "2024"`          | Rust 2024 edition in use               | High       |
-| `Cargo.toml` with `edition = "2021"`          | Rust 2021 edition in use               | High       |
-| `[workspace]` in root `Cargo.toml`            | Workspace layout with multiple crates  | High       |
-| Single `Cargo.toml` at root, no workspace     | Single-crate project                   | High       |
+| Signal Found In The Repository                | Inferred Decision                     | Confidence |
+| --------------------------------------------- | ------------------------------------- | ---------- |
+| `rust-toolchain.toml` with `channel = "1.89"` | Rust 1.89+, edition 2024 available    | High       |
+| `Cargo.toml` with `edition = "2024"`          | Rust 2024 edition in use              | High       |
+| `Cargo.toml` with `edition = "2021"`          | Rust 2021 edition in use              | High       |
+| `[workspace]` in root `Cargo.toml`            | Workspace layout with multiple crates | High       |
+| Single `Cargo.toml` at root, no workspace     | Single-crate project                  | High       |
 | `tokio` in `Cargo.toml` dependencies          | Async runtime is tokio                 | High       |
 | `anyhow` in binary crate only                 | Application error handling with anyhow | High       |
 | `thiserror` in library crates                 | Library error types with thiserror     | High       |
@@ -144,7 +144,9 @@ The following are the authoritative sources for Rust development.
 
 ## Language Version
 
-The project targets Rust 1.85 or later with edition 2024.
+The project targets Rust 1.89 or later with edition 2024 - a floor naming the
+minimum recommended version, never the concrete pin, because a patch release
+carries security fixes the project should take automatically.
 
 Rust 1.85 stabilized the Rust 2024 edition in February 2025.
 
@@ -157,7 +159,7 @@ Pin the toolchain in `rust-toolchain.toml` at the workspace root so the build is
 
 ```toml
 [toolchain]
-channel = "1.85"
+channel = "1.89"
 components = ["rustfmt", "clippy"]
 ```
 
@@ -222,6 +224,14 @@ because a file that large usually mixes responsibilities.
 
 When splitting a file, move code verbatim into the new module and adjust visibility afterwards.
 
+Cut every block at an item boundary that includes the item's `#[derive]`, `#[cfg]`, and doc
+attributes - they precede the item, so a boundary drawn at the `pub` or `fn` line orphans
+them in the previous block.
+Verify boundaries against the `pub`/`fn`/`impl` marker lines before cutting, because
+splitting by line count alone produces files that do not compile.
+When a scripted or line-number-driven move corrupts a file, revert it (`git checkout`)
+and retry at correct item boundaries instead of patching the damage forward.
+
 Retyping declarations during a move can silently drop trait impls, derives, and bounds,
 so compile immediately after every move and let unused imports and missing impls surface at once.
 
@@ -237,6 +247,14 @@ In that layout each crate directory is its own build root,
 and every command in this standard runs once per crate directory rather than once with
 `--workspace`.
 
+A small project may also live in a single binary crate with no workspace manifest at all.
+Inside a single crate the same split rule applies to directories:
+when a flat module file grows past the threshold, it becomes a directory holding `mod.rs`
+plus one file per concern (`config/`, `auth/`),
+and the entry file keeps only the composition root and shared types.
+Helpers shared only between the sibling files of such a directory use `pub(super)` or
+`pub(crate)` visibility, so the crate's public surface does not widen during a split.
+
 **Workspace Manifest**
 
 ```toml
@@ -246,7 +264,7 @@ resolver = "2"
 
 [workspace.package]
 edition = "2024"
-rust-version = "1.85"
+rust-version = "1.89"
 
 [workspace.lints.clippy]
 pedantic = "warn"

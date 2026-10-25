@@ -103,10 +103,17 @@ public class MetricsCollector
 
         sb.AppendLine("# HELP excel_api_errors_total Total error responses");
         sb.AppendLine("# TYPE excel_api_errors_total counter");
-        foreach (var (status, count) in _errors)
+        if (_errors.IsEmpty)
         {
-            sb.AppendLine(FormattableString.Invariant(
-                $"excel_api_errors_total{{status=\"{status}\"}} {count}"));
+            sb.AppendLine("excel_api_errors_total{status=\"0\"} 0");
+        }
+        else
+        {
+            foreach (var (status, count) in _errors)
+            {
+                sb.AppendLine(FormattableString.Invariant(
+                    $"excel_api_errors_total{{status=\"{status}\"}} {count}"));
+            }
         }
 
         sb.AppendLine("# HELP excel_api_queue_depth Pending and running write queue operations");

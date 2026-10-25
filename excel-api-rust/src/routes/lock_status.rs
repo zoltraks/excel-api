@@ -10,7 +10,7 @@ use serde_json::json;
 use crate::error::json_body;
 use crate::state::AppState;
 
-use super::common::*;
+use super::types::*;
 
 pub async fn lock_status(State(state): State<Arc<AppState>>, Path(id): Path<String>) -> Response {
     state

@@ -17,8 +17,8 @@ public static class WorkbookEndpoints
                     id = e.Id,
                     filename = Path.GetFileName(e.Path),
                     @readonly = e.Readonly,
-                    modified_at = File.GetLastWriteTimeUtc(e.Path).ToString("o"),
-                    size_bytes = new FileInfo(e.Path).Length,
+                    modified = File.GetLastWriteTime(e.Path).ToString("yyyy-MM-dd HH:mm:ss.fff"),
+                    size = new FileInfo(e.Path).Length,
                     sheets = excelService.ReadSheetNames(e.Path)
                 })
                 .ToList();
@@ -46,8 +46,8 @@ public static class WorkbookEndpoints
                 id = entry.Id,
                 filename = Path.GetFileName(entry.Path),
                 @readonly = entry.Readonly,
-                modified_at = fileInfo.LastWriteTimeUtc.ToString("o"),
-                size_bytes = fileInfo.Length,
+                modified = fileInfo.LastWriteTime.ToString("yyyy-MM-dd HH:mm:ss.fff"),
+                size = fileInfo.Length,
                 sheets
             });
         });

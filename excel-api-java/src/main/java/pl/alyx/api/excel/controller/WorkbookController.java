@@ -17,6 +17,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.time.Instant;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
@@ -25,7 +26,7 @@ import java.util.List;
 @RequestMapping("/workbooks")
 public class WorkbookController {
 
-    private static final DateTimeFormatter ISO_FORMATTER = DateTimeFormatter.ISO_INSTANT;
+    private static final DateTimeFormatter TS_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS");
 
     private final ExcelFileService excelService;
     private final WorkbookConfiguration workbookConfiguration;
@@ -38,19 +39,13 @@ public class WorkbookController {
     @GetMapping
     public WorkbookListResponse listWorkbooks() throws IOException {
         List<WorkbookInfo> workbooks = new ArrayList<>();
-        String registryDir = workbookConfiguration.getDirectory();
 
         for (WorkbookConfiguration.WorkbookEntry entry : workbookConfiguration.getWorkbooks()) {
-            java.nio.file.Path path;
-            if (registryDir != null && !registryDir.isEmpty()) {
-                path = Paths.get(registryDir, entry.getPath());
-            } else {
-                path = Paths.get(entry.getPath());
-            }
+            java.nio.file.Path path = Paths.get(entry.getPath());
             if (Files.exists(path)) {
                 long sizeBytes = Files.size(path);
                 long modifiedTime = Files.getLastModifiedTime(path).toMillis();
-                String modifiedAt = ISO_FORMATTER.format(Instant.ofEpochMilli(modifiedTime));
+                String modifiedAt = Instant.ofEpochMilli(modifiedTime).atZone(ZoneId.systemDefault()).format(TS_FORMATTER);
 
                 List<String> sheetNames = excelService.readSheetNames(path.toString()).stream()
                         .map(SheetInfo::getName)
@@ -58,7 +53,7 @@ public class WorkbookController {
 
                 workbooks.add(new WorkbookInfo(
                     entry.getId(),
-                    entry.getPath(),
+                    path.getFileName().toString(),
                     entry.isReadonly(),
                     modifiedAt,
                     sizeBytes,
@@ -81,20 +76,14 @@ public class WorkbookController {
             throw new WorkbookNotFoundException(id);
         }
 
-        String registryDir = workbookConfiguration.getDirectory();
-        java.nio.file.Path path;
-        if (registryDir != null && !registryDir.isEmpty()) {
-            path = Paths.get(registryDir, entry.getPath());
-        } else {
-            path = Paths.get(entry.getPath());
-        }
+        java.nio.file.Path path = Paths.get(entry.getPath());
         if (!Files.exists(path)) {
             throw new WorkbookNotFoundException(id);
         }
 
         long sizeBytes = Files.size(path);
         long modifiedTime = Files.getLastModifiedTime(path).toMillis();
-        String modifiedAt = ISO_FORMATTER.format(Instant.ofEpochMilli(modifiedTime));
+        String modifiedAt = Instant.ofEpochMilli(modifiedTime).atZone(ZoneId.systemDefault()).format(TS_FORMATTER);
 
         List<String> sheetNames = excelService.readSheetNames(path.toString()).stream()
                 .map(SheetInfo::getName)
@@ -102,7 +91,7 @@ public class WorkbookController {
 
         WorkbookInfo response = new WorkbookInfo(
                 entry.getId(),
-                entry.getPath(),
+                path.getFileName().toString(),
                 entry.isReadonly(),
                 modifiedAt,
                 sizeBytes,

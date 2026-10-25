@@ -1,6 +1,6 @@
 # Rust API Development Standards
 
-<!-- Standards set: rust-api-development.md@0.1.3 | Date: 2026-10-26 -->
+<!-- Standards set: rust-api-development.md@0.1.5 | Date: 2026-10-25 -->
 
 ## Purpose
 
@@ -120,9 +120,13 @@ When the repository is empty or the user declares a new project, ask the followi
 
 ## Language Version
 
-The project targets Rust 1.85+ on the 2024 edition with Axum 0.8 and Tokio 1.40.
+The project targets Rust 1.89+ on the 2024 edition with Axum 0.8+ and Tokio 1.54+.
 
-`Cargo.toml` pins `edition = "2024"` and the `rust-version` field.
+A patch release carries security fixes the project should take automatically -
+the floor names the minimum, never the concrete pin.
+
+`Cargo.toml` pins `edition = "2024"` and the `rust-version` field - the concrete
+toolchain is pinned in `rust-toolchain.toml`.
 
 On runtime upgrade, re-validate all rules against release notes before writing code.
 
@@ -417,6 +421,29 @@ The following authoritative references support the rules in this document.
   implements them, it does not reinterpret them.
 - `resources/openapi.yaml` is a synced copy of `docs/contract/openapi.yaml`
   via `shell/sync.sh` - never edit it by hand.
+- `serde_json::json!` and `serde_json::Value` are permitted for heterogeneous
+  contract-owned response shapes (cell values, batch operation results) -
+  concrete `Serialize` structs remain the rule wherever a fixed shape exists.
+- `err_body` helpers plus explicit status codes are the project's equivalent
+  error mechanism - handlers map errors through them instead of a single
+  `ApiError` enum.
+- HTTP-level behavior is covered by the shared `excel-api-test` Jest suite;
+  in-file `#[cfg(test)]` unit tests cover pure logic (auth, lock, util,
+  config, ratelimit, cli) - the per-handler `oneshot` rule does not apply.
+- Contract `info.version` parity is enforced structurally: the document is
+  embedded with `include_str!` and `shell/sync.sh` stamps `Cargo.toml`,
+  so no separate contract test is required.
 - Verification ladder before reporting done: `cargo fmt --check`,
   `cargo clippy --all-targets -- -D warnings`, `cargo test`,
   `cargo build --release` - zero warnings.
+
+## Axum Parity Patterns
+
+- axum's `Json` extractor rejection emits a plain-text 415 - an
+  `envelope_status` `from_fn` middleware rewrites 405/415 bodies to the
+  contract envelope.
+- `include_str!` bakes the file at compile time - rebuild after the
+  resource changes, and serve the string raw; re-serializing through
+  `serde_yaml` strips comments and normalizes quoting.
+- Metric endpoint-name mapping must match the route segment verbatim
+  (`ranges`, not `range`) - the shared-family convention broke on this.

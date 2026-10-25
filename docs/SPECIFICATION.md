@@ -47,6 +47,7 @@ excel-api-node/
 - No formula evaluation. Formulas are preserved on write, but the API returns cached values only. If a cached value is unavailable (file was modified outside Excel without recalculation), the value is `null` with a `FORMULA_NOT_EVALUATED` warning.
 - Display formatting (`format=display`) is limited. ExcelJS provides the `numFmt` string but does not apply it. The implementation applies a subset of common formats (numbers, percentages, dates) and falls back to the native value for unrecognized format strings. For consistent string representation, use `format=string` instead.
 - Large file performance. ExcelJS parses the entire file into memory. Files exceeding 100,000 rows may cause high memory usage.
+- Foreign-written packages. ExcelJS matches unprefixed element names; files saved by writers that emit the spreadsheetml namespace with an `x:` prefix (for example ClosedXML) parse to an empty model. On a parse failure the implementation rewrites the package in memory (drops `docProps/*`, strips the `x:` element prefix from every XML part) and retries the load.
 
 **Queue implementation**: Per-workbook serialization via a `Promise` chain with debounced batching. Operations enqueue into a pending list per workbook; after `batch_debounce_ms` (or immediately when the batch is full), pending operations execute as one batch inside a single file lock and a single open/save cycle. Pending depth is capped at `batch_max_size` — excess submissions are rejected with `503 SERVICE_BUSY`.
 
@@ -191,12 +192,13 @@ excel-api-csharp/
 - `display` formatting uses umya-spreadsheet's own `formatted_value`; rendering may differ slightly from ExcelJS `cell.text` for exotic number formats.
 - No streaming reader — the whole workbook is parsed per cache miss. For very large files, the Java implementation remains preferable.
 - Date cells are detected from number-format codes (builtin ids 14-22, 45-47, or codes containing `y`/`d`); uncommon custom formats may surface as plain numbers.
+- Foreign-written packages. umya-spreadsheet does not match `x:`-prefixed spreadsheetml elements, so a foreign-saved workbook loads to an empty model. `excel::load` detects the empty-sheet signature and retries with an in-memory normalized package (`docProps/*` dropped, `x:` element prefixes stripped).
 
 ## Cross-Implementation Behaviors
 
 **/auth/token content type.** The contract declares `application/x-www-form-urlencoded`. All four servers accept both `application/x-www-form-urlencoded` and `application/json` bodies - a deliberate lenient superset of the declared contract so every client shape works.
 
-**/health timezone precedence.** Every implementation resolves the reported `timezone` identifier through the same chain: `TZ` environment variable, then the `/etc/localtime` symlink target on Unix hosts, then the platform default zone.
+**/health zone precedence.** Every implementation resolves the reported `zone` identifier through the same chain: `TZ` environment variable, then the `/etc/localtime` symlink target on Unix hosts, then the platform default zone.
 
 ## Excel API Go (CLI Client)
 

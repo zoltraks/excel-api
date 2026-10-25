@@ -80,6 +80,14 @@ cp config/config.example.yaml config/config.yaml
 cp config/access.example.yaml config/access.yaml
 ```
 
+**Rust**
+
+```bash
+cd excel-api-rust
+cp config/config.example.yaml config/config.yaml
+cp config/access.example.yaml config/access.yaml
+```
+
 Edit both files to match your environment. The example files contain placeholder values that must be changed before production use.
 
 **Configuration File Structure**
@@ -213,7 +221,16 @@ cd excel-api-csharp/src/ExcelApi
 dotnet run -- --work ../../work
 ```
 
+**Rust**
+
+```bash
+cd excel-api-rust
+cargo run --release -- --work ../work
+```
+
 ## Testing Each Implementation
+
+The canonical verification loop and security gate live in `docs/TESTING.md` - the sections below are quickstart commands.
 
 ### Node.js Implementation
 
@@ -324,6 +341,45 @@ go build -o excel-api-go ./cmd/excel-api-go
 # Start the C# server
 cd ../../excel-api-csharp/src/ExcelApi
 dotnet run
+
+# In another terminal, test with CLI
+./excel-api-go --server http://localhost:8443 --list-workbooks
+./excel-api-go --server http://localhost:8443 --get-cell workbook1:sheet1:A1
+```
+
+### Rust Implementation
+
+**Build:**
+```bash
+cd excel-api-rust
+cargo build --release
+```
+
+**Lint:**
+```bash
+cargo fmt --check --all
+cargo clippy --all-targets -- -D warnings
+```
+
+**Unit Tests:**
+```bash
+cargo test
+```
+
+**Integration Tests:**
+```bash
+IMAGE=excel-api-rust docker compose -f docker-compose.test.yaml up --abort-on-container-exit
+```
+
+**CLI Testing:**
+```bash
+# Build the CLI
+cd ../excel-api-go
+go build -o excel-api-go ./cmd/excel-api-go
+
+# Start the Rust server
+cd ../excel-api-rust
+cargo run --release
 
 # In another terminal, test with CLI
 ./excel-api-go --server http://localhost:8443 --list-workbooks

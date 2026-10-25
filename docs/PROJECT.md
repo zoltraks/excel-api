@@ -9,7 +9,7 @@
 | **Data Model**             | Dual addressing modes, header configurations, value types, cell metadata  |
 | → Cell Addressing          | Raw access by sheet, row, column, cell reference, range                   |
 | → Record Addressing        | Tabular access with configurable header rows and legend sheets            |
-| **Components Overview**    | All five components with stack, directory, and purpose                    |
+| **Components Overview**    | All six components with stack, directory, and purpose                     |
 | **API Contract**           | Endpoint groups, authorization, configuration files, error format         |
 | → Authorization            | OAuth2 flows, JWT, static tokens, scope-based access control              |
 | → Configuration            | `config.yaml` and `access.yaml` structure and separation rationale        |
@@ -89,14 +89,14 @@ Files remain on the local filesystem and are accessed through a service layer th
 
 ## Components Overview
 
-| Component  | Stack                | Directory            | Purpose                                    |
-| ---------- | -------------------- | -------------------- | ------------------------------------------ |
-| API Server | Node.js 22 + TS      | `excel-api-node/`    | Lightweight implementation using ExcelJS   |
-| API Server | Java 21 + Spring     | `excel-api-java/`    | Full-featured implementation using POI     |
-| API Server | C# + ASP.NET 8       | `excel-api-csharp/`  | Mid-weight implementation using ClosedXML  |
-| API Server | Rust + axum/Tokio    | `excel-api-rust/`    | Implementation using umya-spreadsheet      |
-| CLI Client | Go 1.22+             | `excel-api-go/`      | Interactive and batch console client       |
-| Test Suite | TypeScript + Vitest  | `excel-api-test/`    | Black-box integration tests                |
+| Component  | Stack             | Directory           | Purpose                                   |
+| ---------- | ----------------- | ------------------- | ----------------------------------------- |
+| API Server | Node.js 22 + TS   | `excel-api-node/`   | Lightweight implementation using ExcelJS  |
+| API Server | Java 21 + Spring  | `excel-api-java/`   | Full-featured implementation using POI    |
+| API Server | C# + ASP.NET 8    | `excel-api-csharp/` | Mid-weight implementation using ClosedXML |
+| API Server | Rust + axum/Tokio | `excel-api-rust/`   | Implementation using umya-spreadsheet     |
+| CLI Client | Go 1.22+          | `excel-api-go/`     | Interactive and batch console client      |
+| Test Suite | TypeScript + Jest | `excel-api-test/`   | Black-box integration tests               |
 
 ## Goals
 
@@ -200,7 +200,7 @@ String values preserve embedded newlines (`\n`, `\r\n`), tabs, and all Unicode c
 
 The API supports three output formats controlled by the `format` query parameter.
 
-**`format=native`** (default) — Values are returned as their native JSON types: strings, numbers, booleans, and null. Dates are returned as ISO 8601 strings with timezone if available in the cell.
+**`format=native`** (default) — Values are returned as their native JSON types: strings, numbers, booleans, and null. Dates are returned as `YYYY-MM-DD hh:mm:ss.fff` local server time.
 
 **`format=display`** — Values are formatted according to the cell's `number_format` string (e.g., `1234.56` becomes `"1 234,56 zł"`). Display formatting is best-effort — the implementation applies the format string where possible and falls back to the native value otherwise.
 
@@ -208,7 +208,7 @@ The API supports three output formats controlled by the `format` query parameter
 - Decimal numbers use dot as decimal separator (e.g., `"12345.654"`)
 - Dates are formatted as `"YYYY-MM-DD"`
 - Time values use 24-hour format: `"hh:mm:ss"` (e.g., `"13:12:31"`) or with milliseconds if precision requires: `"hh:mm:ss.fff"` (e.g., `"13:12:31.998"`)
-- Combined date and time can be local time with milliseconds: `"YYYY-MM-DD hh:mm:ss.fff"` or ISO 8601 with timezone for UTC: `"YYYY-MM-DDThh:mm:ss.fffZ"`
+- Combined date and time is local server time with milliseconds: `"YYYY-MM-DD hh:mm:ss.fff"`
 - The server's local timezone is used by default unless the cell contains timezone information
 
 ## Cell Metadata
@@ -255,7 +255,7 @@ The CLI handles UTF-8 values including embedded newlines. In Markdown table outp
 
 ## Integration Test Suite
 
-**Excel API Test** (`excel-api-test/`). TypeScript test suite using Vitest, executing against any server implementation via HTTP. Tests are black-box — they know only the API contract, never the implementation.
+**Excel API Test** (`excel-api-test/`). TypeScript test suite using Jest, executing against any server implementation via HTTP. Tests are black-box — they know only the API contract, never the implementation.
 
 Test fixtures are pre-built Excel files covering: simple data, styled rows, formula cells, large datasets. Test configuration provides OAuth2 credentials and static tokens for authorization testing.
 
@@ -486,7 +486,7 @@ Non-functional requirements form the foundations of the architecture and carry n
 | F-24 | Workbook registry (ID to path mapping)                                   | M        |
 | F-25 | Readonly workbook flag                                                  | M        |
 | F-26 | Dynamic OpenAPI endpoint with instance metadata                         | M        |
-| F-27 | Health check endpoint with server time and timezone                      | M        |
+| F-27 | Health check endpoint with server time and zone                        | M        |
 | F-28 | Lock diagnostic endpoint (admin scope)                                   | S        |
 | F-29 | CLI interactive REPL mode                                               | M        |
 | F-30 | CLI batch mode (stdin/file input, stdout output)                         | M        |
@@ -542,6 +542,13 @@ Each implementation uses its language-standard testing framework with project-sp
 - Coverage target: ≥ 80%
 - Test project references main project via ProjectReference in solution
 
+**Rust** (`excel-api-rust/`)
+- Framework: Built-in `#[test]` and `#[tokio::test]` attributes
+- Test location: `#[cfg(test)] mod tests` inside each `src/` file
+- Command: `cargo test`
+- Coverage target: ≥ 80%
+- No external test framework required
+
 **Go** (`excel-api-go/`)
 - Framework: Built-in `testing` package
 - Test location: `*_test.go` files alongside source
@@ -550,7 +557,7 @@ Each implementation uses its language-standard testing framework with project-sp
 - No external test framework required
 
 **Integration Tests** (`excel-api-test/`)
-- Framework: TypeScript + Vitest
+- Framework: TypeScript + Jest
 - Test location: `integration/*.test.ts`
 - Command: `npm test`
 - Coverage target: 100% of API contract

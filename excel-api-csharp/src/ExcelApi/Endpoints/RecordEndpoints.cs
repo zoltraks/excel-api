@@ -64,7 +64,7 @@ public static class RecordEndpoints
 
             if (request.Data == null)
             {
-                return Results.BadRequest(new { error = "INVALID_REQUEST", message = "'data' is required and must be an object" });
+                return Results.BadRequest(new { error = "INVALID_REQUEST", message = "data is required" });
             }
             var data = request.Data;
             int? afterRow = request.AfterRow;
@@ -115,7 +115,7 @@ public static class RecordEndpoints
 
             if (request.Data == null)
             {
-                return Results.BadRequest(new { error = "INVALID_REQUEST", message = "'data' is required and must be an object" });
+                return Results.BadRequest(new { error = "INVALID_REQUEST", message = "data is required" });
             }
             var data = request.Data;
 

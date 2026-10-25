@@ -1,6 +1,6 @@
 // Shared helpers: duration parsing, column letters, cell refs, timestamps.
 
-use chrono::{SecondsFormat, Utc};
+use chrono::Utc;
 
 /// Canonical duration parser: `<number><unit>` where unit is s, m, or h.
 /// Returns milliseconds.
@@ -57,18 +57,22 @@ pub fn parse_cell_ref(cell_ref: &str) -> Option<(u32, u32)> {
     Some((col as u32, row))
 }
 
-/// Current UTC time in ISO 8601 (`...Z`), matching `Date.toISOString()`.
-pub fn utc_now_iso() -> String {
-    Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true)
+/// Current local server time in `YYYY-MM-DD hh:mm:ss.fff` (no zone suffix).
+pub fn local_now() -> String {
+    chrono::Local::now()
+        .format("%Y-%m-%d %H:%M:%S%.3f")
+        .to_string()
 }
 
-/// File modification time as ISO 8601 string.
-pub fn mtime_iso(meta: &std::fs::Metadata) -> String {
+/// File modification time as `YYYY-MM-DD hh:mm:ss.fff` local server time.
+pub fn mtime_local(meta: &std::fs::Metadata) -> String {
     let time: chrono::DateTime<Utc> = meta
         .modified()
         .unwrap_or_else(|_| std::time::SystemTime::now())
         .into();
-    time.to_rfc3339_opts(SecondsFormat::Millis, true)
+    time.with_timezone(&chrono::Local)
+        .format("%Y-%m-%d %H:%M:%S%.3f")
+        .to_string()
 }
 
 #[cfg(test)]

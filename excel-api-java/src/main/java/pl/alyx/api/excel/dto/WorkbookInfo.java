@@ -7,9 +7,9 @@ public class WorkbookInfo {
     private String id;
     private String filename;
     private boolean readonly;
-    @JsonProperty("modified_at")
+    @JsonProperty("modified")
     private String modifiedAt;
-    @JsonProperty("size_bytes")
+    @JsonProperty("size")
     private long sizeBytes;
     private List<String> sheets;
 

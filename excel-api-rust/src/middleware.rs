@@ -125,7 +125,7 @@ fn endpoint_key(method: &str, uri: &str) -> Option<&'static str> {
             "PUT" => Some("cell_write"),
             _ => None,
         },
-        "range" => (method == "GET").then_some("range_get"),
+        "ranges" => (method == "GET").then_some("range_get"),
         "sheets" => (method == "GET").then_some("sheet_get"),
         "workbooks" => (method == "GET").then_some("workbook_get"),
         _ => None,
@@ -180,4 +180,20 @@ pub async fn rate_limit(
             .insert("retry-after", HeaderValue::from_static("60"));
         resp
     }
+}
+
+pub async fn envelope_status(
+    State(state): State<Arc<AppState>>,
+    request: Request,
+    next: Next,
+) -> Response {
+    let response = next.run(request).await;
+    let (code, message) = match response.status() {
+        StatusCode::METHOD_NOT_ALLOWED => ("METHOD_NOT_ALLOWED", "Method not allowed"),
+        StatusCode::UNSUPPORTED_MEDIA_TYPE => {
+            ("UNSUPPORTED_MEDIA_TYPE", "Content-Type is not supported")
+        }
+        _ => return response,
+    };
+    crate::error::err_body(state.pretty, response.status(), code, message)
 }

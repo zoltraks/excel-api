@@ -59,6 +59,10 @@ export function recordRoutes(
             metrics.incrementCounter('excel_api_errors_total', 1, { error: 'SHEET_NOT_FOUND' });
             return reply.status(404).send({ error: 'SHEET_NOT_FOUND', message: error.message });
           }
+          if (error instanceof Error && error.message.startsWith('Invalid')) {
+            metrics.incrementCounter('excel_api_errors_total', 1, { error: 'VALIDATION_ERROR' });
+            return reply.status(400).send({ error: 'VALIDATION_ERROR', message: error.message });
+          }
           if (error instanceof Error && error.message.includes('not configured')) {
             metrics.incrementCounter('excel_api_errors_total', 1, {
               error: 'SHEET_NOT_CONFIGURED',
@@ -118,6 +122,10 @@ export function recordRoutes(
           if (error instanceof Error && error.message.includes('not found')) {
             metrics.incrementCounter('excel_api_errors_total', 1, { error: 'SHEET_NOT_FOUND' });
             return reply.status(404).send({ error: 'SHEET_NOT_FOUND', message: error.message });
+          }
+          if (error instanceof Error && error.message.startsWith('Invalid')) {
+            metrics.incrementCounter('excel_api_errors_total', 1, { error: 'VALIDATION_ERROR' });
+            return reply.status(400).send({ error: 'VALIDATION_ERROR', message: error.message });
           }
           if (error instanceof Error && error.message.includes('out of range')) {
             metrics.incrementCounter('excel_api_errors_total', 1, { error: 'ROW_NOT_FOUND' });
@@ -299,10 +307,10 @@ export function recordRoutes(
           throw error;
         }
 
+        metrics.observeHistogram('excel_api_record_delete_duration_ms', Date.now() - startTime);
         if (handleFailedResult(reply, result)) {
           return reply;
         }
-        metrics.observeHistogram('excel_api_record_delete_duration_ms', Date.now() - startTime);
         return reply.status(204).send();
       },
     );

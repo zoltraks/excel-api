@@ -61,7 +61,7 @@ public static class CellEndpoints
 
             if (request == null || !request.ContainsKey("value"))
             {
-                return Results.BadRequest(new { error = "INVALID_REQUEST", message = "'value' is required" });
+                return Results.BadRequest(new { error = "INVALID_REQUEST", message = "value is required" });
             }
             var value = request["value"] is { } node
                 ? ExcelService.UnwrapJsonValue(node.Deserialize<System.Text.Json.JsonElement>())
@@ -132,7 +132,7 @@ public static class CellEndpoints
                 return Results.Ok(new
                 {
                     results,
-                    applied_at = DateTime.UtcNow.ToString("o")
+                    applied_at = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")
                 });
             }
             catch (ServiceBusyException ex)

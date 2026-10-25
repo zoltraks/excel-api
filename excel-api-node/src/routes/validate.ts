@@ -14,10 +14,12 @@ export function validate<T>(reply: FastifyReply, schema: ZodType<T>, body: unkno
   const parsed = schema.safeParse(body ?? {});
   if (!parsed.success) {
     const issue = parsed.error.issues[0];
-    invalidRequest(
-      reply,
-      `Invalid request body: ${issue ? `${issue.path.join('.')} ${issue.message}`.trim() : 'malformed'}`,
-    );
+    const field = issue?.path?.[0];
+    const message =
+      issue && issue.code === 'invalid_type' && typeof field === 'string'
+        ? `${field} is required`
+        : `Invalid request body: ${issue ? `${issue.path.map(String).join('.')} ${issue.message}`.trim() : 'malformed'}`;
+    invalidRequest(reply, message);
     return null;
   }
   return parsed.data;

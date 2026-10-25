@@ -3,6 +3,7 @@
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
+import { formatLocalTime, parseTimestamp } from '../util/datetime.js';
 
 export interface LockfileContent {
   pid: number;
@@ -13,8 +14,8 @@ export interface LockfileContent {
 
 export interface LockInfo {
   locked: boolean;
-  locked_by?: string;
-  locked_since?: string;
+  locked_by?: string | null;
+  locked_since?: string | null;
 }
 
 const POLL_INTERVAL_MS = 25;
@@ -48,7 +49,7 @@ class FileLock {
       const lockContent: LockfileContent = {
         pid: process.pid,
         hostname: os.hostname(),
-        locked_at: new Date().toISOString(),
+        locked_at: formatLocalTime(new Date()),
         implementation: this.implementation,
       };
 
@@ -65,7 +66,7 @@ class FileLock {
 
       const existing = this.tryReadLockfile(lockfilePath);
       if (existing) {
-        const lockTime = Date.parse(existing.locked_at);
+        const lockTime = parseTimestamp(existing.locked_at);
         if (!Number.isNaN(lockTime) && Date.now() - lockTime >= this.lockTimeoutMs) {
           // Stale lock — break it and retry
           try {
@@ -119,7 +120,7 @@ class FileLock {
   }
 
   private isStale(lockContent: LockfileContent): boolean {
-    const lockTime = Date.parse(lockContent.locked_at);
+    const lockTime = parseTimestamp(lockContent.locked_at);
     if (Number.isNaN(lockTime)) {
       return false;
     }
@@ -145,12 +146,12 @@ class FileLock {
     const lockfilePath = this.getLockfilePath(fileId);
 
     if (!fs.existsSync(lockfilePath)) {
-      return { locked: false };
+      return { locked: false, locked_by: null, locked_since: null };
     }
 
     const lockContent = this.tryReadLockfile(lockfilePath);
     if (!lockContent || this.isStale(lockContent)) {
-      return { locked: false };
+      return { locked: false, locked_by: null, locked_since: null };
     }
 
     return {

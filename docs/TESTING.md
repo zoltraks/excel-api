@@ -11,6 +11,10 @@ and are worth checking before diagnosing a failure as a code defect.
   precedent).
 - **.NET runtime**: `dotnet test` needs `DOTNET_ROLL_FORWARD=Major` - the
   `net8.0` runtime is absent while the .NET 10 SDK is installed.
+- **Rust toolchain**: `excel-api-rust/rust-toolchain.toml` pins channel `1.89` -
+  rustup resolves it automatically. `cargo audit` reads advisory ignores from
+  `excel-api-rust/.cargo/audit.toml` - re-evaluate each entry on every
+  dependency bump.
 - **npm audit**: run plain `npm audit fix` - the `--omit=dev` flag prunes
   `devDependencies` from `node_modules` and breaks the test suite.
 - **access.yaml permissions**: checked-out `access.yaml` files must be
@@ -76,6 +80,7 @@ early and clearly when an older or absent runtime is picked up.
 - Node: `npm run type-check`
 - Java: `mvn compile`
 - C#: `dotnet build`
+- Rust: `cargo check`
 - Go: `go build ./...`
 - Test suite: `npx tsc --noEmit`
 
@@ -84,6 +89,7 @@ early and clearly when an older or absent runtime is picked up.
 - Node: `npm run lint` and `npm run format`
 - Java: `mvn checkstyle:check`
 - C#: `dotnet format --verify-no-changes`
+- Rust: `cargo fmt --check --all` and `cargo clippy --all-targets -- -D warnings`
 - Go: `gofmt -l .` (must print nothing) and `go vet ./...`
 - Test suite: no linter configured - typecheck only
 
@@ -92,6 +98,7 @@ early and clearly when an older or absent runtime is picked up.
 - Node: `npm test -- --run`
 - Java: `mvn test`
 - C#: `dotnet test` — the test host needs the target-framework runtime; when only a newer SDK/runtime is installed, prefix `DOTNET_ROLL_FORWARD=LatestMajor`
+- Rust: `cargo test`
 - Go: `go test ./...`
 - Integration: `IMAGE=<implementation> docker compose -f docker-compose.test.yaml up --abort-on-container-exit`
 
@@ -100,6 +107,7 @@ early and clearly when an older or absent runtime is picked up.
 - Node: strict `tsc --noEmit` and ESLint findings count as static analysis - both must be clean
 - Java: checkstyle findings - must be clean; extend with SpotBugs if the plugin is later configured
 - C#: built-in SDK analyzers run during `dotnet build` - warnings must be zero
+- Rust: clippy findings plus the crate lints declared in `Cargo.toml` (`unwrap_used`, `expect_used`, `panic` denied) - warnings must be zero
 - Go: `go vet ./...`; additionally `golangci-lint run` when it is installed
 
 **Production Build**
@@ -107,6 +115,7 @@ early and clearly when an older or absent runtime is picked up.
 - Node: `npm run build` (emits `dist/`)
 - Java: `mvn package` (emits `target/*.jar`)
 - C#: `dotnet publish -c Release`
+- Rust: `cargo build --release` (emits `target/release/excel-api-rust`)
 - Go: `CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o bin/excel-api-go ./cmd/excel-api-go`
 - Container artifact, when the change is release-bound: `docker build -t excel-api-<implementation> ./excel-api-<implementation>/`
 
@@ -125,6 +134,7 @@ Resolve findings or obtain explicit owner approval with a recorded rationale bef
 - Node and test suite: `npm audit`
 - Java: `mvn org.owasp:dependency-check-maven:check` (on demand, no plugin pin configured)
 - C#: `dotnet list package --vulnerable`
+- Rust: `cargo audit` - advisory ignores live in `excel-api-rust/.cargo/audit.toml`
 - Go: `govulncheck ./...` when the tool is installed
 
 **Static security analysis**
@@ -146,7 +156,62 @@ A passing suite confirms contract conformance.
 IMAGE=excel-api-node docker compose -f docker-compose.test.yaml up --abort-on-container-exit
 ```
 
-Replace `excel-api-node` with `excel-api-java` or `excel-api-csharp` to test other implementations.
+Replace `excel-api-node` with `excel-api-java`, `excel-api-csharp`, or `excel-api-rust` to test other implementations.
+
+## Cross-Implementation Verification
+
+Beyond conformance per implementation, the four servers can run against one
+shared workbook directory to verify file-level interoperability: one
+implementation writes, every other implementation reads.
+
+**Shared environment** (example layout under `work/itest/`, gitignored):
+
+- One `fixture/` directory copied from `excel-api-test/fixture/` - all
+  servers point at the same files.
+- One shared `locks/` directory - lockfile serialization crosses server
+  processes.
+- One shared `access.yaml` - every server validates the same JWT secret.
+- One config per implementation (`config.node.yaml`, `config.java.yaml`,
+  `config.csharp.yaml`, `config.rust.yaml`) - each a copy of
+  `config.test.yaml` with only the `server.port` (and matching
+  `openapi.servers` URL) changed.
+
+**Port convention**: node 4801, java 4802, csharp 4803, rust 4804.
+
+**Path resolution**: `--config` and `--access` paths resolve against the
+`--work` directory - pass work-relative names (e.g. `--config
+config.node.yaml`), not cwd-relative paths, or they resolve doubled.
+
+**Authentication**: obtain a bearer token per server with the OAuth2
+client-credentials grant - `POST /api/v1/auth/token` with
+`grant_type=client_credentials&client_id=test-client&client_secret=test-secret`.
+The static `test-static-token` in the test access file is expired by
+design and returns `TOKEN_EXPIRED`.
+
+**Build artifacts**: rebuild every artifact before the matrix, then
+confirm the running binary via `GET /api/v1/health` (`implementation`,
+`version` fields). Java serves the packaged jar - `mvn package`, not just
+`compile`. C# publishes to a RID-specific directory
+(`bin/Release/net8.0/<rid>/`). A stale artifact can pass health while
+running outdated code.
+
+**Fixture restore**: the Jest suite and the matrix both mutate workbooks -
+re-copy `excel-api-test/fixture/*.xlsx` into the shared fixture directory
+between runs.
+
+**Matrix procedure** (scripted in `shell/cross_test.py`):
+
+```bash
+# start all four servers against the shared work dir, then:
+python3 shell/cross_test.py
+# ports overridable: CROSS_PORTS="node=4801 rust=4804" python3 shell/cross_test.py
+```
+
+The script writes a distinctive cell and record through every
+implementation and reads them back through every other implementation
+(4x3 ordered pairs each), then verifies `lock-status` reports
+`locked: false` after the matrix - proving shared lockfiles serialize
+and release correctly across processes. Exit code is 0 on ALL PASS.
 
 ## CLI Utility Testing
 
@@ -210,7 +275,7 @@ Test-specific configuration files in `excel-api-test/config/`:
 ## Unit Tests
 
 Each implementation maintains its own unit test suite within its project directory.
-Unit tests are written in the implementation's native testing framework: Vitest (Node), JUnit (Java), MSTest (C#), Go test (Go).
+Unit tests are written in the implementation's native testing framework: Vitest (Node), JUnit (Java), MSTest (C#), `#[test]`/`#[tokio::test]` (Rust), Go test (Go).
 
 Coverage target: ≥ 80% for all implementations.
 
@@ -225,3 +290,7 @@ Coverage target: ≥ 80% for all implementations.
 | `EXCEL_API_TEST_USERNAME`   | `testuser`                 |
 | `EXCEL_API_TEST_PASSWORD`   | `testpass`                 |
 | `EXCEL_API_TEST_TOKEN`      | `test-static-token`        |
+
+### Full parity matrix
+
+`shell/parity_test.py` (stdlib-only, `CROSS_PORTS` env-overridable) exercises all 17 contract operations plus error cases across 4801-4804 with normalized diffs. Known artifacts: `openapi.yaml` served bodies differ only when implementations customize (now verbatim across all four), and sequential shared-file writes are fixture-restored per impl for add/del checks.

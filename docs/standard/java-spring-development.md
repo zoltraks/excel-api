@@ -1,6 +1,6 @@
 # Java/Spring Boot/Maven Engineering Standards
 
-<!-- Standards set: java-general-development.md@0.1.2, java-spring-development.md@0.1.2, java-maven-development.md@0.1.3 | Date: 2026-10-25 -->
+<!-- Standards set: java-general-development.md@0.1.2, java-spring-development.md@0.1.3, java-maven-development.md@0.1.3 | Date: 2026-10-25 -->
 
 ## Scope
 
@@ -17,7 +17,7 @@ All paths below are relative to the `excel-api-java/` directory unless stated ot
 
 ## Core Technologies
 
-* **Java 21**: Language version. Use LTS release. Use records, sealed classes, pattern matching where appropriate.
+* **Java 21 or later**: Language version floor. A patch release carries security fixes the project should take automatically; `<maven.compiler.release>` pins the concrete version. Use records, sealed classes, pattern matching where appropriate.
 * **Spring Boot 3.x**: Application framework. Minimal Spring — no Spring Data, no Spring Security (custom auth).
 * **Apache POI 5.x**: Excel file operations. XSSF for `.xlsx` read-modify-write.
 * **Maven**: Build system. No Gradle.
@@ -347,3 +347,17 @@ Code is self-documenting through naming. Limit comments to the absolute minimum.
 **SOLID.** Constructor injection for dependencies. Interfaces at module boundaries. Composition over inheritance.
 
 **No Global State.** All state managed by Spring-scoped beans. No static mutable fields.
+
+## Spring Parity Patterns
+
+- Always `mvn clean package` for artifacts - Eclipse's incremental compile
+  leaves "Unresolved compilation problems" inside a packaged jar.
+- `format=display` reads belong on `DataFormatter.formatCellValue` - never
+  `getStringCellValue` on non-`STRING` cells (`IllegalStateException` on
+  numeric/formula cells).
+- POI formula cells without a cached value are detected via
+  `XSSFCell.getCTCell().isSetV()` - emit `empty`/`""`, not `0.0` or the
+  formula text.
+- `@ExceptionHandler` for `HttpRequestMethodNotSupportedException` and
+  `HttpMediaTypeNotSupportedException` to emit contract envelopes on 405
+  and 415.

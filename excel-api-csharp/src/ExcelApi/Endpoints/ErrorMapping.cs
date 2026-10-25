@@ -44,6 +44,10 @@ public static class ErrorMapping
         {
             return Results.NotFound(new { error = "SHEET_NOT_FOUND", message });
         }
+        if (message.StartsWith("Invalid "))
+        {
+            return Results.BadRequest(new { error = "VALIDATION_ERROR", message });
+        }
         return Results.BadRequest(new { error = "INVALID_REQUEST", message });
     }
 }

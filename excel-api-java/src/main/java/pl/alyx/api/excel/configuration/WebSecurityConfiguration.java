@@ -63,7 +63,9 @@ public class WebSecurityConfiguration {
                                 Boolean.TRUE.equals(request.getAttribute("excel.api.token.expired"))
                                         ? "TOKEN_EXPIRED"
                                         : "UNAUTHORIZED",
-                                "Authentication required"))
+                                Boolean.TRUE.equals(request.getAttribute("excel.api.token.expired"))
+                                        ? "Invalid or expired token"
+                                        : "Authentication required"))
                         .accessDeniedHandler((request, response, accessDeniedException) -> writeError(
                                 response,
                                 STATUS_FORBIDDEN,

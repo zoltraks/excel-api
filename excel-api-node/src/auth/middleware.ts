@@ -19,7 +19,7 @@ export function createAuthMiddleware(jwtAuth: JWTAuth, staticTokenAuth: StaticTo
     if (!authHeader) {
       reply.status(401).send({
         error: 'UNAUTHORIZED',
-        message: 'Missing Authorization header',
+        message: 'Authentication required',
       });
       return;
     }

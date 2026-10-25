@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
-use crate::util::utc_now_iso;
+use crate::util::local_now;
 
 const POLL_INTERVAL: Duration = Duration::from_millis(25);
 
@@ -73,12 +73,26 @@ impl FileLock {
         serde_json::from_str(&text).ok()
     }
 
+    /// Parse a lockfile timestamp - the local `YYYY-MM-DD hh:mm:ss.fff`
+    /// convention first, then the legacy RFC3339 form.
+    fn parse_lock_time(value: &str) -> Option<chrono::DateTime<chrono::Local>> {
+        use chrono::TimeZone;
+        chrono::NaiveDateTime::parse_from_str(value, "%Y-%m-%d %H:%M:%S%.3f")
+            .ok()
+            .and_then(|naive| chrono::Local.from_local_datetime(&naive).earliest())
+            .or_else(|| {
+                chrono::DateTime::parse_from_rfc3339(value)
+                    .ok()
+                    .map(|dt| dt.with_timezone(&chrono::Local))
+            })
+    }
+
     fn is_stale(&self, content: &LockfileContent) -> bool {
-        let Ok(locked) = chrono::DateTime::parse_from_rfc3339(&content.locked_at) else {
+        let Some(locked) = Self::parse_lock_time(&content.locked_at) else {
             return false;
         };
-        chrono::Utc::now()
-            .signed_duration_since(locked.with_timezone(&chrono::Utc))
+        chrono::Local::now()
+            .signed_duration_since(locked)
             .to_std()
             .map(|age| age >= self.timeout)
             .unwrap_or(false)
@@ -96,7 +110,7 @@ impl FileLock {
                 pid,
                 hostname: Self::host_name(),
                 implementation: self.implementation.clone(),
-                locked_at: utc_now_iso(),
+                locked_at: local_now(),
             };
             match std::fs::OpenOptions::new()
                 .write(true)

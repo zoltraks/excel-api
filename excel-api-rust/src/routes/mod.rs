@@ -9,40 +9,47 @@ use axum::routing::{get, post, put};
 
 use crate::state::AppState;
 
-pub mod data;
-pub mod service;
+mod cells;
+mod helpers;
+mod lock_status;
+mod operations;
+mod records;
+mod sheets;
+mod system;
+mod types;
+mod workbooks;
 
 pub fn router(state: Arc<AppState>) -> Router {
     let public = Router::new()
-        .route("/health", get(service::health))
-        .route("/metrics", get(service::metrics))
-        .route("/openapi.yaml", get(service::openapi_yaml))
-        .route("/openapi.json", get(service::openapi_json))
-        .route("/auth/token", post(service::token));
+        .route("/health", get(system::health))
+        .route("/metrics", get(system::metrics))
+        .route("/openapi.yaml", get(system::openapi_yaml))
+        .route("/openapi.json", get(system::openapi_json))
+        .route("/auth/token", post(system::token));
 
     let reads = Router::new()
-        .route("/workbooks", get(data::list_workbooks))
-        .route("/workbooks/{id}", get(data::get_workbook))
-        .route("/workbooks/{id}/sheets/{sheet}", get(data::get_sheet))
+        .route("/workbooks", get(workbooks::list_workbooks))
+        .route("/workbooks/{id}", get(workbooks::get_workbook))
+        .route("/workbooks/{id}/sheets/{sheet}", get(sheets::get_sheet))
         .route(
             "/workbooks/{id}/sheets/{sheet}/columns",
-            get(data::get_columns),
+            get(sheets::get_columns),
         )
         .route(
             "/workbooks/{id}/sheets/{sheet}/records",
-            get(data::list_records),
+            get(records::list_records),
         )
         .route(
             "/workbooks/{id}/sheets/{sheet}/records/{recordIndex}",
-            get(data::get_record),
+            get(records::get_record),
         )
         .route(
             "/workbooks/{id}/sheets/{sheet}/cells/{cellRef}",
-            get(data::get_cell),
+            get(cells::get_cell),
         )
         .route(
             "/workbooks/{id}/sheets/{sheet}/ranges/{rangeRef}",
-            get(data::get_range),
+            get(cells::get_range),
         )
         .route_layer(from_fn_with_state(state.clone(), |s, req, next| async move {
             crate::auth::require_fn(s, req, next, "read", false).await
@@ -52,23 +59,23 @@ pub fn router(state: Arc<AppState>) -> Router {
         Router::new()
             .route(
                 "/workbooks/{id}/sheets/{sheet}/records",
-                post(data::add_record),
+                post(records::add_record),
             )
             .route(
                 "/workbooks/{id}/sheets/{sheet}/records/{recordIndex}",
-                put(data::update_record).delete(data::delete_record),
+                put(records::update_record).delete(records::delete_record),
             )
             .route(
                 "/workbooks/{id}/sheets/{sheet}/cells/{cellRef}",
-                put(data::write_cell),
+                put(cells::write_cell),
             )
             .route(
                 "/workbooks/{id}/sheets/{sheet}/operations",
-                post(data::record_operations),
+                post(operations::record_operations),
             )
             .route(
                 "/workbooks/{id}/sheets/{sheet}/cells/operations",
-                post(data::cell_operations),
+                post(operations::cell_operations),
             )
             .route_layer(from_fn_with_state(
                 state.clone(),
@@ -78,7 +85,7 @@ pub fn router(state: Arc<AppState>) -> Router {
             ));
 
     let admin = Router::new()
-        .route("/workbooks/{id}/lock-status", get(data::lock_status))
+        .route("/workbooks/{id}/lock-status", get(lock_status::lock_status))
         .route_layer(from_fn_with_state(state.clone(), |s, req, next| async move {
             crate::auth::require_fn(s, req, next, "admin", true).await
         }));
@@ -135,5 +142,12 @@ pub fn router(state: Arc<AppState>) -> Router {
             state.clone(),
             crate::middleware::request_metrics_log,
         ))
-        .layer(from_fn_with_state(state, crate::middleware::rate_limit))
+        .layer(from_fn_with_state(
+            state.clone(),
+            crate::middleware::rate_limit,
+        ))
+        .layer(from_fn_with_state(
+            state,
+            crate::middleware::envelope_status,
+        ))
 }

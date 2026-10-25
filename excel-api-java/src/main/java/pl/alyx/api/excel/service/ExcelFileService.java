@@ -15,6 +15,7 @@ import pl.alyx.api.excel.dto.RangeData;
 import pl.alyx.api.excel.exception.RowNotFoundException;
 import pl.alyx.api.excel.exception.SheetNotConfiguredException;
 import pl.alyx.api.excel.exception.SheetNotFoundException;
+import pl.alyx.api.excel.exception.ApiException;
 import pl.alyx.api.excel.exception.ValidationException;
 import pl.alyx.api.excel.utility.CellConverter;
 import pl.alyx.api.excel.utility.SheetLayout;
@@ -75,15 +76,19 @@ public class ExcelFileService {
                 throw new SheetNotFoundException(sheetName);
             }
 
+            if (!cellRef.matches("^[A-Za-z]+[0-9]+$")) {
+                throw new ApiException("VALIDATION_ERROR",
+                        "Invalid cell reference '" + cellRef + "'", 400);
+            }
             final CellReference ref = new CellReference(cellRef);
             final Row row = sheet.getRow(ref.getRow());
             if (row == null) {
-                return new CellData("", "empty", null, false, null);
+                return new CellData(null, "empty", null, false, null);
             }
 
             final Cell cell = row.getCell(ref.getCol());
             if (cell == null) {
-                return new CellData("", "empty", null, false, null);
+                return new CellData(null, "empty", null, false, null);
             }
 
             return CellConverter.convertCell(cell, format);
@@ -336,9 +341,8 @@ public class ExcelFileService {
                 column.put("number_format", null);
                 final String description = descriptionRow != null
                         ? cellText(descriptionRow.getCell(c)) : "";
-                if (!description.isEmpty()) {
-                    column.put("descriptions", Map.of("default", description));
-                }
+                column.put("descriptions", !description.isEmpty()
+                        ? Map.of("default", description) : null);
                 columns.add(column);
             }
 

@@ -45,7 +45,7 @@ public static class OperationsEndpoints
                 return Results.Ok(new
                 {
                     results,
-                    applied_at = DateTime.UtcNow.ToString("o")
+                    applied_at = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")
                 });
             }
             catch (ServiceBusyException ex)

@@ -17,7 +17,7 @@ use umya_spreadsheet::{Workbook, Worksheet};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ExcelError {
-    #[error("Sheet '{0}' not found")]
+    #[error("Sheet '{0}' not found in workbook")]
     SheetNotFound(String),
     #[error("{0}")]
     NotConfigured(String),
@@ -40,7 +40,57 @@ pub const fn error_code(err: &ExcelError) -> &'static str {
 }
 
 pub fn load(path: &Path) -> Result<Workbook, ExcelError> {
-    Ok(umya_spreadsheet::reader::xlsx::read(path)?)
+    match umya_spreadsheet::reader::xlsx::read(path) {
+        Ok(book) if !book.sheet_collection().is_empty() => Ok(book),
+        _ => load_normalized(path),
+    }
+}
+
+// Non-Excel writers (ClosedXML, others) emit the spreadsheetml namespace with
+// an `x:` element prefix, which umya-spreadsheet does not match, so a
+// foreign-saved workbook parses to an empty model. Rewrite the package in
+// memory: drop the optional docProps parts and strip the `x:` element prefix
+// from every XML part, then retry the read.
+fn load_normalized(path: &Path) -> Result<Workbook, ExcelError> {
+    use std::io::{Cursor, Read, Write};
+    let raw = std::fs::read(path).map_err(umya_spreadsheet::XlsxError::Io)?;
+    let mut archive = zip::ZipArchive::new(Cursor::new(raw))
+        .map_err(|e| ExcelError::Invalid(format!("not a readable package: {e}")))?;
+    let mut out = Cursor::new(Vec::new());
+    {
+        let mut writer = zip::ZipWriter::new(&mut out);
+        for i in 0..archive.len() {
+            let mut entry = archive
+                .by_index(i)
+                .map_err(|e| ExcelError::Invalid(format!("corrupt package: {e}")))?;
+            if entry.is_dir() || entry.name().starts_with("docProps/") {
+                continue;
+            }
+            let mut data = Vec::new();
+            entry
+                .read_to_end(&mut data)
+                .map_err(umya_spreadsheet::XlsxError::Io)?;
+            if (entry.name().ends_with(".xml") || entry.name().ends_with(".rels"))
+                && let Ok(text) = String::from_utf8(data.clone())
+            {
+                data = text.replace("</x:", "</").replace("<x:", "<").into_bytes();
+            }
+            writer
+                .start_file(entry.name(), zip::write::SimpleFileOptions::default())
+                .map_err(|e| ExcelError::Invalid(format!("package rewrite: {e}")))?;
+            writer
+                .write_all(&data)
+                .map_err(umya_spreadsheet::XlsxError::Io)?;
+        }
+        writer
+            .finish()
+            .map_err(|e| ExcelError::Invalid(format!("package rewrite: {e}")))?;
+    }
+    let bytes = out.into_inner();
+    Ok(umya_spreadsheet::reader::xlsx::read_reader(
+        &mut Cursor::new(bytes),
+        true,
+    )?)
 }
 
 pub fn save(book: &Workbook, path: &Path) -> Result<(), ExcelError> {

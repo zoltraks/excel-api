@@ -73,6 +73,7 @@ public class CellData {
         this.numberFormat = numberFormat;
     }
 
+    @JsonProperty("is_formula")
     public boolean isFormula() {
         return isFormula;
     }

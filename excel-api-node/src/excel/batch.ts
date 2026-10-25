@@ -12,6 +12,7 @@ import {
   applyUpdateRecord,
   applyWriteCell,
 } from './operations.js';
+import { loadWorkbookXlsx } from './operations.js';
 import { resolveSheetLayout, resolveColumnIds, type SheetLayout } from './layout.js';
 import type { SheetHeaderConfig } from '../config/types.js';
 
@@ -107,7 +108,7 @@ export function createBatchExecutor(
 
     const workbook = new ExcelJS.Workbook();
     try {
-      await workbook.xlsx.readFile(filePath);
+      await loadWorkbookXlsx(workbook, filePath);
 
       const layoutCache = new Map<string, { layout: SheetLayout; columnIds: string[] }>();
       const results: BatchResult[] = operations.map((operation) => {

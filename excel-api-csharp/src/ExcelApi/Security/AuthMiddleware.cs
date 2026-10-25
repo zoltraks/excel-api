@@ -68,7 +68,7 @@ public class AuthMiddleware
             await context.Response.WriteAsJsonAsync(new
             {
                 error = isBearer ? "TOKEN_EXPIRED" : "UNAUTHORIZED",
-                message = "Authentication required"
+                message = isBearer ? "Invalid or expired token" : "Authentication required"
             });
             return;
         }

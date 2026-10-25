@@ -43,7 +43,7 @@ If a step reveals an issue not covered by the plan, stop and update the proposal
 After all steps are complete, evaluate the result against this checklist.
 
 - All unit tests pass.
-- All integration tests pass (for all three implementations if the change is cross-cutting).
+- All integration tests pass (for all implementations if the change is cross-cutting).
 - Linting produces no errors or warnings.
 - The change is consistent with the relevant development standard in `docs/standard/`.
 - The change does not introduce new dependencies without justification.

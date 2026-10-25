@@ -29,9 +29,9 @@ public class HealthController {
     public HealthResponse health() {
         long uptimeSeconds = (System.currentTimeMillis() - startTime) / MILLIS_PER_SECOND;
         String time = LocalDateTime.now().format(TIME_FORMATTER);
-        String timezone = System.getenv("TZ");
-        if (timezone == null || timezone.isEmpty()) {
-            timezone = ZoneId.systemDefault().getId();
+        String zone = System.getenv("TZ");
+        if (zone == null || zone.isEmpty()) {
+            zone = ZoneId.systemDefault().getId();
         }
 
         return new HealthResponse(
@@ -40,7 +40,7 @@ public class HealthController {
             IMPLEMENTATION,
             contractInfo.getVersion(),
             time,
-            timezone
+            zone
         );
     }
 }
