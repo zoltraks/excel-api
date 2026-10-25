@@ -19,8 +19,8 @@ pub async fn health(State(state): State<Arc<AppState>>) -> Response {
             "status": "ok",
             "implementation": "excel-api-rust",
             "version": env!("CARGO_PKG_VERSION"),
-            "uptime_seconds": state.started.elapsed().as_secs_f64(),
-            "server_time": crate::util::utc_now_iso(),
+            "uptime": state.started.elapsed().as_secs(),
+            "time": chrono::Local::now().format("%Y-%m-%d %H:%M:%S%.3f").to_string(),
             "timezone": iana_time_zone::get_timezone().unwrap_or_else(|_| "UTC".to_string()),
         }),
     )

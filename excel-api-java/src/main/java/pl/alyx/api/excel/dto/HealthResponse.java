@@ -2,9 +2,9 @@ package pl.alyx.api.excel.dto;
 
 public record HealthResponse(
         String status,
-        long uptime_seconds,
+        long uptime,
         String implementation,
         String version,
-        String server_time,
+        String time,
         String timezone) {
 }

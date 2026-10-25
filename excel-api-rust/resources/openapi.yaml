@@ -571,7 +571,7 @@ components:
 
     HealthResponse:
       type: object
-      required: ["status", "implementation", "version", "server_time", "timezone"]
+      required: ["status", "implementation", "version", "time", "timezone"]
       properties:
         status:
           type: string
@@ -580,11 +580,12 @@ components:
           type: string
         version:
           type: string
-        uptime_seconds:
+        uptime:
           type: integer
-        server_time:
+          description: "Whole seconds since process start"
+        time:
           type: string
-          description: "Server current time in ISO 8601 format with timezone"
+          description: "Server current local time in YYYY-MM-DD hh:mm:ss.fff format"
         timezone:
           type: string
           description: "Server timezone identifier (e.g., Europe/Warsaw, UTC)"

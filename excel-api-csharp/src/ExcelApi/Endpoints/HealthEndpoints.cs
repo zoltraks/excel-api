@@ -12,7 +12,7 @@ public static class HealthEndpoints
         {
             var now = DateTime.UtcNow;
             var uptimeSeconds = (long)(now - startTime).TotalSeconds;
-            var serverTime = now.ToString("o");
+            var time = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff");
             var localTz = TimeZoneInfo.Local;
             string timezone;
             if (localTz.HasIanaId)
@@ -33,8 +33,8 @@ public static class HealthEndpoints
                 status = "ok",
                 implementation = "excel-api-csharp",
                 version = "0.0.6",
-                uptime_seconds = uptimeSeconds,
-                server_time = serverTime,
+                uptime = uptimeSeconds,
+                time = time,
                 timezone = timezone
             });
         });
