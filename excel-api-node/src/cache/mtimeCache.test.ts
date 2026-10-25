@@ -70,7 +70,7 @@ describe('MtimeCache', () => {
       cache.set(testFile, testData);
 
       // Wait a bit to ensure mtime changes
-      await new Promise(resolve => setTimeout(resolve, 10));
+      await new Promise((resolve) => setTimeout(resolve, 10));
 
       // Modify the file
       fs.writeFileSync(testFile, 'modified content');

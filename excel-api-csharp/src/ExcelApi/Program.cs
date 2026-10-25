@@ -67,6 +67,7 @@ builder.Services.AddSingleton<ConsoleFormatter, JsonConsoleFormatter>();
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
     options.SerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.SnakeCaseLower;
+    options.SerializerOptions.WriteIndented = serverConfig.Json?.Pretty == true;
 });
 
 // Add CORS services

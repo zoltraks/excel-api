@@ -1,5 +1,14 @@
 # Changes
 
+## Version 0.0.5
+
+Feature and parity release: configurable pretty-printed JSON on all three servers, expired-token error parity, and dependency security upgrades.
+
+- **JSON pretty responses**: `server.json.pretty` in `config.yaml` enables two-space indented JSON output on every response - Node via an `onSend` serialization hook, Java via a `Jackson2ObjectMapperBuilderCustomizer` shared by MVC converters and filters, C# via `JsonSerializerOptions.WriteIndented`; compact output remains the default
+- **Error parity**: `TOKEN_EXPIRED` is now the documented code for failed Bearer-token validation on all three servers - Java maps the failed-filter marker through the authentication entry point, C# distinguishes the Bearer scheme in `AuthMiddleware`; the contract's `ErrorResponse` documents the full code vocabulary
+- **Dependencies**: `excel-api-node` upgrades `zod` to 4 and `uuid` to 11 with `tar`/`fflate` remediations and explicit `overrides`; residual `find-my-way`/Fastify findings are deferred to the Fastify 5 migration (Node 20+ floor) tracked in `docs/change/0.0.5/`
+- **Examples**: `config.example.yaml` in all three servers documents `server.json.pretty`
+
 ## Version 0.0.4
 
 Governance and conformance release: documented development rules consolidated, engineering standards fed from the standard library, and one test fix on modern JDKs.

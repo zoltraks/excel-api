@@ -35,7 +35,7 @@ function toContractResult(operation: BatchOperation, result: BatchResult, index?
 export function operationRoutes(
   registry: WorkbookRegistry,
   authMiddleware: AuthMiddleware,
-  aclChecker: ACLChecker
+  aclChecker: ACLChecker,
 ) {
   return async function (server: FastifyInstance): Promise<void> {
     server.post<{
@@ -59,7 +59,9 @@ export function operationRoutes(
 
         if (workbook.readonly) {
           metrics.incrementCounter('excel_api_errors_total', 1, { error: 'READONLY_WORKBOOK' });
-          return reply.status(422).send({ error: 'READONLY_WORKBOOK', message: 'Workbook is readonly' });
+          return reply
+            .status(422)
+            .send({ error: 'READONLY_WORKBOOK', message: 'Workbook is readonly' });
         }
 
         const body = validate(reply, RecordBatchSchema, request.body);
@@ -68,7 +70,7 @@ export function operationRoutes(
         }
         const requestOps = body.operations;
 
-        const operations: BatchOperation[] = requestOps.map(requestOp => ({
+        const operations: BatchOperation[] = requestOps.map((requestOp) => ({
           type: 'record',
           op: requestOp.op,
           sheetName: request.params.sheetName,
@@ -83,7 +85,7 @@ export function operationRoutes(
           results = await getWriteQueue().enqueueBatch(
             request.params.id,
             operations,
-            createBatchExecutor(request.params.id, workbook.path, workbook.sheets)
+            createBatchExecutor(request.params.id, workbook.path, workbook.sheets),
           );
         } catch (error) {
           if (handleEnqueueError(reply, error)) {
@@ -101,12 +103,12 @@ export function operationRoutes(
               result,
               result.success && result.data && typeof result.data === 'object'
                 ? (result.data as { index?: number }).index
-                : operations[i].recordIndex
-            )
+                : operations[i].recordIndex,
+            ),
           ),
           applied_at: new Date().toISOString(),
         };
-      }
+      },
     );
 
     server.post<{
@@ -130,7 +132,9 @@ export function operationRoutes(
 
         if (workbook.readonly) {
           metrics.incrementCounter('excel_api_errors_total', 1, { error: 'READONLY_WORKBOOK' });
-          return reply.status(422).send({ error: 'READONLY_WORKBOOK', message: 'Workbook is readonly' });
+          return reply
+            .status(422)
+            .send({ error: 'READONLY_WORKBOOK', message: 'Workbook is readonly' });
         }
 
         const body = validate(reply, CellBatchSchema, request.body);
@@ -139,7 +143,7 @@ export function operationRoutes(
         }
         const requestOps = body.operations;
 
-        const operations: BatchOperation[] = requestOps.map(requestOp => ({
+        const operations: BatchOperation[] = requestOps.map((requestOp) => ({
           type: 'cell',
           op: requestOp.op,
           sheetName: request.params.sheetName,
@@ -152,7 +156,7 @@ export function operationRoutes(
           results = await getWriteQueue().enqueueBatch(
             request.params.id,
             operations,
-            createBatchExecutor(request.params.id, workbook.path, workbook.sheets)
+            createBatchExecutor(request.params.id, workbook.path, workbook.sheets),
           );
         } catch (error) {
           if (handleEnqueueError(reply, error)) {
@@ -167,7 +171,7 @@ export function operationRoutes(
           results: results.map((result, i) => toContractResult(operations[i], result)),
           applied_at: new Date().toISOString(),
         };
-      }
+      },
     );
   };
 }

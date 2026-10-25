@@ -14,7 +14,7 @@ type AuthMiddleware = (request: FastifyRequest, reply: FastifyReply) => Promise<
 export function cellRoutes(
   registry: WorkbookRegistry,
   authMiddleware: AuthMiddleware,
-  aclChecker: ACLChecker
+  aclChecker: ACLChecker,
 ) {
   return async function (server: FastifyInstance): Promise<void> {
     server.get<{
@@ -43,7 +43,7 @@ export function cellRoutes(
             workbook.path,
             request.params.sheetName,
             request.params.cellRef,
-            format
+            format,
           );
           metrics.observeHistogram('excel_api_cell_get_duration_ms', Date.now() - startTime);
           return cellData;
@@ -55,7 +55,7 @@ export function cellRoutes(
           metrics.incrementCounter('excel_api_errors_total', 1, { error: 'INTERNAL_ERROR' });
           throw error;
         }
-      }
+      },
     );
 
     server.put<{
@@ -79,7 +79,9 @@ export function cellRoutes(
 
         if (workbook.readonly) {
           metrics.incrementCounter('excel_api_errors_total', 1, { error: 'READONLY_WORKBOOK' });
-          return reply.status(422).send({ error: 'READONLY_WORKBOOK', message: 'Workbook is readonly' });
+          return reply
+            .status(422)
+            .send({ error: 'READONLY_WORKBOOK', message: 'Workbook is readonly' });
         }
 
         const body = validate(reply, CellWriteSchema, request.body);
@@ -99,7 +101,7 @@ export function cellRoutes(
               cellRef: request.params.cellRef,
               data: body.value,
             },
-            createBatchExecutor(request.params.id, workbook.path, workbook.sheets)
+            createBatchExecutor(request.params.id, workbook.path, workbook.sheets),
           );
         } catch (error) {
           if (handleEnqueueError(reply, error)) {
@@ -114,7 +116,7 @@ export function cellRoutes(
         }
         metrics.observeHistogram('excel_api_cell_write_duration_ms', Date.now() - startTime);
         return result.data as object;
-      }
+      },
     );
 
     server.get<{
@@ -143,7 +145,7 @@ export function cellRoutes(
             workbook.path,
             request.params.sheetName,
             request.params.rangeRef,
-            format
+            format,
           );
           metrics.observeHistogram('excel_api_range_get_duration_ms', Date.now() - startTime);
           return rangeData;
@@ -155,7 +157,7 @@ export function cellRoutes(
           metrics.incrementCounter('excel_api_errors_total', 1, { error: 'INTERNAL_ERROR' });
           throw error;
         }
-      }
+      },
     );
   };
 }

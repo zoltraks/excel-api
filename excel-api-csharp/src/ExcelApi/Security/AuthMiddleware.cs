@@ -50,9 +50,10 @@ public class AuthMiddleware
         }
 
         var header = context.Request.Headers.Authorization.ToString();
+        var isBearer = header.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase);
         List<string>? scopes = null;
 
-        if (header.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+        if (isBearer)
         {
             scopes = auth.Jwt.ValidateToken(header["Bearer ".Length..].Trim());
         }
@@ -66,7 +67,7 @@ public class AuthMiddleware
             context.Response.StatusCode = StatusCodes.Status401Unauthorized;
             await context.Response.WriteAsJsonAsync(new
             {
-                error = "UNAUTHORIZED",
+                error = isBearer ? "TOKEN_EXPIRED" : "UNAUTHORIZED",
                 message = "Authentication required"
             });
             return;

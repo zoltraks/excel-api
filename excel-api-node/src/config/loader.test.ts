@@ -75,7 +75,9 @@ logging:
     });
 
     it('should throw error if config file does not exist', () => {
-      expect(() => loadConfig({ configPath: '/nonexistent/config.yaml' })).toThrow('Config file not found');
+      expect(() => loadConfig({ configPath: '/nonexistent/config.yaml' })).toThrow(
+        'Config file not found',
+      );
     });
 
     it('should throw error on invalid configuration', () => {
@@ -396,7 +398,9 @@ acl:
     });
 
     it('should throw error if access file does not exist', () => {
-      expect(() => loadAccessConfig({ accessPath: '/nonexistent/access.yaml' })).toThrow('Access file not found');
+      expect(() => loadAccessConfig({ accessPath: '/nonexistent/access.yaml' })).toThrow(
+        'Access file not found',
+      );
     });
 
     it('should warn on insecure file permissions', () => {

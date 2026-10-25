@@ -42,7 +42,7 @@ function applyOperation(
   workbook: ExcelJS.Workbook,
   operation: BatchOperation,
   sheetsConfig: Record<string, SheetHeaderConfig> | undefined,
-  layoutCache: Map<string, { layout: SheetLayout; columnIds: string[] }>
+  layoutCache: Map<string, { layout: SheetLayout; columnIds: string[] }>,
 ): unknown {
   const sheet = workbook.getWorksheet(operation.sheetName);
   if (!sheet) {
@@ -72,7 +72,7 @@ function applyOperation(
           layout,
           columnIds,
           operation.afterRow,
-          operation.copyStyleFrom
+          operation.copyStyleFrom,
         );
       }
       if (verb === 'delete') {
@@ -84,7 +84,7 @@ function applyOperation(
         operation.recordIndex ?? 0,
         (operation.data as Record<string, unknown>) ?? {},
         layout,
-        columnIds
+        columnIds,
       );
     default:
       throw new Error(`Unsupported operation type '${operation.type}'`);
@@ -94,7 +94,7 @@ function applyOperation(
 export function createBatchExecutor(
   fileId: string,
   filePath: string,
-  sheetsConfig?: Record<string, SheetHeaderConfig>
+  sheetsConfig?: Record<string, SheetHeaderConfig>,
 ): BatchExecutor {
   return async (operations: BatchOperation[]): Promise<BatchResult[]> => {
     const fileLock = getFileLock();
@@ -110,7 +110,7 @@ export function createBatchExecutor(
       await workbook.xlsx.readFile(filePath);
 
       const layoutCache = new Map<string, { layout: SheetLayout; columnIds: string[] }>();
-      const results: BatchResult[] = operations.map(operation => {
+      const results: BatchResult[] = operations.map((operation) => {
         try {
           const data = applyOperation(workbook, operation, sheetsConfig, layoutCache);
           return { success: true, data };
@@ -123,7 +123,7 @@ export function createBatchExecutor(
         }
       });
 
-      if (results.some(result => result.success)) {
+      if (results.some((result) => result.success)) {
         await workbook.xlsx.writeFile(filePath);
         getCache().invalidate(filePath);
       }

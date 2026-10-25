@@ -83,7 +83,7 @@ function readRowCells(row: ExcelJS.Row): string[] {
 export function resolveColumnIds(
   workbook: ExcelJS.Workbook,
   sheet: ExcelJS.Worksheet,
-  layout: SheetLayout
+  layout: SheetLayout,
 ): string[] {
   if (layout.mode === 'none') {
     const ids: string[] = [];

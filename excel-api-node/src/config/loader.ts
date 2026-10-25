@@ -11,6 +11,7 @@ const ServerConfigSchema = z.object({
   port: z.number().int().positive(),
   host: z.string(),
   base_path: z.string(),
+  json: z.object({ pretty: z.boolean().default(false) }).default({ pretty: false }),
   tls: z.object({
     enabled: z.boolean(),
     cert_file: z.string().optional(),
@@ -30,7 +31,7 @@ const OpenAPIConfigSchema = z.object({
     z.object({
       url: z.string(),
       description: z.string(),
-    })
+    }),
   ),
 });
 
@@ -49,8 +50,8 @@ const RegistryConfigSchema = z.object({
       id: z.string(),
       path: z.string(),
       readonly: z.boolean(),
-      sheets: z.record(SheetHeaderConfigSchema).optional(),
-    })
+      sheets: z.record(z.string(), SheetHeaderConfigSchema).optional(),
+    }),
   ),
 });
 
@@ -79,11 +80,13 @@ const AuthConfigSchema = z.object({
 const LoggingConfigSchema = z.object({
   level: z.enum(['error', 'warn', 'info', 'debug', 'trace']),
   format: z.enum(['json', 'text']),
-  file: z.object({
-    enabled: z.boolean(),
-    path: z.string(),
-    max_files: z.number().int().positive().optional(),
-  }).optional(),
+  file: z
+    .object({
+      enabled: z.boolean(),
+      path: z.string(),
+      max_files: z.number().int().positive().optional(),
+    })
+    .optional(),
 });
 
 const LifecycleConfigSchema = z.object({
@@ -105,17 +108,26 @@ const ConfigSchema = z.object({
   auth: AuthConfigSchema,
   logging: LoggingConfigSchema,
   lifecycle: LifecycleConfigSchema.optional(),
-  rate_limit: RateLimitConfigSchema.default({ enabled: true, token_per_minute: 20, requests_per_minute: 600 }),
-  profiles: z.record(z.lazy(() => z.object({
-    server: ServerConfigSchema.partial().optional(),
-    openapi: OpenAPIConfigSchema.partial().optional(),
-    registry: RegistryConfigSchema.partial().optional(),
-    queue: QueueConfigSchema.partial().optional(),
-    cache: CacheConfigSchema.partial().optional(),
-    auth: AuthConfigSchema.partial().optional(),
-    logging: LoggingConfigSchema.partial().optional(),
-    lifecycle: LifecycleConfigSchema.partial().optional(),
-  }))).optional(),
+  rate_limit: RateLimitConfigSchema.default({
+    enabled: true,
+    token_per_minute: 20,
+    requests_per_minute: 600,
+  }),
+  profiles: z
+    .record(
+      z.string(),
+      z.object({
+        server: ServerConfigSchema.partial().optional(),
+        openapi: OpenAPIConfigSchema.partial().optional(),
+        registry: RegistryConfigSchema.partial().optional(),
+        queue: QueueConfigSchema.partial().optional(),
+        cache: CacheConfigSchema.partial().optional(),
+        auth: AuthConfigSchema.partial().optional(),
+        logging: LoggingConfigSchema.partial().optional(),
+        lifecycle: LifecycleConfigSchema.partial().optional(),
+      }),
+    )
+    .optional(),
 });
 
 const AccessConfigSchema = z.object({
@@ -129,14 +141,14 @@ const AccessConfigSchema = z.object({
         client_secret: z.string(),
         grant_types: z.array(z.string()),
         scopes: z.array(z.string()),
-      })
+      }),
     ),
     users: z.array(
       z.object({
         username: z.string(),
         password_hash: z.string(),
         scopes: z.array(z.string()),
-      })
+      }),
     ),
   }),
   tokens: z.object({
@@ -145,7 +157,7 @@ const AccessConfigSchema = z.object({
         token: z.string(),
         name: z.string(),
         scopes: z.array(z.string()),
-      })
+      }),
     ),
   }),
   acl: z.object({
@@ -154,7 +166,7 @@ const AccessConfigSchema = z.object({
         scope: z.string(),
         allow: z.array(z.string()),
         admin_endpoints: z.boolean().optional(),
-      })
+      }),
     ),
   }),
 });
@@ -170,7 +182,7 @@ function interpolateVariables(obj: unknown): unknown {
       return envValue;
     });
   } else if (Array.isArray(obj)) {
-    return obj.map(item => interpolateVariables(item));
+    return obj.map((item) => interpolateVariables(item));
   } else if (obj !== null && typeof obj === 'object') {
     const result: Record<string, unknown> = {};
     for (const key in obj) {

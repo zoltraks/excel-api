@@ -69,6 +69,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                             authorities);
 
             SecurityContextHolder.getContext().setAuthentication(authentication);
+        } else {
+            request.setAttribute("excel.api.token.expired", Boolean.TRUE);
         }
 
         filterChain.doFilter(request, response);

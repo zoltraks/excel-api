@@ -52,13 +52,14 @@ const accessConfig = loadAccessConfig({
   ...(args.workDir && { workDir: args.workDir }),
   ...(args.accessPath && { accessPath: args.accessPath }),
   logger: {
-    warn: (message: string, additional?: Record<string, unknown>) => logger.warn(message, additional),
+    warn: (message: string, additional?: Record<string, unknown>) =>
+      logger.warn(message, additional),
   },
 });
 const jwtAuth = new JWTAuth(
   accessConfig.jwt.secret,
   config.auth.jwt.issuer,
-  config.auth.jwt.expiration_minutes
+  config.auth.jwt.expiration_minutes,
 );
 const oauth2Handler = new OAuth2Handler(accessConfig, jwtAuth);
 const staticTokenAuth = new StaticTokenAuth(accessConfig);
@@ -74,7 +75,9 @@ const fileLogger = createFileLogger(config.logging.file);
 let httpsOptions: { cert: string; key: string } | null = null;
 if (config.server.tls.enabled) {
   if (!config.server.tls.cert_file || !config.server.tls.key_file) {
-    logger.error('TLS is enabled but server.tls.cert_file and/or server.tls.key_file are not configured');
+    logger.error(
+      'TLS is enabled but server.tls.cert_file and/or server.tls.key_file are not configured',
+    );
     process.exit(1);
   }
   httpsOptions = {
@@ -84,15 +87,25 @@ if (config.server.tls.enabled) {
 }
 
 const server = (
-  httpsOptions
-    ? Fastify({ logger: false, https: httpsOptions })
-    : Fastify({ logger: false })
+  httpsOptions ? Fastify({ logger: false, https: httpsOptions }) : Fastify({ logger: false })
 ) as FastifyInstance;
 
 server.addHook('onSend', (_request, reply, payload, done) => {
   reply.header('X-Content-Type-Options', 'nosniff');
   reply.header('X-Frame-Options', 'DENY');
   reply.header('Referrer-Policy', 'no-referrer');
+  if (
+    config.server.json.pretty &&
+    typeof payload === 'string' &&
+    String(reply.getHeader('content-type')).includes('json')
+  ) {
+    try {
+      done(null, JSON.stringify(JSON.parse(payload), null, 2));
+      return;
+    } catch {
+      // payload is not parseable JSON - send as-is
+    }
+  }
   done(null, payload);
 });
 
@@ -108,20 +121,28 @@ server.addHook('onResponse', (request, reply, done) => {
 
   const logData = buildRequestLogRecord(request, reply);
   logger.info('Request completed', logData);
-  if (fileLogger) { fileLogger.log(logData); }
+  if (fileLogger) {
+    fileLogger.log(logData);
+  }
   done();
 });
 
 server.addContentTypeParser('application/x-www-form-urlencoded', (_request, payload, done) => {
   let body = '';
-  payload.on('data', (chunk: Buffer) => { body += chunk.toString(); });
+  payload.on('data', (chunk: Buffer) => {
+    body += chunk.toString();
+  });
   payload.on('end', () => {
     try {
       const params = new URLSearchParams(body);
       const parsed: Record<string, string> = {};
-      params.forEach((value, key) => { parsed[key] = value; });
+      params.forEach((value, key) => {
+        parsed[key] = value;
+      });
       done(null, parsed);
-    } catch (err) { done(err as Error); }
+    } catch (err) {
+      done(err as Error);
+    }
   });
 });
 
@@ -171,11 +192,15 @@ const start = async (): Promise<void> => {
   const port = config.server.port;
   const host = config.server.host;
   await server.listen({ port, host });
-  logger.info(`Server listening at ${config.server.tls.enabled ? 'https' : 'http'}://${host}:${port}`);
+  logger.info(
+    `Server listening at ${config.server.tls.enabled ? 'https' : 'http'}://${host}:${port}`,
+  );
 
   if (config.lifecycle?.life) {
     const lifeMs = parseDuration(config.lifecycle.life);
-    logger.info(`Lifecycle limit set to ${config.lifecycle.life}, will shut down gracefully after this duration`);
+    logger.info(
+      `Lifecycle limit set to ${config.lifecycle.life}, will shut down gracefully after this duration`,
+    );
     setTimeout(async () => {
       logger.info('Lifecycle limit reached, initiating graceful shutdown');
       await server.close();

@@ -1,6 +1,9 @@
 package pl.alyx.api.excel.filter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import pl.alyx.api.excel.configuration.AppConfiguration;
+import pl.alyx.api.excel.configuration.JacksonConfiguration;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -41,8 +44,11 @@ public class AclAuthorizationFilter extends OncePerRequestFilter {
      * Creates a new AclAuthorizationFilter.
      * @param accessConfiguration the access configuration containing ACL rules
      */
-    public AclAuthorizationFilter(final AccessConfiguration accessConfiguration) {
+    public AclAuthorizationFilter(final AccessConfiguration accessConfiguration, final AppConfiguration configuration) {
         this.accessConfiguration = accessConfiguration;
+        if (JacksonConfiguration.isPretty(configuration)) {
+            objectMapper.enable(SerializationFeature.INDENT_OUTPUT);
+        }
     }
 
     /**

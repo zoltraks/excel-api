@@ -12,54 +12,51 @@ export function authRoutes(oauth2Handler: OAuth2Handler) {
         username?: string;
         password?: string;
       };
-    }>(
-      '/auth/token',
-      async (request, reply: FastifyReply) => {
-        metrics.incrementCounter('excel_api_auth_token_requests_total');
-        const startTime = Date.now();
+    }>('/auth/token', async (request, reply: FastifyReply) => {
+      metrics.incrementCounter('excel_api_auth_token_requests_total');
+      const startTime = Date.now();
 
-        try {
-          let tokenResponse;
+      try {
+        let tokenResponse;
 
-          if (request.body.grant_type === 'client_credentials') {
-            if (!request.body.client_id || !request.body.client_secret) {
-              return reply.status(400).send({
-                error: 'invalid_request',
-                error_description: 'client_id and client_secret are required',
-              });
-            }
-            tokenResponse = await oauth2Handler.handleClientCredentialsGrant(
-              request.body.client_id,
-              request.body.client_secret
-            );
-          } else if (request.body.grant_type === 'password') {
-            if (!request.body.username || !request.body.password) {
-              return reply.status(400).send({
-                error: 'invalid_request',
-                error_description: 'username and password are required',
-              });
-            }
-            tokenResponse = await oauth2Handler.handlePasswordGrant(
-              request.body.username,
-              request.body.password
-            );
-          } else {
+        if (request.body.grant_type === 'client_credentials') {
+          if (!request.body.client_id || !request.body.client_secret) {
             return reply.status(400).send({
-              error: 'unsupported_grant_type',
-              error_description: 'Only client_credentials and password grants are supported',
+              error: 'invalid_request',
+              error_description: 'client_id and client_secret are required',
             });
           }
-
-          metrics.observeHistogram('excel_api_auth_token_duration_ms', Date.now() - startTime);
-          return tokenResponse;
-        } catch (error) {
-          metrics.incrementCounter('excel_api_errors_total', 1, { error: 'AUTH_FAILED' });
-          return reply.status(401).send({
-            error: 'invalid_client',
-            error_description: error instanceof Error ? error.message : 'Authentication failed',
+          tokenResponse = await oauth2Handler.handleClientCredentialsGrant(
+            request.body.client_id,
+            request.body.client_secret,
+          );
+        } else if (request.body.grant_type === 'password') {
+          if (!request.body.username || !request.body.password) {
+            return reply.status(400).send({
+              error: 'invalid_request',
+              error_description: 'username and password are required',
+            });
+          }
+          tokenResponse = await oauth2Handler.handlePasswordGrant(
+            request.body.username,
+            request.body.password,
+          );
+        } else {
+          return reply.status(400).send({
+            error: 'unsupported_grant_type',
+            error_description: 'Only client_credentials and password grants are supported',
           });
         }
+
+        metrics.observeHistogram('excel_api_auth_token_duration_ms', Date.now() - startTime);
+        return tokenResponse;
+      } catch (error) {
+        metrics.incrementCounter('excel_api_errors_total', 1, { error: 'AUTH_FAILED' });
+        return reply.status(401).send({
+          error: 'invalid_client',
+          error_description: error instanceof Error ? error.message : 'Authentication failed',
+        });
       }
-    );
+    });
   };
 }

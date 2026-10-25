@@ -5,7 +5,7 @@ export class RateLimiter {
 
   constructor(
     private readonly limit: number,
-    private readonly windowMs: number
+    private readonly windowMs: number,
   ) {}
 
   hit(key: string): boolean {

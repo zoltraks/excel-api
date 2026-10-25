@@ -554,3 +554,6 @@ single-quoted literals, or write the file with a single-quoted heredoc.
   nowhere else.
 - Host shells vary (GNU bash on Linux/macOS, Git Bash on Windows) - keep
   scripts POSIX-clean and probe tool variants before relying on flags.
+- Parallel verification batches run each subshell with an absolute path -
+  in `cd root && (cd a; ...) & (cd b; ...) &`, the jobs after the first `&`
+  inherit the original working directory, not `root`.

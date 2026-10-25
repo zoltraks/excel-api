@@ -10,7 +10,7 @@ type AuthMiddleware = (request: FastifyRequest, reply: FastifyReply) => Promise<
 export function workbookRoutes(
   registry: WorkbookRegistry,
   authMiddleware: AuthMiddleware,
-  aclChecker: ACLChecker
+  aclChecker: ACLChecker,
 ) {
   return async function (server: FastifyInstance): Promise<void> {
     server.get(
@@ -32,7 +32,7 @@ export function workbookRoutes(
               size_bytes: wb.size_bytes,
               sheets: sheetInfos.map((s) => s.name),
             };
-          })
+          }),
         );
         const response = {
           items,
@@ -41,7 +41,7 @@ export function workbookRoutes(
 
         metrics.observeHistogram('excel_api_workbooks_list_duration_ms', Date.now() - startTime);
         return response;
-      }
+      },
     );
 
     server.get<{ Params: { id: string } }>(
@@ -70,7 +70,7 @@ export function workbookRoutes(
           size_bytes: workbook.size_bytes,
           sheets: sheets.map((s) => s.name),
         };
-      }
+      },
     );
   };
 }

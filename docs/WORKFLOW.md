@@ -155,6 +155,7 @@ Naming the routine is itself the version-bump request for the closing stage.
 Enumerate change requests under `docs/change/<version>/` for the current version.
 Future-version segments stay outside the window - their work joins the next cycle.
 Each unimplemented change request runs the per-change cycle: implementation plan auto-confirmed, documentation-first, implementation per the relevant `docs/standard/` standard, per-change verification loop.
+Implementation status is verified from the landed code and tests, never from plan existence alone - implementation tells the truth.
 The parity rules apply: every applicable implementation and synchronized versions.
 
 **Stage 2 - Clean-build gate**

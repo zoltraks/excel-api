@@ -12,6 +12,9 @@ export interface ServerConfig {
   cors: {
     allowed_origins: string[];
   };
+  json: {
+    pretty: boolean;
+  };
 }
 
 export interface OpenAPIConfig {

@@ -17,7 +17,7 @@ Node.js/TypeScript implementation of the Excel API using ExcelJS. This implement
 
 ## Prerequisites
 
-- Node.js 18+ 
+- Node.js 18+
 - npm or yarn
 
 ## Installation
@@ -73,6 +73,7 @@ export ACCESS_PATH=/path/to/access.yaml
 ### Configuration Structure
 
 **config.yaml** contains:
+
 - Server settings (port, host, base path, TLS)
 - OpenAPI specification
 - Workbook registry (base directory, workbook entries)
@@ -83,6 +84,7 @@ export ACCESS_PATH=/path/to/access.yaml
 - Logging settings (level, format, file output)
 
 **access.yaml** contains:
+
 - JWT secret
 - OAuth2 clients and users
 - Static tokens

@@ -75,10 +75,10 @@ export class OAuth2Handler {
 
   async handleClientCredentialsGrant(
     clientId: string,
-    clientSecret: string
+    clientSecret: string,
   ): Promise<TokenResponse> {
     const client = this.accessConfig.oauth2.clients.find(
-      (c) => c.client_id === clientId && secretsEqual(c.client_secret, clientSecret)
+      (c) => c.client_id === clientId && secretsEqual(c.client_secret, clientSecret),
     );
 
     if (!client) {
@@ -100,10 +100,7 @@ export class OAuth2Handler {
     };
   }
 
-  async handlePasswordGrant(
-    username: string,
-    password: string
-  ): Promise<TokenResponse> {
+  async handlePasswordGrant(username: string, password: string): Promise<TokenResponse> {
     const user = this.accessConfig.oauth2.users.find((u) => u.username === username);
 
     if (!user) {

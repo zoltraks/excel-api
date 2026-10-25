@@ -56,7 +56,9 @@ public class WebSecurityConfiguration {
                         .authenticationEntryPoint((request, response, authException) -> writeError(
                                 response,
                                 STATUS_UNAUTHORIZED,
-                                "UNAUTHORIZED",
+                                Boolean.TRUE.equals(request.getAttribute("excel.api.token.expired"))
+                                        ? "TOKEN_EXPIRED"
+                                        : "UNAUTHORIZED",
                                 "Authentication required"))
                         .accessDeniedHandler((request, response, accessDeniedException) -> writeError(
                                 response,

@@ -86,7 +86,7 @@ class FileLock {
         throw new Error(`File is locked by ${holder}`);
       }
 
-      await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS));
+      await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
     }
   }
 
@@ -163,7 +163,11 @@ class FileLock {
 
 let lockInstance: FileLock | null = null;
 
-export function initFileLock(lockDir: string, lockTimeoutMs: number, implementation: string): FileLock {
+export function initFileLock(
+  lockDir: string,
+  lockTimeoutMs: number,
+  implementation: string,
+): FileLock {
   if (!lockInstance) {
     lockInstance = new FileLock(lockDir, lockTimeoutMs, implementation);
   }

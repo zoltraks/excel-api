@@ -5,7 +5,7 @@ export enum LogLevel {
   ERROR = 'error',
   WARN = 'warn',
   INFO = 'info',
-  DEBUG = 'debug'
+  DEBUG = 'debug',
 }
 
 export interface LogData {
@@ -36,17 +36,22 @@ class Logger {
     return levels.indexOf(level) >= levels.indexOf(this.level);
   }
 
-  private formatLog(level: LogLevel, message: string, additional?: Record<string, unknown>): LogData {
+  private formatLog(
+    level: LogLevel,
+    message: string,
+    additional?: Record<string, unknown>,
+  ): LogData {
     const now = new Date();
     const date = now.toISOString().split('T')[0];
-    const time = now.toTimeString().split(' ')[0] + '.' + now.getMilliseconds().toString().padStart(3, '0');
+    const time =
+      now.toTimeString().split(' ')[0] + '.' + now.getMilliseconds().toString().padStart(3, '0');
 
     return {
       level,
       date,
       time,
       message,
-      ...additional
+      ...additional,
     };
   }
 

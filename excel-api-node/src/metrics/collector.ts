@@ -111,7 +111,9 @@ class MetricsCollector {
       lines.push(`# TYPE ${name} histogram`);
       for (const { labelStr, value } of entries) {
         for (let i = 0; i < HISTOGRAM_BUCKETS.length; i++) {
-          const labels = labelStr ? `${labelStr},le="${HISTOGRAM_BUCKETS[i]}"` : `le="${HISTOGRAM_BUCKETS[i]}"`;
+          const labels = labelStr
+            ? `${labelStr},le="${HISTOGRAM_BUCKETS[i]}"`
+            : `le="${HISTOGRAM_BUCKETS[i]}"`;
           lines.push(`${name}_bucket{${labels}} ${value.buckets[i]}`);
         }
         const infLabels = labelStr ? `${labelStr},le="+Inf"` : 'le="+Inf"';

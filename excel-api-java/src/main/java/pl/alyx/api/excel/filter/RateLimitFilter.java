@@ -10,6 +10,8 @@ import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 import pl.alyx.api.excel.configuration.AppConfiguration;
+import pl.alyx.api.excel.configuration.JacksonConfiguration;
+import com.fasterxml.jackson.databind.SerializationFeature;
 
 import java.io.IOException;
 import java.util.Map;
@@ -39,6 +41,9 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     @SuppressWarnings("unchecked")
     public RateLimitFilter(final AppConfiguration configuration) {
+        if (JacksonConfiguration.isPretty(configuration)) {
+            objectMapper.enable(SerializationFeature.INDENT_OUTPUT);
+        }
         final Object section = configuration.get("rate_limit");
         final Map<String, Object> rateLimit = section instanceof Map
                 ? (Map<String, Object>) section

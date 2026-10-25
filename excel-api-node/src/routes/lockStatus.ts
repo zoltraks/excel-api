@@ -11,7 +11,7 @@ type AuthMiddleware = (request: FastifyRequest, reply: FastifyReply) => Promise<
 export function lockStatusRoutes(
   registry: WorkbookRegistry,
   authMiddleware: AuthMiddleware,
-  aclChecker: ACLChecker
+  aclChecker: ACLChecker,
 ) {
   return async function (server: FastifyInstance): Promise<void> {
     server.get<{ Params: { id: string } }>(
@@ -32,11 +32,14 @@ export function lockStatusRoutes(
 
         const fileLock = getFileLock();
         const lockInfo = fileLock.getLockInfo(request.params.id);
-        const lockStatus = { ...lockInfo, queue_depth: getWriteQueue().getDepth(request.params.id) };
+        const lockStatus = {
+          ...lockInfo,
+          queue_depth: getWriteQueue().getDepth(request.params.id),
+        };
 
         metrics.observeHistogram('excel_api_lock_status_duration_ms', Date.now() - startTime);
         return lockStatus;
-      }
+      },
     );
   };
 }

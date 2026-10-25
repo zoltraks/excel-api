@@ -9,11 +9,7 @@ export class ACLChecker {
     this.accessConfig = accessConfig;
   }
 
-  checkPermission(
-    scope: string,
-    method: string,
-    isAdminEndpoint: boolean = false
-  ): boolean {
+  checkPermission(scope: string, method: string, isAdminEndpoint: boolean = false): boolean {
     const rule = this.accessConfig.acl.rules.find((r) => r.scope === scope);
 
     if (!rule) {
@@ -33,7 +29,9 @@ export class ACLChecker {
     const rules = [...this.accessConfig.acl.rules].sort((a, b) => {
       // Priority: read < write < admin
       const priority = { read: 1, write: 2, admin: 3 };
-      return priority[a.scope as keyof typeof priority] - priority[b.scope as keyof typeof priority];
+      return (
+        priority[a.scope as keyof typeof priority] - priority[b.scope as keyof typeof priority]
+      );
     });
 
     for (const rule of rules) {

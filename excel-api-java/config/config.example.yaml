@@ -6,6 +6,8 @@ server:
     enabled: false
     # cert_file: "certs/server.crt"  # PEM certificate, required when enabled
     # key_file: "certs/server.key"   # PEM private key, required when enabled
+  json:
+    pretty: false
   cors:
     enabled: true
     # Cross-origin allowlist; empty list denies all cross-origin requests.

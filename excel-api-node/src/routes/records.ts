@@ -14,7 +14,7 @@ type AuthMiddleware = (request: FastifyRequest, reply: FastifyReply) => Promise<
 export function recordRoutes(
   registry: WorkbookRegistry,
   authMiddleware: AuthMiddleware,
-  aclChecker: ACLChecker
+  aclChecker: ACLChecker,
 ) {
   return async function (server: FastifyInstance): Promise<void> {
     server.get<{
@@ -37,11 +37,21 @@ export function recordRoutes(
         }
 
         const offset = Number.parseInt(String(request.query.offset ?? '0'), 10) || 0;
-        const limit = Math.min(Number.parseInt(String(request.query.limit ?? '100'), 10) || 100, 1000);
+        const limit = Math.min(
+          Number.parseInt(String(request.query.limit ?? '100'), 10) || 100,
+          1000,
+        );
         const format = request.query.format ?? 'native';
 
         try {
-          const records = await readRecords(workbook.path, request.params.sheetName, workbook.sheets?.[request.params.sheetName], offset, limit, format);
+          const records = await readRecords(
+            workbook.path,
+            request.params.sheetName,
+            workbook.sheets?.[request.params.sheetName],
+            offset,
+            limit,
+            format,
+          );
           metrics.observeHistogram('excel_api_records_list_duration_ms', Date.now() - startTime);
           return records;
         } catch (error) {
@@ -50,7 +60,9 @@ export function recordRoutes(
             return reply.status(404).send({ error: 'SHEET_NOT_FOUND', message: error.message });
           }
           if (error instanceof Error && error.message.includes('not configured')) {
-            metrics.incrementCounter('excel_api_errors_total', 1, { error: 'SHEET_NOT_CONFIGURED' });
+            metrics.incrementCounter('excel_api_errors_total', 1, {
+              error: 'SHEET_NOT_CONFIGURED',
+            });
             return reply.status(400).send({
               error: 'SHEET_NOT_CONFIGURED',
               message: 'Sheet is not configured for tabular access',
@@ -59,7 +71,7 @@ export function recordRoutes(
           metrics.incrementCounter('excel_api_errors_total', 1, { error: 'INTERNAL_ERROR' });
           throw error;
         }
-      }
+      },
     );
 
     server.get<{
@@ -85,13 +97,23 @@ export function recordRoutes(
 
         try {
           const recordIndex = Number.parseInt(String(request.params.recordIndex), 10);
-          const record = await readRecord(workbook.path, request.params.sheetName, recordIndex, workbook.sheets?.[request.params.sheetName], format);
+          const record = await readRecord(
+            workbook.path,
+            request.params.sheetName,
+            recordIndex,
+            workbook.sheets?.[request.params.sheetName],
+            format,
+          );
           metrics.observeHistogram('excel_api_record_get_duration_ms', Date.now() - startTime);
           return record;
         } catch (error) {
           if (error instanceof Error && error.message.includes('not configured')) {
-            metrics.incrementCounter('excel_api_errors_total', 1, { error: 'SHEET_NOT_CONFIGURED' });
-            return reply.status(400).send({ error: 'SHEET_NOT_CONFIGURED', message: error.message });
+            metrics.incrementCounter('excel_api_errors_total', 1, {
+              error: 'SHEET_NOT_CONFIGURED',
+            });
+            return reply
+              .status(400)
+              .send({ error: 'SHEET_NOT_CONFIGURED', message: error.message });
           }
           if (error instanceof Error && error.message.includes('not found')) {
             metrics.incrementCounter('excel_api_errors_total', 1, { error: 'SHEET_NOT_FOUND' });
@@ -104,7 +126,7 @@ export function recordRoutes(
           metrics.incrementCounter('excel_api_errors_total', 1, { error: 'INTERNAL_ERROR' });
           throw error;
         }
-      }
+      },
     );
 
     server.post<{
@@ -128,7 +150,9 @@ export function recordRoutes(
 
         if (workbook.readonly) {
           metrics.incrementCounter('excel_api_errors_total', 1, { error: 'READONLY_WORKBOOK' });
-          return reply.status(422).send({ error: 'READONLY_WORKBOOK', message: 'Workbook is readonly' });
+          return reply
+            .status(422)
+            .send({ error: 'READONLY_WORKBOOK', message: 'Workbook is readonly' });
         }
 
         const body = validate(reply, AddRecordSchema, request.body);
@@ -149,7 +173,7 @@ export function recordRoutes(
               afterRow: body.after_row,
               copyStyleFrom: body.copy_style_from,
             },
-            createBatchExecutor(request.params.id, workbook.path, workbook.sheets)
+            createBatchExecutor(request.params.id, workbook.path, workbook.sheets),
           );
         } catch (error) {
           if (handleEnqueueError(reply, error)) {
@@ -164,7 +188,7 @@ export function recordRoutes(
         }
         metrics.observeHistogram('excel_api_record_add_duration_ms', Date.now() - startTime);
         return reply.status(201).send(result.data);
-      }
+      },
     );
 
     server.put<{
@@ -188,7 +212,9 @@ export function recordRoutes(
 
         if (workbook.readonly) {
           metrics.incrementCounter('excel_api_errors_total', 1, { error: 'READONLY_WORKBOOK' });
-          return reply.status(422).send({ error: 'READONLY_WORKBOOK', message: 'Workbook is readonly' });
+          return reply
+            .status(422)
+            .send({ error: 'READONLY_WORKBOOK', message: 'Workbook is readonly' });
         }
 
         const body = validate(reply, UpdateRecordSchema, request.body);
@@ -208,7 +234,7 @@ export function recordRoutes(
               recordIndex: Number.parseInt(String(request.params.recordIndex), 10),
               data: body.data,
             },
-            createBatchExecutor(request.params.id, workbook.path, workbook.sheets)
+            createBatchExecutor(request.params.id, workbook.path, workbook.sheets),
           );
         } catch (error) {
           if (handleEnqueueError(reply, error)) {
@@ -223,7 +249,7 @@ export function recordRoutes(
         }
         metrics.observeHistogram('excel_api_record_update_duration_ms', Date.now() - startTime);
         return result.data as object;
-      }
+      },
     );
 
     server.delete<{
@@ -246,7 +272,9 @@ export function recordRoutes(
 
         if (workbook.readonly) {
           metrics.incrementCounter('excel_api_errors_total', 1, { error: 'READONLY_WORKBOOK' });
-          return reply.status(422).send({ error: 'READONLY_WORKBOOK', message: 'Workbook is readonly' });
+          return reply
+            .status(422)
+            .send({ error: 'READONLY_WORKBOOK', message: 'Workbook is readonly' });
         }
 
         const queue = getWriteQueue();
@@ -261,7 +289,7 @@ export function recordRoutes(
               recordIndex: Number.parseInt(String(request.params.recordIndex), 10),
               data: null,
             },
-            createBatchExecutor(request.params.id, workbook.path, workbook.sheets)
+            createBatchExecutor(request.params.id, workbook.path, workbook.sheets),
           );
         } catch (error) {
           if (handleEnqueueError(reply, error)) {
@@ -276,7 +304,7 @@ export function recordRoutes(
         }
         metrics.observeHistogram('excel_api_record_delete_duration_ms', Date.now() - startTime);
         return reply.status(204).send();
-      }
+      },
     );
   };
 }

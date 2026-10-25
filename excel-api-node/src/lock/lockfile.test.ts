@@ -49,7 +49,7 @@ describe('FileLock', () => {
     it('should acquire lock for a file', async () => {
       const lock = initFileLock(lockDir, 5000, 'excel-api-node');
       await lock.acquire('test-file.xlsx');
-      
+
       const lockfilePath = path.join(lockDir, 'test-file.xlsx.lock');
       expect(fs.existsSync(lockfilePath)).toBe(true);
     });
@@ -126,7 +126,7 @@ describe('FileLock', () => {
     it('should return true for fresh lock', async () => {
       const lock = initFileLock(lockDir, 5000, 'excel-api-node');
       await lock.acquire('test-file.xlsx');
-      
+
       // Lock should still be fresh
       expect(lock.isLocked('test-file.xlsx')).toBe(true);
     });
@@ -136,7 +136,7 @@ describe('FileLock', () => {
     it('should return correct lockfile path', () => {
       const lock = initFileLock(lockDir, 5000, 'excel-api-node');
       const lockfilePath = lock['getLockfilePath']('test-file.xlsx');
-      
+
       expect(lockfilePath).toBe(path.join(lockDir, 'test-file.xlsx.lock'));
     });
   });

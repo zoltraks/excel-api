@@ -58,7 +58,7 @@ class WriteQueue {
   enqueue(
     workbookId: string,
     operation: BatchOperation,
-    executor: BatchExecutor
+    executor: BatchExecutor,
   ): Promise<BatchResult> {
     const pending = this.pendingOperations.get(workbookId) ?? [];
     if (pending.length >= this.batchMaxSize) {
@@ -81,15 +81,13 @@ class WriteQueue {
   async enqueueBatch(
     workbookId: string,
     operations: BatchOperation[],
-    executor: BatchExecutor
+    executor: BatchExecutor,
   ): Promise<BatchResult[]> {
     const pending = this.pendingOperations.get(workbookId) ?? [];
     if (pending.length + operations.length > this.batchMaxSize) {
       throw new QueueFullError(workbookId);
     }
-    const results = operations.map(operation =>
-      this.enqueue(workbookId, operation, executor)
-    );
+    const results = operations.map((operation) => this.enqueue(workbookId, operation, executor));
     this.scheduleDrain(workbookId, 0);
     return Promise.all(results);
   }
@@ -115,7 +113,7 @@ class WriteQueue {
     }
     this.timers.set(
       workbookId,
-      setTimeout(() => this.drain(workbookId), delayMs)
+      setTimeout(() => this.drain(workbookId), delayMs),
     );
   }
 
@@ -138,13 +136,13 @@ class WriteQueue {
       this.running.set(workbookId, (this.running.get(workbookId) ?? 0) + batch.length);
       try {
         const results = executor
-          ? await executor(batch.map(pending => pending.operation))
+          ? await executor(batch.map((pending) => pending.operation))
           : batch.map((): BatchResult => ({ success: false, error: 'No executor registered' }));
         batch.forEach((pending, index) => {
           pending.resolve(results[index] ?? { success: false, error: 'No result produced' });
         });
       } catch (error) {
-        batch.forEach(pending => pending.reject(error as Error));
+        batch.forEach((pending) => pending.reject(error as Error));
       } finally {
         this.running.set(workbookId, (this.running.get(workbookId) ?? 0) - batch.length);
       }

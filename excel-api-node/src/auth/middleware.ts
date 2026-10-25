@@ -9,13 +9,10 @@ export interface AuthContext {
   scopes: string[];
 }
 
-export function createAuthMiddleware(
-  jwtAuth: JWTAuth,
-  staticTokenAuth: StaticTokenAuth
-) {
+export function createAuthMiddleware(jwtAuth: JWTAuth, staticTokenAuth: StaticTokenAuth) {
   return async function authMiddleware(
     request: FastifyRequest,
-    reply: FastifyReply
+    reply: FastifyReply,
   ): Promise<void> {
     const authHeader = request.headers.authorization;
 
@@ -74,12 +71,9 @@ export function createAuthMiddleware(
 export function createScopeCheckMiddleware(
   aclChecker: ACLChecker,
   requiredScope: string,
-  isAdminEndpoint: boolean = false
+  isAdminEndpoint: boolean = false,
 ) {
-  return async function (
-    request: FastifyRequest,
-    reply: FastifyReply
-  ): Promise<void> {
+  return async function (request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const authContext = request.auth as AuthContext | undefined;
 
     if (!authContext) {
@@ -100,11 +94,7 @@ export function createScopeCheckMiddleware(
     }
 
     const method = request.method;
-    const hasPermission = aclChecker.checkPermission(
-      requiredScope,
-      method,
-      isAdminEndpoint
-    );
+    const hasPermission = aclChecker.checkPermission(requiredScope, method, isAdminEndpoint);
 
     if (!hasPermission) {
       reply.status(403).send({

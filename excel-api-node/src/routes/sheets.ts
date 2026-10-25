@@ -10,7 +10,7 @@ type AuthMiddleware = (request: FastifyRequest, reply: FastifyReply) => Promise<
 export function sheetRoutes(
   registry: WorkbookRegistry,
   authMiddleware: AuthMiddleware,
-  aclChecker: ACLChecker
+  aclChecker: ACLChecker,
 ) {
   return async function (server: FastifyInstance): Promise<void> {
     server.get<{ Params: { id: string; sheetName: string } }>(
@@ -40,9 +40,13 @@ export function sheetRoutes(
         }
 
         metrics.observeHistogram('excel_api_sheet_get_duration_ms', Date.now() - startTime);
-        const metadata = await getSheetMetadata(workbook.path, sheet.name, workbook.sheets?.[sheet.name]);
+        const metadata = await getSheetMetadata(
+          workbook.path,
+          sheet.name,
+          workbook.sheets?.[sheet.name],
+        );
         return metadata;
-      }
+      },
     );
 
     server.get<{ Params: { id: string; sheetName: string } }>(
@@ -62,12 +66,18 @@ export function sheetRoutes(
         }
 
         try {
-          const columns = await getColumnDefinitions(workbook.path, request.params.sheetName, workbook.sheets?.[request.params.sheetName]);
+          const columns = await getColumnDefinitions(
+            workbook.path,
+            request.params.sheetName,
+            workbook.sheets?.[request.params.sheetName],
+          );
           metrics.observeHistogram('excel_api_columns_get_duration_ms', Date.now() - startTime);
           return columns;
         } catch (error) {
           if (error instanceof Error && error.message.includes('not configured')) {
-            metrics.incrementCounter('excel_api_errors_total', 1, { error: 'SHEET_NOT_CONFIGURED' });
+            metrics.incrementCounter('excel_api_errors_total', 1, {
+              error: 'SHEET_NOT_CONFIGURED',
+            });
             return reply.status(400).send({
               error: 'SHEET_NOT_CONFIGURED',
               message: error.message,
@@ -83,7 +93,7 @@ export function sheetRoutes(
           metrics.incrementCounter('excel_api_errors_total', 1, { error: 'INTERNAL_ERROR' });
           throw error;
         }
-      }
+      },
     );
   };
 }

@@ -3,7 +3,9 @@
 export function parseDuration(duration: string): number {
   const match = duration.match(/^(\d+)([smh])$/);
   if (!match) {
-    throw new Error(`Invalid duration format: ${duration}. Expected format: <number><unit> where unit is s, m, or h.`);
+    throw new Error(
+      `Invalid duration format: ${duration}. Expected format: <number><unit> where unit is s, m, or h.`,
+    );
   }
   const value = parseInt(match[1], 10);
   const unit = match[2];

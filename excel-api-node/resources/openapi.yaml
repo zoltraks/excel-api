@@ -2,7 +2,7 @@ openapi: "3.1.0"
 info:
   title: "Excel File API"
   description: "HTTP service exposing Excel spreadsheet data as a JSON API"
-  version: "0.0.4"
+  version: "0.0.5"
   contact:
     name: "Filip Golewski"
   license:
@@ -849,6 +849,13 @@ components:
       properties:
         error:
           type: string
+          description: >
+            Machine-readable error code. Known codes: INVALID_REQUEST,
+            UNAUTHORIZED, TOKEN_EXPIRED, FORBIDDEN, WORKBOOK_NOT_FOUND,
+            SHEET_NOT_FOUND, SHEET_NOT_CONFIGURED, READONLY_WORKBOOK,
+            FILE_LOCKED, SERVICE_BUSY, RATE_LIMITED. TOKEN_EXPIRED is
+            emitted when a Bearer token fails validation, including
+            expiry.
         message:
           type: string
         details:

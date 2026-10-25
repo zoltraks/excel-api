@@ -7,6 +7,12 @@ public class ServerOptions
     public string BasePath { get; set; } = "";
     public ServerTlsConfig? Tls { get; set; }
     public ServerCorsConfig? Cors { get; set; }
+    public ServerJsonConfig? Json { get; set; }
+}
+
+public class ServerJsonConfig
+{
+    public bool Pretty { get; set; }
 }
 
 public class ServerCorsConfig

@@ -118,9 +118,7 @@ describe('Workbook Registry', () => {
       ...config,
       registry: {
         ...config.registry,
-        workbooks: [
-          { id: 'missing', path: 'missing.xlsx', readonly: false },
-        ],
+        workbooks: [{ id: 'missing', path: 'missing.xlsx', readonly: false }],
       },
     };
     const registry = initRegistry(configWithMissing);
@@ -134,14 +132,14 @@ describe('Workbook Registry', () => {
     const registry = initRegistry(config);
     const workbook = registry.get('test1');
     const originalModified = workbook?.modified_at;
-    
+
     // Wait a bit and modify the file
     const filePath = path.join(tempDir, 'test1.xlsx');
     fs.writeFileSync(filePath, 'updated content');
-    
+
     registry.refreshModifiedAt('test1');
     const refreshed = registry.get('test1');
-    
+
     expect(refreshed?.modified_at).not.toBe(originalModified);
   });
 

@@ -1,4 +1,23 @@
-# Testing Strategy
+# Testing
+
+## Environment Notes
+
+Facts verified on this development machine - they gate the verification loop
+and are worth checking before diagnosing a failure as a code defect.
+
+- **Java toolchain**: only a current JDK is installed (JDK 27 via Homebrew);
+  Mockito cannot subclass-mock concrete classes on it - tests mock
+  interfaces or construct real objects (`LifecycleManagerTest` is the
+  precedent).
+- **.NET runtime**: `dotnet test` needs `DOTNET_ROLL_FORWARD=Major` - the
+  `net8.0` runtime is absent while the .NET 10 SDK is installed.
+- **npm audit**: run plain `npm audit fix` - the `--omit=dev` flag prunes
+  `devDependencies` from `node_modules` and breaks the test suite.
+- **access.yaml permissions**: checked-out `access.yaml` files must be
+  `chmod 600` or the servers warn about insecure permissions.
+- **C# example server**: `work/example/` holds a ready environment - run the
+  published binary with `--work work/example` on `http://localhost:8443`.
+ Strategy
 
 ## Test Environment Setup
 

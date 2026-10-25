@@ -60,7 +60,7 @@ export async function readCell(
   filePath: string,
   sheetName: string,
   cellRef: string,
-  format: 'native' | 'display' | 'string' = 'native'
+  format: 'native' | 'display' | 'string' = 'native',
 ): Promise<CellData> {
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.readFile(filePath);
@@ -98,7 +98,7 @@ export async function readRange(
   filePath: string,
   sheetName: string,
   rangeRef: string,
-  format: 'native' | 'display' | 'string' = 'native'
+  format: 'native' | 'display' | 'string' = 'native',
 ): Promise<RangeData> {
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.readFile(filePath);
@@ -201,7 +201,7 @@ export async function readRecords(
   sheetConfig?: SheetHeaderConfig,
   offset: number = 0,
   limit: number = 100,
-  format: 'native' | 'display' | 'string' = 'native'
+  format: 'native' | 'display' | 'string' = 'native',
 ): Promise<RecordList> {
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.readFile(filePath);
@@ -263,7 +263,7 @@ export async function readRecord(
   sheetName: string,
   recordIndex: number,
   sheetConfig?: SheetHeaderConfig,
-  format: 'native' | 'display' | 'string' = 'native'
+  format: 'native' | 'display' | 'string' = 'native',
 ): Promise<RecordItem> {
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.readFile(filePath);
@@ -320,7 +320,7 @@ function getSheetOrThrow(workbook: ExcelJS.Workbook, sheetName: string): ExcelJS
 export function applyWriteCell(
   sheet: ExcelJS.Worksheet,
   cellRef: string,
-  value: unknown
+  value: unknown,
 ): CellData {
   const cell = sheet.getCell(cellRef);
   cell.value = value as ExcelJS.CellValue;
@@ -348,7 +348,7 @@ export function applyAddRecord(
   layout: SheetLayout,
   headers: string[],
   afterRow?: number,
-  copyStyleFrom?: number
+  copyStyleFrom?: number,
 ): RecordItem {
   if (afterRow !== undefined && afterRow < 0) {
     throw new Error(`Record index ${afterRow} out of range`);
@@ -384,7 +384,7 @@ export function applyUpdateRecord(
   recordIndex: number,
   data: Record<string, unknown>,
   layout: SheetLayout,
-  headers: string[]
+  headers: string[],
 ): RecordItem {
   const excelRowNumber = layout.firstDataRow + recordIndex - 1;
   if (!Number.isInteger(recordIndex) || recordIndex < 1 || excelRowNumber > sheet.rowCount) {
@@ -407,7 +407,7 @@ export function applyUpdateRecord(
 export function applyDeleteRecord(
   sheet: ExcelJS.Worksheet,
   recordIndex: number,
-  layout: SheetLayout
+  layout: SheetLayout,
 ): void {
   const excelRowNumber = layout.firstDataRow + recordIndex - 1;
   if (!Number.isInteger(recordIndex) || recordIndex < 1 || excelRowNumber > sheet.rowCount) {
@@ -420,7 +420,7 @@ export async function writeCell(
   filePath: string,
   sheetName: string,
   cellRef: string,
-  value: unknown
+  value: unknown,
 ): Promise<CellData> {
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.readFile(filePath);
@@ -438,7 +438,7 @@ export async function addRecord(
   data: Record<string, unknown>,
   sheetConfig?: SheetHeaderConfig,
   afterRow?: number,
-  copyStyleFrom?: number
+  copyStyleFrom?: number,
 ): Promise<RecordItem> {
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.readFile(filePath);
@@ -451,7 +451,7 @@ export async function addRecord(
     layout,
     resolveColumnIds(workbook, sheet, layout),
     afterRow,
-    copyStyleFrom
+    copyStyleFrom,
   );
 
   await workbook.xlsx.writeFile(filePath);
@@ -464,7 +464,7 @@ export async function updateRecord(
   sheetName: string,
   recordIndex: number,
   data: Record<string, unknown>,
-  sheetConfig?: SheetHeaderConfig
+  sheetConfig?: SheetHeaderConfig,
 ): Promise<RecordItem> {
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.readFile(filePath);
@@ -476,7 +476,7 @@ export async function updateRecord(
     recordIndex,
     data,
     layout,
-    resolveColumnIds(workbook, sheet, layout)
+    resolveColumnIds(workbook, sheet, layout),
   );
 
   await workbook.xlsx.writeFile(filePath);
@@ -488,7 +488,7 @@ export async function deleteRecord(
   filePath: string,
   sheetName: string,
   recordIndex: number,
-  sheetConfig?: SheetHeaderConfig
+  sheetConfig?: SheetHeaderConfig,
 ): Promise<void> {
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.readFile(filePath);
@@ -503,7 +503,7 @@ export async function deleteRecord(
 export async function getSheetMetadata(
   filePath: string,
   sheetName: string,
-  sheetConfig?: SheetHeaderConfig
+  sheetConfig?: SheetHeaderConfig,
 ): Promise<{
   name: string;
   row_count: number;
@@ -534,7 +534,7 @@ export async function getSheetMetadata(
 export async function getColumnDefinitions(
   filePath: string,
   sheetName: string,
-  sheetConfig?: SheetHeaderConfig
+  sheetConfig?: SheetHeaderConfig,
 ): Promise<{
   source: string;
   columns: Array<{
@@ -586,7 +586,11 @@ export async function getColumnDefinitions(
   }
 
   const source =
-    layout.mode === 'legend' ? 'legend_sheet' : layout.mode === 'multi' ? 'multi_row' : 'header_row';
+    layout.mode === 'legend'
+      ? 'legend_sheet'
+      : layout.mode === 'multi'
+        ? 'multi_row'
+        : 'header_row';
   return { source, columns };
 }
 

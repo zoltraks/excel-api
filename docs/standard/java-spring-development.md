@@ -322,6 +322,10 @@ class WriteQueueTest {
 
 **Mock HTTP**: Use `MockMvc` for controller tests. Use `WireMock` for external HTTP mocking.
 
+**Mocking**: Mock interfaces only, or construct real objects. Subclass-mocking
+concrete classes fails on newer JDKs when the bundled byte-buddy predates the
+running JDK's class-file version (`LifecycleManagerTest` is the precedent).
+
 ## Formatting
 
 Use Checkstyle with a project-specific configuration. Key rules: 4-space indentation, 120-character line limit, braces on same line, no wildcard imports.
